@@ -5,7 +5,7 @@ export default function LoginScreen() {
   const { signIn } = useAuth()
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
-  const [remember, setRemember] = useState(true)
+  const [remember, setRemember] = useState(false)
   const [error, setError]       = useState('')
   const [loading, setLoading]   = useState(false)
 
@@ -31,194 +31,230 @@ export default function LoginScreen() {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
-        :root {
-          --primary: #002E6E;
-          --primary-light: #0A438F;
-          --accent-red: #E31C24;
-          --accent-orange: #F37021;
-          --accent-yellow: #FFC20E;
-          --bg-light: #F8FAFC;
-          --text-dark: #0F172A;
-          --text-muted: #64748B;
-          --border-color: #CBD5E1;
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; font-family:'Inter',sans-serif; }
+        .hap-body {
+          min-height: 100vh;
+          background: linear-gradient(135deg, #001F4E 0%, #003B85 55%, #0057B8 100%);
+          color: white;
+          position: relative;
+          overflow: hidden;
         }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Inter', sans-serif; }
+        .hap-watermark {
+          position: absolute;
+          left: -150px;
+          bottom: -180px;
+          font-size: 650px;
+          opacity: .04;
+          color: white;
+          pointer-events: none;
+          user-select: none;
+        }
+        .hap-logo {
+          position: absolute;
+          top: 45px;
+          left: 60px;
+        }
+        .hap-logo img {
+          height: 48px;
+          width: auto;
+        }
+        .hap-logo-text {
+          font-size: 22px;
+          font-weight: 800;
+          color: white;
+          letter-spacing: -0.5px;
+        }
+        .hap-logo-text span { color: #FF7900; }
+        .hap-container {
+          min-height: 100vh;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 80px;
+        }
+        .hap-info { width: 50%; }
+        .hap-title { font-size: 46px; font-weight: 800; margin-bottom: 18px; }
+        .hap-title span { color: #FF7900; }
+        .hap-subtitle { font-size: 22px; font-weight: 600; margin-bottom: 55px; }
+        .hap-line { width: 75px; height: 4px; background: #FF7900; margin-bottom: 35px; border-radius: 2px; }
+        .hap-description { max-width: 520px; font-size: 18px; line-height: 1.7; margin-bottom: 70px; opacity: .9; }
+        .hap-features { display: flex; gap: 50px; }
+        .hap-feature { width: 150px; }
+        .hap-icon { color: #FF7900; font-size: 30px; margin-bottom: 16px; }
+        .hap-feature strong { display: block; margin-bottom: 10px; font-size: 15px; }
+        .hap-feature p { line-height: 1.5; opacity: .85; font-size: 14px; }
+        .hap-login-box { width: 50%; display: flex; justify-content: center; }
+        .hap-card {
+          width: 560px;
+          background: white;
+          color: #0A1B3D;
+          padding: 56px;
+          border-radius: 28px;
+          box-shadow: 0 30px 80px rgba(0,0,0,.25);
+        }
+        .hap-card-header {
+          border-left: 5px solid #FF7900;
+          padding-left: 22px;
+          margin-bottom: 48px;
+        }
+        .hap-card-header h2 { font-size: 28px; font-weight: 700; margin-bottom: 6px; }
+        .hap-card-header p { color: #69758B; font-size: 15px; }
+        .hap-label { display: block; font-weight: 700; font-size: 14px; margin-bottom: 10px; color: #0A1B3D; }
         .hap-input {
           width: 100%;
-          height: 56px;
-          border: 1.5px solid var(--border-color);
-          border-radius: 8px;
+          height: 54px;
+          border: 1.5px solid #CBD5E1;
+          border-radius: 10px;
+          margin-bottom: 24px;
           padding: 0 18px;
-          font-size: 16px;
+          font-size: 15px;
           font-family: 'Inter', sans-serif;
-          color: var(--text-dark);
-          background: #fff;
-          transition: all 0.2s;
+          color: #0A1B3D;
           outline: none;
+          transition: border-color .2s, box-shadow .2s;
         }
-        .hap-input:focus {
-          border-color: var(--primary);
-          box-shadow: 0 0 0 4px rgba(0,46,110,0.1);
+        .hap-input:focus { border-color: #003B85; box-shadow: 0 0 0 4px rgba(0,59,133,0.1); }
+        .hap-options {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          font-size: 14px;
+          margin-bottom: 36px;
+        }
+        .hap-options label { display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 500; color: #334155; }
+        .hap-error {
+          background: #FEF2F2;
+          border: 1px solid #FECACA;
+          color: #DC2626;
+          border-radius: 8px;
+          padding: 12px 14px;
+          font-size: 14px;
+          margin-bottom: 20px;
         }
         .hap-btn {
           width: 100%;
-          height: 56px;
-          background: var(--primary);
+          height: 58px;
           border: none;
-          border-radius: 8px;
-          color: #fff;
+          border-radius: 10px;
+          background: #003B85;
+          color: white;
           font-size: 17px;
-          font-weight: 600;
+          font-weight: 700;
           font-family: 'Inter', sans-serif;
           cursor: pointer;
-          box-shadow: 0 10px 25px -5px rgba(0,46,110,0.3);
-          transition: background 0.2s, transform 0.1s;
+          transition: background .25s;
         }
-        .hap-btn:hover:not(:disabled) { background: var(--primary-light); }
-        .hap-btn:active:not(:disabled) { transform: scale(0.99); }
-        .hap-btn:disabled { opacity: 0.7; cursor: not-allowed; }
-        .grid-overlay {
-          position: absolute;
-          inset: 0;
-          background-image:
-            linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
-          background-size: 40px 40px;
-          pointer-events: none;
+        .hap-btn:hover:not(:disabled) { background: #FF7900; }
+        .hap-btn:disabled { opacity: .7; cursor: not-allowed; }
+        .hap-sso {
+          margin-top: 36px;
+          text-align: center;
+          color: #0057B8;
+          font-weight: 600;
+          font-size: 14px;
         }
-        .brand-glow {
-          position: absolute;
-          width: 500px; height: 500px;
-          border-radius: 50%;
-          background: radial-gradient(circle, rgba(243,112,33,0.12) 0%, transparent 70%);
-          pointer-events: none;
+        .hap-footer {
+          position: fixed;
+          bottom: 30px;
+          left: 60px;
+          font-size: 13px;
+          opacity: .8;
         }
-        .brand-line {
-          height: 5px;
-          width: 140px;
-          background: linear-gradient(90deg, #E31C24 0%, #F37021 50%, #FFC20E 100%);
-          border-radius: 3px;
-          margin: 20px 0;
+        .hap-version {
+          position: fixed;
+          right: 60px;
+          bottom: 30px;
+          font-size: 13px;
+          opacity: .7;
+        }
+        @media (max-width: 900px) {
+          .hap-container { flex-direction: column; padding: 40px 20px; padding-top: 100px; }
+          .hap-info { display: none; }
+          .hap-login-box { width: 100%; }
+          .hap-card { width: 100%; padding: 36px 28px; }
         }
       `}</style>
 
-      <div style={{ display:'flex', minHeight:'100vh', fontFamily:"'Inter', sans-serif" }}>
+      <div className="hap-body">
+        {/* Marca d'água */}
+        <div className="hap-watermark">✤</div>
 
-        {/* ── Lado esquerdo (azul) ── */}
-        <div style={{ flex:'0 0 50%', background:'var(--primary)', position:'relative', overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center' }}>
-          <div className="grid-overlay" />
-          <div className="brand-glow" style={{ left:100, top:180 }} />
-          <div className="brand-glow" style={{ right:-50, bottom:100, width:300, height:300 }} />
+        {/* Logo */}
+        <div className="hap-logo">
+          {/* Se tiver a imagem da logo, descomente a linha abaixo e apague o texto */}
+          {/* <img src="/logo-hapvida.png" alt="Hapvida" /> */}
+          <div className="hap-logo-text">Hapvida <span>|</span> TI</div>
+        </div>
 
-          <div style={{ position:'relative', zIndex:10, padding:'48px 64px', color:'#fff', maxWidth:560 }}>
-            {/* Ícone / símbolo */}
-            <div style={{ width:72, height:72, borderRadius:20, background:'rgba(255,255,255,0.12)', display:'flex', alignItems:'center', justifyContent:'center', marginBottom:36, fontSize:36 }}>
-              🏥
-            </div>
+        <div className="hap-container">
 
-            <h1 style={{ fontSize:52, fontWeight:800, letterSpacing:'-0.02em', lineHeight:1.1, marginBottom:8 }}>
-              Plataforma<br/>Hapvida
+          {/* ── Lado esquerdo: informações ── */}
+          <section className="hap-info">
+            <h1 className="hap-title">
+              Plataforma | <span>Governança TI</span>
             </h1>
-
-            <div className="brand-line" />
-
-            <p style={{ fontSize:20, fontWeight:300, lineHeight:1.6, color:'rgba(255,255,255,0.85)', marginBottom:20 }}>
-              Governança inteligente, acompanhamento ágil de marcos estratégicos e integridade nos cronogramas da operação.
+            <div className="hap-subtitle">Portfólio e evolução das iniciativas</div>
+            <div className="hap-line" />
+            <p className="hap-description">
+              Acompanhe o progresso das demandas e a gestão do portfólio.
             </p>
-
-            <p style={{ fontSize:13, fontWeight:500, color:'rgba(255,255,255,0.45)', letterSpacing:'0.08em', textTransform:'uppercase' }}>
-              Exclusivo para Colaboradores Hapvida
-            </p>
-
-            {/* Cards de destaque */}
-            <div style={{ marginTop:48, display:'flex', flexDirection:'column', gap:12 }}>
+            <div className="hap-features">
               {[
-                { icon:'📊', text:'Status Report automatizado' },
-                { icon:'📅', text:'Cronogramas e marcos em tempo real' },
-                { icon:'📑', text:'Geração de PPTX com 1 clique' },
-              ].map(({ icon, text }) => (
-                <div key={text} style={{ display:'flex', alignItems:'center', gap:12, background:'rgba(255,255,255,0.07)', borderRadius:10, padding:'12px 16px', border:'1px solid rgba(255,255,255,0.1)' }}>
-                  <span style={{ fontSize:20 }}>{icon}</span>
-                  <span style={{ fontSize:15, color:'rgba(255,255,255,0.85)', fontWeight:500 }}>{text}</span>
+                { icon:'⌖', title:'Visão estratégica',  desc:'Alinhamento com prioridades corporativas' },
+                { icon:'▣', title:'Gestão integrada',   desc:'Demandas, projetos e iniciativas em um só lugar' },
+                { icon:'▥', title:'Decisões melhores',  desc:'Informações atualizadas para gestão eficiente' },
+              ].map(f => (
+                <div key={f.title} className="hap-feature">
+                  <div className="hap-icon">{f.icon}</div>
+                  <strong>{f.title}</strong>
+                  <p>{f.desc}</p>
                 </div>
               ))}
             </div>
-          </div>
-        </div>
+          </section>
 
-        {/* ── Lado direito (formulário) ── */}
-        <div style={{ flex:'0 0 50%', background:'var(--bg-light)', display:'flex', alignItems:'center', justifyContent:'center', padding:40 }}>
-          <div style={{ width:'100%', maxWidth:440, display:'flex', flexDirection:'column', gap:0 }}>
-
-            {/* Cabeçalho */}
-            <div style={{ marginBottom:40 }}>
-              <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:28 }}>
-                <div style={{ width:8, height:40, background:'linear-gradient(180deg, #E31C24, #F37021)', borderRadius:4 }} />
-                <div>
-                  <div style={{ fontSize:13, fontWeight:600, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.08em' }}>Status Semanal</div>
-                  <div style={{ fontSize:13, color:'var(--text-muted)' }}>Marcos e Cronogramas</div>
-                </div>
+          {/* ── Lado direito: formulário ── */}
+          <section className="hap-login-box">
+            <div className="hap-card">
+              <div className="hap-card-header">
+                <h2>Acesso ao sistema</h2>
+                <p>Entre com suas credenciais para continuar</p>
               </div>
-              <h2 style={{ fontSize:32, fontWeight:700, color:'var(--text-dark)', letterSpacing:'-0.01em', marginBottom:8 }}>
-                Acesse sua conta
-              </h2>
-              <p style={{ fontSize:16, color:'var(--text-muted)' }}>
-                Insira suas credenciais corporativas.
-              </p>
-            </div>
 
-            {/* Formulário */}
-            <form onSubmit={handleSubmit} style={{ display:'flex', flexDirection:'column', gap:20 }}>
-              <div>
-                <label style={{ display:'block', fontSize:13, fontWeight:600, color:'var(--text-dark)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:8 }}>
-                  E-mail corporativo
-                </label>
-                <input className="hap-input" type="email" placeholder="exemplo@hapvida.com.br"
+              <form onSubmit={handleSubmit}>
+                <label className="hap-label">Email corporativo</label>
+                <input className="hap-input" type="email" placeholder="seu@email.com.br"
                   value={email} onChange={e => setEmail(e.target.value)} required autoComplete="email" />
-              </div>
 
-              <div>
-                <label style={{ display:'block', fontSize:13, fontWeight:600, color:'var(--text-dark)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:8 }}>
-                  Senha
-                </label>
-                <input className="hap-input" type="password" placeholder="••••••••••••"
+                <label className="hap-label">Senha</label>
+                <input className="hap-input" type="password" placeholder="••••••••"
                   value={password} onChange={e => setPassword(e.target.value)} required autoComplete="current-password" />
-              </div>
 
-              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', fontSize:14, fontWeight:500 }}>
-                <label style={{ display:'flex', alignItems:'center', gap:8, color:'var(--text-dark)', cursor:'pointer' }}>
-                  <input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)}
-                    style={{ width:16, height:16, accentColor:'var(--primary)' }} />
-                  Manter conectado
-                </label>
-              </div>
-
-              {error && (
-                <div style={{ background:'#FEF2F2', border:'1px solid #FECACA', color:'#DC2626', borderRadius:8, padding:'12px 14px', fontSize:14 }}>
-                  {error}
+                <div className="hap-options">
+                  <label>
+                    <input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)}
+                      style={{ accentColor:'#003B85', width:15, height:15 }} />
+                    Lembrar meu acesso
+                  </label>
                 </div>
-              )}
 
-              <button type="submit" disabled={loading} className="hap-btn">
-                {loading ? 'Entrando…' : 'Entrar na Plataforma'}
-              </button>
-            </form>
+                {error && <div className="hap-error">{error}</div>}
 
-            {/* Rodapé */}
-            <div style={{ marginTop:32, borderTop:'1px solid #E2E8F0', paddingTop:24 }}>
-              <p style={{ fontSize:13, lineHeight:1.6, color:'var(--text-muted)', marginBottom:6 }}>
-                ⚠️ <strong>Acesso Restrito:</strong> Este sistema contém informações proprietárias e confidenciais da Hapvida. O uso não autorizado será monitorado.
-              </p>
-              <p style={{ fontSize:11, color:'var(--text-muted)', letterSpacing:'0.05em', textTransform:'uppercase', fontWeight:500 }}>
-                🔒 Conexão Segura SSL · Em conformidade com a LGPD
-              </p>
+                <button type="submit" disabled={loading} className="hap-btn">
+                  {loading ? 'Entrando…' : 'Entrar no sistema →'}
+                </button>
+              </form>
+
+              <div className="hap-sso">🛡 Entrar com SSO corporativo</div>
             </div>
+          </section>
 
-          </div>
         </div>
 
+        {/* Rodapé */}
+        <div className="hap-footer">© 2026 Hapvida | Governança TI &nbsp;|&nbsp; Uso interno</div>
+        <div className="hap-version">v1.0.0</div>
       </div>
     </>
   )
