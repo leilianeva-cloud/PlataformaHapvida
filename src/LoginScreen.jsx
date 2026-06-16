@@ -72,6 +72,8 @@ export default function LoginScreen() {
           align-items: center;
           justify-content: center;
           padding: 80px;
+          max-width: 1500px;
+          margin: 0 auto;
         }
         .hap-info { width: 50%; }
         .hap-title { font-size: 46px; font-weight: 800; margin-bottom: 18px; }
