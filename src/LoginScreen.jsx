@@ -248,7 +248,7 @@ export default function LoginScreen() {
                 </button>
               </form>
 
-              <div className="hap-sso">🛡 Entrar com SSO corporativo</div>
+             
             </div>
           </section>
 
