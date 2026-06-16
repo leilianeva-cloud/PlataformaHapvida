@@ -1100,24 +1100,33 @@ function AppContent() {
 
   // ── Entrega 3: salvar projetos no Supabase ─────────────────────
   async function saveToSupabase(ps) {
-    if (!user || !ps) return
+    if (!user || !ps || ps.length === 0) return
     try {
-      // Upsert de cada projeto
       const upserts = ps.map(p => ({
-        project_id:    p.id,
+        project_id:    String(p.id),   // garantir string
         user_id:       user.id,
-        n_futuros:     p.nFuturos  ?? 1,
-        n_passados:    p.nPassados ?? 0,
-        usa_pacotes:   p.usaPacotes ? 1 : 0,
+        n_futuros:     Number(p.nFuturos  ?? 1),
+        n_passados:    Number(p.nPassados ?? 0),
+        usa_pacotes:   p.usaPacotes ? true : false,
         projeto_json:  JSON.stringify(p.projeto  || {}),
         raias_json:    JSON.stringify(p.raias    || []),
         pacotes_json:  JSON.stringify(p.pacotes  || []),
         updated_at:    new Date().toISOString(),
       }))
-      await supabase.from('report_projects').upsert(upserts, { onConflict: 'project_id,user_id' })
+      const { error } = await supabase
+        .from('report_projects')
+        .upsert(upserts, { onConflict: 'project_id,user_id' })
+      if (error) {
+        console.error('Erro Supabase ao salvar projetos:', error)
+        alert(`Erro ao salvar: ${error.message}`)
+        return
+      }
       setSaved(true)
       setTimeout(() => setSaved(false), 1600)
-    } catch (e) { console.error('Erro ao salvar:', e) }
+    } catch (e) {
+      console.error('Erro ao salvar projetos:', e)
+      alert(`Erro ao salvar: ${e.message}`)
+    }
   }
 
   // Auto-save com debounce
