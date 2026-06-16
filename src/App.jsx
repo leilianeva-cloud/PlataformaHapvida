@@ -362,8 +362,8 @@ function ImportScreen({ portfolioRows, onImport, existingProjects, onStart, onCo
       {/* Header */}
       <div style={{ background:"#003B82", color:"#fff", padding:"16px 28px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
         <div>
-          <div style={{ fontFamily:"'Fraunces',serif", fontSize:21, fontWeight:700 }}>Status Semanal · Marcos e Cronogramas</div>
-          <div style={{ fontSize:12, opacity:.72, marginTop:2 }}>Otimização do fluxo de atualização do Status Report</div>
+          <div style={{ fontFamily:"'Fraunces',serif", fontSize:21, fontWeight:700 }}>Plataforma Hapvida</div>
+          <div style={{ fontSize:12, opacity:.72, marginTop:2 }}>Otimização do fluxo de Gestão de Portfólio</div>
         </div>
         <div style={{ display:'flex', alignItems:'center', gap:12 }}>
           {hasProjects && (
