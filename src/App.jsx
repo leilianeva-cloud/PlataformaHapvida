@@ -1065,11 +1065,14 @@ function AppContent() {
     if (!user) return
     ;(async () => {
       try {
-        const { data } = await supabase
+        console.log('[LOAD] Carregando projetos para user:', user.id)
+        const { data, error } = await supabase
           .from('report_projects')
           .select('*')
           .eq('user_id', user.id)
           .order('updated_at', { ascending: false })
+        console.log('[LOAD] Projetos encontrados:', data?.length, 'erro:', error)
+        if (error) alert(`Erro ao carregar projetos: ${error.message}`)
         if (data?.length) {
           const ps = data.map(row => ({
             id:        row.project_id,
@@ -1083,49 +1086,57 @@ function AppContent() {
           setProjects(ps)
           if (ps.length) setScreen('report')
         }
-        // Carregar portfólio salvo
-        const { data: port } = await supabase
+        const { data: port, error: portErr } = await supabase
           .from('user_portfolio')
           .select('*')
           .eq('user_id', user.id)
           .single()
+        console.log('[LOAD] Portfólio:', port?.rows_json?.length, 'erro:', portErr?.message)
         if (port?.rows_json) {
           setPortfolioRows(JSON.parse(port.rows_json))
           setImportedAt(port.imported_at || '')
         }
-      } catch {}
+      } catch(e) {
+        console.error('[LOAD] Erro geral:', e)
+        alert(`Erro ao carregar dados: ${e.message}`)
+      }
       setLoaded(true)
     })()
   }, [user])
 
   // ── Entrega 3: salvar projetos no Supabase ─────────────────────
   async function saveToSupabase(ps) {
-    if (!user || !ps || ps.length === 0) return
+    if (!user) { console.warn('[SAVE] Sem usuário logado'); return }
+    if (!ps || ps.length === 0) { console.warn('[SAVE] Lista de projetos vazia'); return }
+    console.log('[SAVE] Salvando', ps.length, 'projetos para user:', user.id)
     try {
       const upserts = ps.map(p => ({
-        project_id:    String(p.id),   // garantir string
+        project_id:    String(p.id),
         user_id:       user.id,
         n_futuros:     Number(p.nFuturos  ?? 1),
         n_passados:    Number(p.nPassados ?? 0),
-        usa_pacotes:   p.usaPacotes ? true : false,
+        usa_pacotes:   !!p.usaPacotes,
         projeto_json:  JSON.stringify(p.projeto  || {}),
         raias_json:    JSON.stringify(p.raias    || []),
         pacotes_json:  JSON.stringify(p.pacotes  || []),
         updated_at:    new Date().toISOString(),
       }))
-      const { error } = await supabase
+      console.log('[SAVE] Upserts:', upserts.map(u => ({ id: u.project_id, nome: JSON.parse(u.projeto_json)?.nome })))
+      const { data, error } = await supabase
         .from('report_projects')
         .upsert(upserts, { onConflict: 'project_id,user_id' })
+        .select()
       if (error) {
-        console.error('Erro Supabase ao salvar projetos:', error)
-        alert(`Erro ao salvar: ${error.message}`)
+        console.error('[SAVE] Erro Supabase:', error)
+        alert(`❌ Erro ao salvar:\n${error.message}\n\nCódigo: ${error.code}`)
         return
       }
+      console.log('[SAVE] Salvos com sucesso:', data?.length, 'registros')
       setSaved(true)
       setTimeout(() => setSaved(false), 1600)
     } catch (e) {
-      console.error('Erro ao salvar projetos:', e)
-      alert(`Erro ao salvar: ${e.message}`)
+      console.error('[SAVE] Erro geral:', e)
+      alert(`❌ Erro ao salvar: ${e.message}`)
     }
   }
 
