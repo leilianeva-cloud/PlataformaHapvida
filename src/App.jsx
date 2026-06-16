@@ -365,12 +365,15 @@ function ImportScreen({ portfolioRows, onImport, existingProjects, onStart, onCo
           <div style={{ fontFamily:"'Fraunces',serif", fontSize:21, fontWeight:700 }}>Status Semanal · Marcos e Cronogramas</div>
           <div style={{ fontSize:12, opacity:.72, marginTop:2 }}>Otimização do fluxo de atualização do Status Report</div>
         </div>
-        {hasProjects && (
-          <div style={{ display:'flex', alignItems:'center', gap:7, background:'rgba(255,255,255,.13)', borderRadius:10, padding:'6px 14px', fontSize:12.5 }}>
-            <span style={{ width:8, height:8, borderRadius:'50%', background:'#4ade80', flexShrink:0 }} />
-            {existingProjects.length} projeto{existingProjects.length!==1?'s':''} salvos
-          </div>
-        )}
+        <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+          {hasProjects && (
+            <div style={{ display:'flex', alignItems:'center', gap:7, background:'rgba(255,255,255,.13)', borderRadius:10, padding:'6px 14px', fontSize:12.5 }}>
+              <span style={{ width:8, height:8, borderRadius:'50%', background:'#4ade80', flexShrink:0 }} />
+              {existingProjects.length} projeto{existingProjects.length!==1?'s':''} salvos
+            </div>
+          )}
+          <UserBar />
+        </div>
       </div>
 
       <div style={{ padding:"22px 28px", maxWidth:1060, margin:"0 auto" }}>
