@@ -81,7 +81,7 @@ export default function LoginScreen() {
           margin: 0 auto;
         }
         .hap-info { width: 50%; }
-        .hap-title { font-size: 46px; font-weight: 800; margin-bottom: 18px; }
+        .hap-title { font-size: 40px; font-weight: 800; margin-bottom: 18px; }
         .hap-title span { color: #FF7900; }
         .hap-subtitle { font-size: 22px; font-weight: 600; margin-bottom: 55px; }
         .hap-line { width: 75px; height: 4px; background: #FF7900; margin-bottom: 35px; border-radius: 2px; }
