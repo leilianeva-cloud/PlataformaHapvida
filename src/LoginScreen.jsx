@@ -42,12 +42,21 @@ export default function LoginScreen() {
         }
 
         @media (max-width: 768px) {
-  .hm-system-name {
-    font-size: 13px;      /* reduz o tamanho */
-  }
   .hm-header {
     height: auto;
-    padding: 20px 24px;
+    padding: 16px 24px;
+  }
+  .hm-brand {
+    gap: 14px;
+  }
+  .hm-system-name {
+    font-size: 13px;
+  }
+  .hm-logo-text {
+    font-size: 15px;
+  }
+  .hm-separator {
+    height: 28px;
   }
 }
         .hm-watermark {
@@ -187,6 +196,15 @@ export default function LoginScreen() {
           .hap-login-box { width: 100%; }
           .hap-card { width: 100%; padding: 36px 28px; }
         }
+
+        @media (max-width: 768px) {
+          .hm-header { height: auto; padding: 16px 24px; }
+          .hm-brand { gap: 14px; }
+          .hm-system-name { font-size: 13px; }
+          .hm-logo-text { font-size: 15px; }
+          .hm-separator { height: 28px; }
+        }
+        
       `}</style>
 
       <div className="hap-body">
