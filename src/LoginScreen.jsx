@@ -40,6 +40,16 @@ export default function LoginScreen() {
           position: relative;
           overflow: hidden;
         }
+
+        @media (max-width: 768px) {
+  .hm-system-name {
+    font-size: 13px;      /* reduz o tamanho */
+  }
+  .hm-header {
+    height: auto;
+    padding: 20px 24px;
+  }
+}
         .hm-watermark {
   position: fixed;
   left: -160px;
