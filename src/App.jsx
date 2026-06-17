@@ -5,6 +5,7 @@ import { useAuth } from './AuthContext';
 import { supabase, logAudit, logSession } from './supabaseClient';
 import LoginScreen from './LoginScreen';
 import ChangePasswordModal from './ChangePasswordModal';
+import HomeScreen from './HomeScreen';
 import AdminScreen from './AdminScreen';
 import AuditScreen from './AuditScreen';
 
@@ -362,8 +363,8 @@ function ImportScreen({ portfolioRows, onImport, existingProjects, onStart, onCo
       {/* Header */}
       <div style={{ background:"#003B82", color:"#fff", padding:"16px 28px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
         <div>
-          <div style={{ fontFamily:"'Fraunces',serif", fontSize:21, fontWeight:700 }}>Plataforma Hapvida</div>
-          <div style={{ fontSize:12, opacity:.72, marginTop:2 }}>Otimização do fluxo de Gestão de Portfólio</div>
+          <div style={{ fontFamily:"'Fraunces',serif", fontSize:21, fontWeight:700 }}>Status Semanal · Marcos e Cronogramas</div>
+          <div style={{ fontSize:12, opacity:.72, marginTop:2 }}>Otimização do fluxo de atualização do Status Report</div>
         </div>
         <div style={{ display:'flex', alignItems:'center', gap:12 }}>
           {hasProjects && (
@@ -700,7 +701,7 @@ function ImportScreen({ portfolioRows, onImport, existingProjects, onStart, onCo
 // =====================================================================
 //  TELA 2 — ReportScreen (paginação multi-projeto)
 // =====================================================================
-function ReportScreen({ projects, setProjects, currentIdx, setCurrentIdx, activeProjectIds, setActiveProjectIds, saved, gerando, setGerando, onBack, salvarManual }) {
+function ReportScreen({ projects, setProjects, currentIdx, setCurrentIdx, activeProjectIds, setActiveProjectIds, saved, gerando, setGerando, onBack, onVoltar, salvarManual }) {
   const hoje = new Date();
   const ano = hoje.getFullYear();
   const mesInicio = Math.floor(hoje.getMonth() / 3) * 3 + 1;
@@ -807,7 +808,12 @@ function ReportScreen({ projects, setProjects, currentIdx, setCurrentIdx, active
 
       {/* Header */}
       <div style={{ background: "#003B82", color: "#fff", padding: "14px 26px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {onVoltar && (
+            <button className="btn" onClick={onVoltar} style={{ background: "rgba(255,255,255,.12)", color: "#fff", border: "1px solid rgba(255,255,255,.2)", padding:"6px 12px" }}>
+              <ChevronLeft size={14}/> Home
+            </button>
+          )}
           <button className="btn" onClick={onBack} style={{ background: "rgba(255,255,255,.15)", color: "#fff", padding:"6px 12px" }}><ChevronLeft size={15} />Portfólio</button>
           <div style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 700 }}>Status Semanal · Marcos e Cronogramas</div>
         </div>
@@ -1002,7 +1008,20 @@ export default function App() {
   // ── Troca de senha obrigatória ──
   if (profile?.must_change_password) return <ChangePasswordModal />;
 
-  return <AppContent />;
+  return <AppGateway />;
+}
+
+// ── Tela Home (entre login e app) ────────────────────────────────────
+function AppGateway() {
+  const [destino, setDestino] = useState(null) // null=home, 'portfolio', 'status'
+
+  if (!destino) return (
+    <HomeScreen
+      onAcessarPortfolio={() => setDestino('portfolio')}
+      onAcessarStatus={() => setDestino('status')}
+    />
+  )
+  return <AppContent initialScreen={destino} onVoltar={() => setDestino(null)} />
 }
 
 // ── Barra de usuário (header) ────────────────────────────────────────
@@ -1047,9 +1066,9 @@ function UserBar() {
 }
 
 // ── App principal (conteúdo real) ────────────────────────────────────
-function AppContent() {
+function AppContent({ initialScreen, onVoltar }) {
   const { user, profile, isAdmin } = useAuth()
-  const [screen, setScreen] = useState('import')
+  const [screen, setScreen] = useState(initialScreen === 'status' ? 'report' : 'import')
   const [portfolioRows, setPortfolioRows] = useState([])
   const [importedAt, setImportedAt] = useState('')
   const [projects, setProjects] = useState([])
@@ -1222,6 +1241,7 @@ function AppContent() {
     activeProjectIds={activeProjectIds} setActiveProjectIds={setActiveProjectIds}
     saved={saved} gerando={gerando} setGerando={setGerando}
     onBack={() => { setActiveProjectIds(null); setScreen('import'); }}
+    onVoltar={onVoltar}
     salvarManual={salvarManual}
   />;
 }
