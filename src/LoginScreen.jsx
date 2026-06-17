@@ -185,8 +185,8 @@ export default function LoginScreen() {
         {/* Logo */}
         <div className="hap-logo">
           {/* Se tiver a imagem da logo, descomente a linha abaixo e apague o texto */}
-          {/* <img src="/logo-hapvida.png" alt="Hapvida" /> */}
-          <div className="hap-logo-text">Hapvida <span>|</span> TI</div>
+          <img src="/logo-hapvida.png" alt="Hapvida" />
+          {/* <div className="hap-logo-text">Hapvida <span>|</span> TI</div> */}
         </div>
 
         <div className="hap-container">
