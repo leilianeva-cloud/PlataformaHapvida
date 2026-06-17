@@ -40,16 +40,16 @@ export default function LoginScreen() {
           position: relative;
           overflow: hidden;
         }
-        .hap-watermark {
-          position: absolute;
-          left: -150px;
-          bottom: -180px;
-          font-size: 650px;
-          opacity: .04;
-          color: white;
-          pointer-events: none;
-          user-select: none;
-        }
+        .hm-watermark {
+  position: fixed;
+  left: -160px;
+  bottom: -220px;
+  width: 900px;       /* ajuste o tamanho conforme a imagem */
+  opacity: .045;
+  z-index: 0;
+  pointer-events: none;
+  user-select: none;
+}
         .hap-logo {
           position: absolute;
           top: 45px;
