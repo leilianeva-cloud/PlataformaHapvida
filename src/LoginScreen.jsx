@@ -180,7 +180,8 @@ export default function LoginScreen() {
 
       <div className="hap-body">
         {/* Marca d'água */}
-        <div className="hap-watermark">✤</div>
+        {/* <div className="hap-watermark">✤</div> */}
+        <img src="/flor-hapvida.png" alt="" className="hm-watermark" />
 
         {/* Logo */}
         <div className="hap-logo">
