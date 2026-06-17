@@ -49,6 +49,7 @@ export default function LoginScreen() {
   z-index: 0;
   pointer-events: none;
   user-select: none;
+  filter: grayscale(100%) brightness(10);
 }
         .hap-logo {
           position: absolute;
