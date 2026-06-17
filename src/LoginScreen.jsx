@@ -45,7 +45,7 @@ export default function LoginScreen() {
   left: -160px;
   bottom: -220px;
   width: 900px;       /* ajuste o tamanho conforme a imagem */
-  opacity: .045;
+  opacity: .08;
   z-index: 0;
   pointer-events: none;
   user-select: none;
