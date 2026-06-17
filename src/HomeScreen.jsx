@@ -192,8 +192,8 @@ export default function HomeScreen({ onAcessarPortfolio, onAcessarStatus }) {
         <header className="hm-header">
           <div className="hm-brand">
             {/* Logo: descomente a img e apague o texto quando tiver o arquivo */}
-            {/* <img src="/logo-hapvida.png" alt="Hapvida" className="hm-logo-img" /> */}
-            <div className="hm-logo-text">Hapvida <span>|</span> TI</div>
+            <img src="/logo-hapvida.png" alt="Hapvida" className="hm-logo-img" />
+            {/* <div className="hm-logo-text">Hapvida <span>|</span> TI</div> */}
             <div className="hm-separator" />
             <div className="hm-system-name">Plataforma | <span>Governança TI</span></div>
           </div>
