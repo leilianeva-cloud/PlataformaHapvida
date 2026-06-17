@@ -20,16 +20,16 @@ export default function HomeScreen({ onAcessarPortfolio, onAcessarStatus }) {
           position: relative;
         }
         .hm-watermark {
-          position: fixed;
-          left: -160px;
-          bottom: -220px;
-          font-size: 720px;
-          opacity: .045;
-          color: white;
-          z-index: 0;
-          pointer-events: none;
-          user-select: none;
-        }
+  position: fixed;
+  left: -160px;
+  bottom: -220px;
+  width: 800px;       /* ajuste o tamanho conforme a imagem */
+  opacity: .045;
+  z-index: 0;
+  pointer-events: none;
+  user-select: none;
+  filter: grayscale(100%) brightness(10);
+}
         .hm-header {
           height: 100px;
           padding: 0 65px;
