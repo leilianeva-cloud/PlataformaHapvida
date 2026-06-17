@@ -186,7 +186,11 @@ export default function HomeScreen({ onAcessarPortfolio, onAcessarStatus }) {
 
       <div className="hm-body">
         {/* Marca d'água */}
-        <div className="hm-watermark">✤</div>
+        {/* <div className="hm-watermark">✤</div> */}
+        <img className="hm-watermark"
+            src="/flor-hapvida.png"
+            alt=""
+        />
 
         {/* Header */}
         <header className="hm-header">
