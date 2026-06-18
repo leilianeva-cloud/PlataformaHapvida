@@ -198,7 +198,7 @@ const defaultProjeto = () => {
 // =====================================================================
 //  TELA 1 — ImportScreen (dashboard principal)
 // =====================================================================
-function ImportScreen({ portfolioRows, onImport, existingProjects, onStart, onContinue, onGenerate, importedAt }) {
+function ImportScreen({ portfolioRows, onImport, existingProjects, onStart, onContinue, onGenerate, importedAt, onVoltar }) {
   const fileRef = useRef(null);
   const [loading, setLoading] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -362,9 +362,16 @@ function ImportScreen({ portfolioRows, onImport, existingProjects, onStart, onCo
 
       {/* Header */}
       <div style={{ background:"#003B82", color:"#fff", padding:"16px 28px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-        <div>
-          <div style={{ fontFamily:"'Fraunces',serif", fontSize:21, fontWeight:700 }}>Status Semanal · Marcos e Cronogramas</div>
-          <div style={{ fontSize:12, opacity:.72, marginTop:2 }}>Otimização do fluxo de atualização do Status Report</div>
+        <div style={{ display:'flex', alignItems:'center', gap:14 }}>
+          {onVoltar && (
+            <button onClick={onVoltar} style={{ background:'rgba(255,255,255,.12)', border:'1px solid rgba(255,255,255,.2)', color:'#fff', borderRadius:7, padding:'5px 12px', fontSize:13, fontWeight:600, cursor:'pointer', display:'flex', alignItems:'center', gap:5 }}>
+              ← Home
+            </button>
+          )}
+          <div>
+            <div style={{ fontFamily:"'Fraunces',serif", fontSize:21, fontWeight:700 }}>Status Semanal · Filtros e Importações</div>
+            <div style={{ fontSize:12, opacity:.72, marginTop:2 }}>Otimização do fluxo de atualização do Status Report</div>
+          </div>
         </div>
         <div style={{ display:'flex', alignItems:'center', gap:12 }}>
           {hasProjects && (
@@ -814,7 +821,7 @@ function ReportScreen({ projects, setProjects, currentIdx, setCurrentIdx, active
               <ChevronLeft size={14}/> Home
             </button>
           )}
-          <button className="btn" onClick={onBack} style={{ background: "rgba(255,255,255,.15)", color: "#fff", padding:"6px 12px" }}><ChevronLeft size={15} />Portfólio</button>
+          <button className="btn" onClick={onBack} style={{ background: "rgba(255,255,255,.15)", color: "#fff", padding:"6px 12px" }}><ChevronLeft size={15} />Filtros e Importações</button>
           <div style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 700 }}>Status Semanal · Marcos e Cronogramas</div>
         </div>
         <div style={{ display: "flex", gap: 9, alignItems: "center" }}>
@@ -1232,6 +1239,7 @@ function AppContent({ initialScreen, onVoltar }) {
         if (!list.length) return;
         try { baixarPptx(list); } catch(e) { alert('Erro ao gerar PPTX: ' + e.message); }
       }}
+      onVoltar={onVoltar}
     />;
   }
 

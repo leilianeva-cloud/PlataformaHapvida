@@ -20,16 +20,16 @@ export default function HomeScreen({ onAcessarPortfolio, onAcessarStatus }) {
           position: relative;
         }
         .hm-watermark {
-  position: fixed;
-  left: -160px;
-  bottom: -220px;
-  width: 600px;       /* ajuste o tamanho conforme a imagem */
-  opacity: .045;
-  z-index: 0;
-  pointer-events: none;
-  user-select: none;
-  filter: grayscale(100%) brightness(10);
-}
+          position: fixed;
+          left: -160px;
+          bottom: -220px;
+          font-size: 720px;
+          opacity: .045;
+          color: white;
+          z-index: 0;
+          pointer-events: none;
+          user-select: none;
+        }
         .hm-header {
           height: 100px;
           padding: 0 65px;
@@ -186,16 +186,14 @@ export default function HomeScreen({ onAcessarPortfolio, onAcessarStatus }) {
 
       <div className="hm-body">
         {/* Marca d'água */}
-        {/* <div className="hm-watermark">✤</div> */}
-        <img src="/flor-hapvida.png" alt="" className="hm-watermark" />
-        />
+        <div className="hm-watermark">✤</div>
 
         {/* Header */}
         <header className="hm-header">
           <div className="hm-brand">
             {/* Logo: descomente a img e apague o texto quando tiver o arquivo */}
-            <img src="/logo-hapvida.png" alt="Hapvida" className="hm-logo-img" />
-            {/* <div className="hm-logo-text">Hapvida <span>|</span> TI</div> */}
+            {/* <img src="/logo-hapvida.png" alt="Hapvida" className="hm-logo-img" /> */}
+            <div className="hm-logo-text">Hapvida <span>|</span> TI</div>
             <div className="hm-separator" />
             <div className="hm-system-name">Plataforma | <span>Governança TI</span></div>
           </div>
@@ -223,7 +221,7 @@ export default function HomeScreen({ onAcessarPortfolio, onAcessarStatus }) {
               <h2>Portfólio</h2>
               <h3>Visão geral</h3>
               <p>Acompanhe o portfólio de iniciativas, status dos projetos e indicadores estratégicos.</p>
-              <button className="hm-card-btn" onClick={onAcessarPortfolio}>Acessar →</button>
+              <button className="hm-card-btn" disabled style={{ opacity:.45, cursor:'not-allowed', background:'#94a3b8' }}>Em breve</button>
             </div>
 
             <div className="hm-card">
