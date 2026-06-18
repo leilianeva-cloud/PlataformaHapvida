@@ -857,14 +857,14 @@ function ReportScreen({ projects, setProjects, currentIdx, setCurrentIdx, active
         .hm-save{background:white;color:#003d8f;border:none;}
         .hm-ppt{background:#ff7900;color:white;border:none;}
 
-        .hm-title-section{padding:24px 0 0;background:#f5f7fb;max-width:1360px;margin:0 auto;}
+        .hm-title-section{padding:24px 0 0;background:#f5f7fb;max-width:1320px;margin:0 auto;}
         .hm-title-card{background:linear-gradient(90deg,#001b4d,#003d8f);border-radius:16px;padding:0 40px;height:110px;display:flex;align-items:center;justify-content:space-between;color:white;box-shadow:0 12px 30px rgba(0,0,0,.12);}
         .hm-title-card h1{font-size:28px;font-weight:800;}
         .hm-navigation{display:flex;gap:14px;}
         .hm-nav-btn{height:50px;padding:0 26px;border-radius:10px;border:1px solid rgba(255,255,255,.5);background:transparent;color:white;font-size:14px;font-weight:700;cursor:pointer;transition:.2s;font-family:'Inter',sans-serif;white-space:nowrap;}
         .hm-nav-btn:hover{background:rgba(255,255,255,.12);}
 
-        .hm-pagination-wrapper{padding:18px 0 4px;display:flex;justify-content:flex-end;align-items:center;gap:10px;background:#f5f7fb;max-width:1360px;margin:0 auto;}
+        .hm-pagination-wrapper{padding:18px 0 4px;display:flex;justify-content:flex-end;align-items:center;gap:10px;background:#f5f7fb;max-width:1320px;margin:0 auto;}
         .hm-arrow-btn{background:none;border:none;font-size:26px;color:#001b4d;cursor:pointer;line-height:1;padding:0 4px;}
         .hm-arrow-btn:disabled{opacity:.3;cursor:not-allowed;}
         .hm-page-btn{width:42px;height:42px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:#315a9a;color:white;font-weight:800;font-size:14px;border:none;cursor:pointer;transition:.2s;}
