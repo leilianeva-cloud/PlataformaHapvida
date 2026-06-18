@@ -358,31 +358,63 @@ function ImportScreen({ portfolioRows, onImport, existingProjects, onStart, onCo
         .lbl{font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;}
         .acard{transition:transform .14s,box-shadow .14s;}
         .acard:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.11)!important;}
+
+        .hv-header{width:100%;height:80px;background:linear-gradient(90deg,#001b4d 0%,#003d8f 100%);display:flex;align-items:center;justify-content:space-between;padding:0 48px;}
+        .hv-header-left,.hv-header-right{display:flex;align-items:center;gap:20px;}
+        .hv-logo{height:42px;}
+        .hv-divider{height:42px;width:1px;background:rgba(255,255,255,.35);}
+        .hv-product{font-size:20px;font-weight:700;color:white;}
+        .hv-product span{color:#ff7900;}
+        .hv-status{height:40px;display:flex;align-items:center;gap:9px;padding:0 18px;border-radius:12px;border:1px solid rgba(255,255,255,.4);background:rgba(255,255,255,.05);color:white;font-weight:700;font-size:13px;}
+        .hv-status-dot{width:9px;height:9px;background:#22c55e;border-radius:50%;}
+        .hv-title-area{padding:28px 48px 20px;background:#f5f7fb;}
+        .hv-title-box{background:linear-gradient(90deg,#001b4d 0%,#003d8f 100%);border-radius:16px;padding:0 36px;height:120px;display:flex;align-items:center;gap:36px;color:white;box-shadow:0 12px 30px rgba(0,0,0,.12);}
+        .hv-back-btn{height:48px;padding:0 24px;border-radius:10px;border:1px solid rgba(255,255,255,.5);background:transparent;color:white;font-size:14px;font-weight:700;cursor:pointer;transition:.2s;white-space:nowrap;font-family:'Inter',sans-serif;}
+        .hv-back-btn:hover{background:rgba(255,255,255,.12);}
+        .hv-title-box h1{font-size:26px;font-weight:800;margin-bottom:6px;}
+        .hv-title-box p{font-size:14px;opacity:.82;}
+        @media(max-width:900px){
+          .hv-header{padding:0 20px;height:auto;min-height:64px;flex-wrap:wrap;gap:10px;padding-top:12px;padding-bottom:12px;}
+          .hv-product{font-size:15px;}
+          .hv-status{display:none;}
+          .hv-title-area{padding:16px 16px 12px;}
+          .hv-title-box{height:auto;padding:24px;flex-direction:column;align-items:flex-start;gap:16px;}
+          .hv-title-box h1{font-size:20px;}
+        }
       `}</style>
 
-      {/* Header */}
-      <div style={{ background:"#003B82", color:"#fff", padding:"16px 28px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-        <div style={{ display:'flex', alignItems:'center', gap:14 }}>
-          {onVoltar && (
-            <button onClick={onVoltar} style={{ background:'rgba(255,255,255,.12)', border:'1px solid rgba(255,255,255,.2)', color:'#fff', borderRadius:7, padding:'5px 12px', fontSize:13, fontWeight:600, cursor:'pointer', display:'flex', alignItems:'center', gap:5 }}>
-              ← Home
-            </button>
-          )}
-          <div>
-            <div style={{ fontFamily:"'Fraunces',serif", fontSize:21, fontWeight:700 }}>Status Semanal · Filtros e Importações</div>
-            <div style={{ fontSize:12, opacity:.72, marginTop:2 }}>Otimização do fluxo de atualização do Status Report</div>
-          </div>
+      {/* ── PRIMEIRA BARRA ── */}
+      <header className="hv-header">
+        <div className="hv-header-left">
+          <img src="/logo-hapvida.png" className="hv-logo" alt="Hapvida"
+            onError={e => { e.target.style.display='none'; e.target.nextSibling.style.display='block'; }} />
+          <span style={{ display:'none', color:'white', fontWeight:800, fontSize:18 }}>Hapvida</span>
+          <div className="hv-divider" />
+          <div className="hv-product">Plataforma | <span>Governança TI</span></div>
         </div>
-        <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+        <div className="hv-header-right">
           {hasProjects && (
-            <div style={{ display:'flex', alignItems:'center', gap:7, background:'rgba(255,255,255,.13)', borderRadius:10, padding:'6px 14px', fontSize:12.5 }}>
-              <span style={{ width:8, height:8, borderRadius:'50%', background:'#4ade80', flexShrink:0 }} />
+            <div className="hv-status">
+              <span className="hv-status-dot" />
               {existingProjects.length} projeto{existingProjects.length!==1?'s':''} salvos
             </div>
           )}
           <UserBar />
         </div>
-      </div>
+      </header>
+
+      {/* ── SEGUNDA BARRA ── */}
+      <section className="hv-title-area">
+        <div className="hv-title-box">
+          {onVoltar && (
+            <button className="hv-back-btn" onClick={onVoltar}>← Voltar ao início</button>
+          )}
+          <div>
+            <h1>Status Semanal · Filtros e Importações</h1>
+            <p>Otimização do fluxo de atualização do Status Report</p>
+          </div>
+        </div>
+      </section>
 
       <div style={{ padding:"22px 28px", maxWidth:1060, margin:"0 auto" }}>
 
@@ -1075,8 +1107,7 @@ function UserBar() {
 // ── App principal (conteúdo real) ────────────────────────────────────
 function AppContent({ initialScreen, onVoltar }) {
   const { user, profile, isAdmin } = useAuth()
-  //const [screen, setScreen] = useState(initialScreen === 'status' ? 'report' : 'import')
-  const [screen, setScreen] = useState('import')
+  const [screen, setScreen] = useState(initialScreen === 'status' ? 'report' : 'import')
   const [portfolioRows, setPortfolioRows] = useState([])
   const [importedAt, setImportedAt] = useState('')
   const [projects, setProjects] = useState([])
@@ -1111,7 +1142,7 @@ function AppContent({ initialScreen, onVoltar }) {
             pacotes:   row.pacotes_json   ? JSON.parse(row.pacotes_json)  : [],
           }))
           setProjects(ps)
-          if (ps.length) setScreen('import')
+          if (ps.length) setScreen('report')
         }
         const { data: port, error: portErr } = await supabase
           .from('user_portfolio')
