@@ -1075,7 +1075,8 @@ function UserBar() {
 // ── App principal (conteúdo real) ────────────────────────────────────
 function AppContent({ initialScreen, onVoltar }) {
   const { user, profile, isAdmin } = useAuth()
-  const [screen, setScreen] = useState(initialScreen === 'status' ? 'report' : 'import')
+  //const [screen, setScreen] = useState(initialScreen === 'status' ? 'report' : 'import')
+  const [screen, setScreen] = useState('import')
   const [portfolioRows, setPortfolioRows] = useState([])
   const [importedAt, setImportedAt] = useState('')
   const [projects, setProjects] = useState([])
