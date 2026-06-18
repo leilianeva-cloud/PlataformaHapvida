@@ -367,7 +367,7 @@ function ImportScreen({ portfolioRows, onImport, existingProjects, onStart, onCo
         .hv-product span{color:#ff7900;}
         .hv-status{height:40px;display:flex;align-items:center;gap:9px;padding:0 18px;border-radius:12px;border:1px solid rgba(255,255,255,.4);background:rgba(255,255,255,.05);color:white;font-weight:700;font-size:13px;}
         .hv-status-dot{width:9px;height:9px;background:#22c55e;border-radius:50%;}
-        .hv-title-area{padding:28px 48px 20px;background:#f5f7fb;}
+        .hv-title-area{padding:28px 0 20px;background:#f5f7fb;max-width:1060px;margin:0 auto;}
         .hv-title-box{background:linear-gradient(90deg,#001b4d 0%,#003d8f 100%);border-radius:16px;padding:0 36px;height:120px;display:flex;align-items:center;gap:36px;color:white;box-shadow:0 12px 30px rgba(0,0,0,.12);}
         .hv-back-btn{height:48px;padding:0 24px;border-radius:10px;border:1px solid rgba(255,255,255,.5);background:transparent;color:white;font-size:14px;font-weight:700;cursor:pointer;transition:.2s;white-space:nowrap;font-family:'Inter',sans-serif;}
         .hv-back-btn:hover{background:rgba(255,255,255,.12);}
@@ -1107,7 +1107,8 @@ function UserBar() {
 // ── App principal (conteúdo real) ────────────────────────────────────
 function AppContent({ initialScreen, onVoltar }) {
   const { user, profile, isAdmin } = useAuth()
-  const [screen, setScreen] = useState(initialScreen === 'status' ? 'report' : 'import')
+  // const [screen, setScreen] = useState(initialScreen === 'status' ? 'report' : 'import')
+  const [screen, setScreen] = useState('import')
   const [portfolioRows, setPortfolioRows] = useState([])
   const [importedAt, setImportedAt] = useState('')
   const [projects, setProjects] = useState([])
@@ -1142,7 +1143,7 @@ function AppContent({ initialScreen, onVoltar }) {
             pacotes:   row.pacotes_json   ? JSON.parse(row.pacotes_json)  : [],
           }))
           setProjects(ps)
-          if (ps.length) setScreen('report')
+          if (ps.length) setScreen('import')
         }
         const { data: port, error: portErr } = await supabase
           .from('user_portfolio')
