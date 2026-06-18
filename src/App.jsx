@@ -838,53 +838,106 @@ function ReportScreen({ projects, setProjects, currentIdx, setCurrentIdx, active
   return (
     <div style={{ fontFamily: "'Archivo', sans-serif", background: "#F1F5F9", minHeight: "100vh", color: "#0f172a" }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         input,select,textarea{font-family:'Archivo',sans-serif;}
         .inp{width:100%;padding:7px 9px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:#fff;outline:none;}
         .inp:focus{border-color:#2F5597;box-shadow:0 0 0 3px rgba(47,85,151,.12);}
         .btn{display:inline-flex;align-items:center;gap:6px;border:none;border-radius:9px;padding:8px 13px;font-size:13px;font-weight:600;cursor:pointer;}
         .lbl{font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.04em;}
+
+        .hm-main-header{height:80px;width:100%;background:linear-gradient(90deg,#001b4d,#003d8f);display:flex;align-items:center;justify-content:space-between;padding:0 48px;}
+        .hm-left,.hm-right{display:flex;align-items:center;gap:18px;}
+        .hm-logo{height:44px;}
+        .hm-divider-h{height:44px;width:1px;background:rgba(255,255,255,.35);}
+        .hm-brand{font-size:20px;font-weight:700;color:white;}
+        .hm-brand span{color:#ff7900;}
+        .hm-autosave{display:flex;align-items:center;gap:8px;color:white;font-weight:600;font-size:13px;}
+        .hm-dot{width:9px;height:9px;border-radius:50%;}
+        .hm-hbtn{height:44px;padding:0 20px;border-radius:10px;border:1px solid rgba(255,255,255,.4);display:flex;align-items:center;gap:8px;font-weight:700;font-size:13px;cursor:pointer;font-family:'Inter',sans-serif;}
+        .hm-save{background:white;color:#003d8f;border:none;}
+        .hm-ppt{background:#ff7900;color:white;border:none;}
+
+        .hm-title-section{padding:24px 48px 0;background:#f5f7fb;}
+        .hm-title-card{background:linear-gradient(90deg,#001b4d,#003d8f);border-radius:16px;padding:0 40px;height:110px;display:flex;align-items:center;justify-content:space-between;color:white;box-shadow:0 12px 30px rgba(0,0,0,.12);}
+        .hm-title-card h1{font-size:28px;font-weight:800;}
+        .hm-navigation{display:flex;gap:14px;}
+        .hm-nav-btn{height:50px;padding:0 26px;border-radius:10px;border:1px solid rgba(255,255,255,.5);background:transparent;color:white;font-size:14px;font-weight:700;cursor:pointer;transition:.2s;font-family:'Inter',sans-serif;white-space:nowrap;}
+        .hm-nav-btn:hover{background:rgba(255,255,255,.12);}
+
+        .hm-pagination-wrapper{padding:18px 48px 4px;display:flex;justify-content:flex-end;align-items:center;gap:10px;background:#f5f7fb;}
+        .hm-arrow-btn{background:none;border:none;font-size:26px;color:#001b4d;cursor:pointer;line-height:1;padding:0 4px;}
+        .hm-arrow-btn:disabled{opacity:.3;cursor:not-allowed;}
+        .hm-page-btn{width:42px;height:42px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:#315a9a;color:white;font-weight:800;font-size:14px;border:none;cursor:pointer;transition:.2s;}
+        .hm-page-btn.active{background:#001b4d;}
+        .hm-page-btn:hover:not(.active){background:#003d8f;}
+
+        @media(max-width:900px){
+          .hm-main-header{padding:0 20px;height:auto;min-height:64px;flex-wrap:wrap;gap:10px;padding-top:12px;padding-bottom:12px;}
+          .hm-brand{font-size:15px;}
+          .hm-autosave{display:none;}
+          .hm-title-section{padding:16px 16px 0;}
+          .hm-title-card{height:auto;padding:24px;flex-direction:column;align-items:flex-start;gap:16px;}
+          .hm-title-card h1{font-size:20px;}
+          .hm-pagination-wrapper{padding:12px 16px 4px;}
+        }
       `}</style>
 
-      {/* Header */}
-      <div style={{ background: "#003B82", color: "#fff", padding: "14px 26px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          {onVoltar && (
-            <button className="btn" onClick={onVoltar} style={{ background: "rgba(255,255,255,.12)", color: "#fff", border: "1px solid rgba(255,255,255,.2)", padding:"6px 12px" }}>
-              <ChevronLeft size={14}/> Home
-            </button>
-          )}
-          <button className="btn" onClick={onBack} style={{ background: "rgba(255,255,255,.15)", color: "#fff", padding:"6px 12px" }}><ChevronLeft size={15} />Filtros e Importações</button>
-          <div style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 700 }}>Status Semanal · Marcos e Cronogramas</div>
+      {/* ── BARRA 1: header principal ── */}
+      <header className="hm-main-header">
+        <div className="hm-left">
+          <img src="/logo-hapvida.png" className="hm-logo" alt="Hapvida"
+            onError={e => { e.target.style.display='none'; e.target.nextSibling.style.display='block'; }} />
+          <span style={{ display:'none', color:'white', fontWeight:800, fontSize:18 }}>Hapvida</span>
+          <div className="hm-divider-h" />
+          <div className="hm-brand">Plataforma | <span>Governança TI</span></div>
         </div>
-        <div style={{ display: "flex", gap: 9, alignItems: "center" }}>
-          <span style={{ fontSize: 11.5, color: "#fff", opacity: saved ? 1 : 0.4, transition: "opacity .3s", display: "flex", alignItems: "center", gap: 5 }}>
-            <span style={{ width: 7, height: 7, borderRadius: "50%", background: saved ? "#4ade80" : "rgba(255,255,255,.5)" }} />
-            {saved ? "Salvo ✓" : "auto-save ativo"}
-          </span>
-          <button className="btn" onClick={salvarManual} style={{ background: "#fff", color: "#003B82" }}><Save size={15} />Salvar</button>
-          <button className="btn" onClick={gerarPptx} disabled={gerando} style={{ background: "#F47B20", color: "#fff", opacity: gerando ? .65 : 1 }}>
-            <FileDown size={15} />{gerando ? "Gerando…" : `Gerar PPTX (${visibleProjects.length} slide${visibleProjects.length>1?'s':''})`}
+        <div className="hm-right">
+          <div className="hm-autosave">
+            <span className="hm-dot" style={{ background: saved ? '#22c55e' : 'rgba(255,255,255,.4)' }} />
+            {saved ? 'Salvo ✓' : 'auto-save ativo'}
+          </div>
+          <button className="hm-hbtn hm-save" onClick={salvarManual}><Save size={15} />Salvar</button>
+          <button className="hm-hbtn hm-ppt" onClick={gerarPptx} disabled={gerando} style={{ opacity: gerando ? .65 : 1 }}>
+            <FileDown size={15} />{gerando ? 'Gerando…' : `Gerar PPTX (${visibleProjects.length} slide${visibleProjects.length>1?'s':''})`}
           </button>
           <UserBar />
         </div>
-      </div>
+      </header>
 
-      {/* Navegação entre projetos */}
-      {visibleProjects.length > 0 && (
-        <div style={{ background: "#2F5597", color: "#fff", padding: "10px 26px", display: "flex", alignItems: "center", gap: 14 }}>
-          <button className="btn" onClick={() => setCurrentIdx(i => Math.max(0,i-1))} disabled={currentIdx===0}
-            style={{ background:"rgba(255,255,255,.2)", color:"#fff", opacity:currentIdx===0?.4:1, padding:"5px 10px" }}><ChevronLeft size={15}/></button>
-          <span style={{ flex:1, fontWeight:600, fontSize:13 }}>
-            Projeto {currentIdx+1} de {visibleProjects.length} — {projeto.nome || '(sem nome)'}
-            {activeProjectIds && <span style={{ marginLeft:10, fontSize:11, background:"rgba(255,255,255,.2)", borderRadius:8, padding:"2px 8px" }}><ClipboardList size={12} style={{marginRight:3}}/>{visibleProjects.length} selecionado{visibleProjects.length!==1?'s':''} • <button onClick={()=>setActiveProjectIds(null)} style={{ background:"none", border:"none", color:"#fff", cursor:"pointer", fontSize:11, textDecoration:"underline", padding:0 }}>ver todos ({projects.length})</button></span>}
-          </span>
-          <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
-            {visibleProjects.map((_,i) => (
-              <button key={i} onClick={()=>setCurrentIdx(i)} style={{ border:"none", borderRadius:6, padding:"3px 9px", fontSize:12, fontWeight:700, cursor:"pointer", background: i===currentIdx?"#fff":"rgba(255,255,255,.25)", color: i===currentIdx?"#2F5597":"#fff" }}>{i+1}</button>
-            ))}
+      {/* ── BARRA 2: título + navegação ── */}
+      <section className="hm-title-section">
+        <div className="hm-title-card">
+          <h1>Status Semanal · Marcos e Cronogramas</h1>
+          <div className="hm-navigation">
+            {onVoltar && <button className="hm-nav-btn" onClick={onVoltar}>← Voltar ao início</button>}
+            <button className="hm-nav-btn" onClick={onBack}>Filtros e Importações →</button>
           </div>
-          <button className="btn" onClick={() => setCurrentIdx(i => Math.min(visibleProjects.length-1,i+1))} disabled={currentIdx===visibleProjects.length-1}
-            style={{ background:"rgba(255,255,255,.2)", color:"#fff", opacity:currentIdx===visibleProjects.length-1?.4:1, padding:"5px 10px" }}><ChevronRight size={15}/></button>
+        </div>
+      </section>
+
+      {/* ── PAGINAÇÃO ── */}
+      {visibleProjects.length > 0 && (
+        <div className="hm-pagination-wrapper">
+          {activeProjectIds && (
+            <span style={{ fontSize:12, color:'#64748b', marginRight:'auto' }}>
+              <ClipboardList size={12} style={{marginRight:4, verticalAlign:'middle'}}/>
+              {visibleProjects.length} selecionado{visibleProjects.length!==1?'s':''} &nbsp;·&nbsp;
+              <button onClick={() => setActiveProjectIds(null)} style={{ background:'none', border:'none', color:'#2F5597', cursor:'pointer', fontSize:12, textDecoration:'underline', padding:0 }}>
+                ver todos ({projects.length})
+              </button>
+            </span>
+          )}
+          <span style={{ fontSize:13, color:'#64748b', marginRight:6, fontWeight:600 }}>
+            {projeto.nome || `Projeto ${currentIdx+1}`}
+          </span>
+          <button className="hm-arrow-btn" disabled={currentIdx===0}
+            onClick={() => setCurrentIdx(i => Math.max(0,i-1))}>‹</button>
+          {visibleProjects.map((_,i) => (
+            <button key={i} className={`hm-page-btn${i===currentIdx?' active':''}`}
+              onClick={() => setCurrentIdx(i)}>{i+1}</button>
+          ))}
+          <button className="hm-arrow-btn" disabled={currentIdx===visibleProjects.length-1}
+            onClick={() => setCurrentIdx(i => Math.min(visibleProjects.length-1,i+1))}>›</button>
         </div>
       )}
 
