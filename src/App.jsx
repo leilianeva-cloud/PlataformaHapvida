@@ -1111,7 +1111,7 @@ function AppContent({ initialScreen, onVoltar }) {
             pacotes:   row.pacotes_json   ? JSON.parse(row.pacotes_json)  : [],
           }))
           setProjects(ps)
-          if (ps.length) setScreen('report')
+          if (ps.length) setScreen('import')
         }
         const { data: port, error: portErr } = await supabase
           .from('user_portfolio')
