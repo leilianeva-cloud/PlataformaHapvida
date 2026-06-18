@@ -20,16 +20,16 @@ export default function HomeScreen({ onAcessarPortfolio, onAcessarStatus }) {
           position: relative;
         }
         .hm-watermark {
-          position: fixed;
-          left: -160px;
-          bottom: -220px;
-          font-size: 720px;
-          opacity: .045;
-          color: white;
-          z-index: 0;
-          pointer-events: none;
-          user-select: none;
-        }
+  position: fixed;
+  left: -160px;
+  bottom: -220px;
+  width: 600px;       /* ajuste o tamanho conforme a imagem */
+  opacity: .045;
+  z-index: 0;
+  pointer-events: none;
+  user-select: none;
+  filter: grayscale(100%) brightness(10);
+  }
         .hm-header {
           height: 100px;
           padding: 0 65px;
@@ -186,14 +186,15 @@ export default function HomeScreen({ onAcessarPortfolio, onAcessarStatus }) {
 
       <div className="hm-body">
         {/* Marca d'água */}
-        <div className="hm-watermark">✤</div>
+        {/* <div className="hap-watermark">✤</div> */}
+        <img src="/flor-hapvida.png" alt="" className="hm-watermark" />
 
         {/* Header */}
         <header className="hm-header">
           <div className="hm-brand">
             {/* Logo: descomente a img e apague o texto quando tiver o arquivo */}
-            {/* <img src="/logo-hapvida.png" alt="Hapvida" className="hm-logo-img" /> */}
-            <div className="hm-logo-text">Hapvida <span>|</span> TI</div>
+            <img src="/logo-hapvida.png" alt="Hapvida" className="hm-logo-img" />
+            {/* <div className="hm-logo-text">Hapvida <span>|</span> TI</div> */}
             <div className="hm-separator" />
             <div className="hm-system-name">Plataforma | <span>Governança TI</span></div>
           </div>
