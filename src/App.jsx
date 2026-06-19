@@ -858,8 +858,8 @@ function ReportScreen({ projects, setProjects, currentIdx, setCurrentIdx, active
         .hm-ppt{background:#ff7900;color:white;border:none;}
 
         .hm-title-section{padding:24px 0 0;background:#f5f7fb;max-width:1310px;margin:0 auto;}
-        .hm-title-card{background:linear-gradient(90deg,#001b4d,#003d8f);border-radius:16px;padding:0 40px;height:110px;display:flex;align-items:center;justify-content:space-between;color:white;box-shadow:0 12px 30px rgba(0,0,0,.12);}
-        .hm-title-card h1{font-size:28px;font-weight:800;}
+        .hm-title-card{background:linear-gradient(90deg,#001b4d,#003d8f);border-radius:16px;padding:0 40px;height:105px;display:flex;align-items:center;justify-content:space-between;color:white;box-shadow:0 12px 30px rgba(0,0,0,.12);}
+        .hm-title-card h1{font-size:26px;font-weight:800;}
         .hm-navigation{display:flex;gap:14px;}
         .hm-nav-btn{height:50px;padding:0 26px;border-radius:10px;border:1px solid rgba(255,255,255,.5);background:transparent;color:white;font-size:14px;font-weight:700;cursor:pointer;transition:.2s;font-family:'Inter',sans-serif;white-space:nowrap;}
         .hm-nav-btn:hover{background:rgba(255,255,255,.12);}
