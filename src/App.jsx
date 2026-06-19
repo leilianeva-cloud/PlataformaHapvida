@@ -1104,17 +1104,38 @@ export default function App() {
 }
 
 // ── Tela Home (entre login e app) ────────────────────────────────────
+
 function AppGateway() {
-  const [destino, setDestino] = useState(null) // null=home, 'portfolio', 'status'
+  const [destino, setDestino] = useState(() => sessionStorage.getItem('hap_destino') || null)
+
+  function navegarPara(dest) {
+    sessionStorage.setItem('hap_destino', dest)
+    setDestino(dest)
+  }
+  function voltarHome() {
+    sessionStorage.removeItem('hap_destino')
+    setDestino(null)
+  }
 
   if (!destino) return (
     <HomeScreen
-      onAcessarPortfolio={() => setDestino('portfolio')}
-      onAcessarStatus={() => setDestino('status')}
+      onAcessarPortfolio={() => navegarPara('portfolio')}
+      onAcessarStatus={() => navegarPara('status')}
     />
   )
-  return <AppContent initialScreen={destino} onVoltar={() => setDestino(null)} />
-}
+  return <AppContent initialScreen={destino} onVoltar={voltarHome} />
+  
+// function AppGateway() {
+//  const [destino, setDestino] = useState(null) // null=home, 'portfolio', 'status'
+
+//  if (!destino) return (
+  //  <HomeScreen
+   //   onAcessarPortfolio={() => setDestino('portfolio')}
+   //   onAcessarStatus={() => setDestino('status')}
+   // />
+//  )
+ // return <AppContent initialScreen={destino} onVoltar={() => setDestino(null)} />
+//}
 
 // ── Barra de usuário (header) ────────────────────────────────────────
 function UserBar() {
