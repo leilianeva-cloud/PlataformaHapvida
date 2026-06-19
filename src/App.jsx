@@ -1182,7 +1182,15 @@ function UserBar() {
 function AppContent({ initialScreen, onVoltar }) {
   const { user, profile, isAdmin } = useAuth()
   // const [screen, setScreen] = useState(initialScreen === 'status' ? 'report' : 'import')
-  const [screen, setScreen] = useState('import')
+ // const [screen, setScreen] = useState('import')
+
+const [screen, setScreen] = useState(() => sessionStorage.getItem('hap_screen') || 'import')
+
+  function navegarScreen(s) {
+    sessionStorage.setItem('hap_screen', s)
+    setScreen(s)
+  }
+  
   const [portfolioRows, setPortfolioRows] = useState([])
   const [importedAt, setImportedAt] = useState('')
   const [projects, setProjects] = useState([])
@@ -1217,7 +1225,8 @@ function AppContent({ initialScreen, onVoltar }) {
             pacotes:   row.pacotes_json   ? JSON.parse(row.pacotes_json)  : [],
           }))
           setProjects(ps)
-          if (ps.length) setScreen('import')
+          // if (ps.length) setScreen('import')
+          // tela já controlada pelo sessionStorage — não redirecionar aqui
         }
         const { data: port, error: portErr } = await supabase
           .from('user_portfolio')
@@ -1327,7 +1336,8 @@ function AppContent({ initialScreen, onVoltar }) {
           raias: existMap[p.id]?.raias ?? p.raias ?? [],
         })));
         setCurrentIdx(0);
-        if (navegar) setScreen('report');
+        //if (navegar) setScreen('report');
+        if (navegar) navegarScreen('report');
       }}
       onContinue={(ids) => {
         if (ids && ids.length) {
@@ -1339,7 +1349,8 @@ function AppContent({ initialScreen, onVoltar }) {
           setActiveProjectIds(null);
           setCurrentIdx(0);
         }
-        setScreen('report');
+        //setScreen('report');
+        navegarScreen('report');
       }}
       onGenerate={(toGen) => {
         const list = toGen || projects;
@@ -1355,7 +1366,8 @@ function AppContent({ initialScreen, onVoltar }) {
     currentIdx={currentIdx} setCurrentIdx={setCurrentIdx}
     activeProjectIds={activeProjectIds} setActiveProjectIds={setActiveProjectIds}
     saved={saved} gerando={gerando} setGerando={setGerando}
-    onBack={() => { setActiveProjectIds(null); setScreen('import'); }}
+    //onBack={() => { setActiveProjectIds(null); setScreen('import'); }}
+    onBack={() => { setActiveProjectIds(null); navegarScreen('import'); }}       
     onVoltar={onVoltar}
     salvarManual={salvarManual}
   />;
