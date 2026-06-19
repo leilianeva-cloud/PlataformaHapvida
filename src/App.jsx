@@ -1113,6 +1113,7 @@ function AppGateway() {
   }
   function voltarHome() {
     sessionStorage.removeItem('hap_destino')
+    sessionStorage.removeItem('hap_screen')
     setDestino(null)
   }
 
