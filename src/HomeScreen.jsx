@@ -1,6 +1,6 @@
 import { useAuth } from './AuthContext'
 
-export default function HomeScreen({ onAcessarPortfolio, onAcessarStatus }) {
+export default function HomeScreen({ onAcessarPortfolio, onAcessarStatus, onAcessarRas }) {
   const { profile, signOut } = useAuth()
 
   // Iniciais do avatar
@@ -231,6 +231,14 @@ export default function HomeScreen({ onAcessarPortfolio, onAcessarStatus }) {
               <h3>Status Report</h3>
               <p>Registre progresso das iniciativas, acompanhe marcos, entregas e evolução.</p>
               <button className="hm-card-btn" onClick={onAcessarStatus}>Acessar →</button>
+            </div>
+
+            <div className="hm-card">
+              <div className="hm-card-icon">📅</div>
+              <h2>Atualizar RAS</h2>
+              <h3>Reunião de Acompanhamento Semanal</h3>
+              <p>Gere o Status Report Executivo da RAS a partir do Portfólio e Melhorias da semana.</p>
+              <button className="hm-card-btn" onClick={onAcessarRas}>Acessar →</button>
             </div>
           </section>
 
