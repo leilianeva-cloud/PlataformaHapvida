@@ -5,7 +5,9 @@ import { useAuth } from './AuthContext';
 import { supabase, logAudit, logSession } from './supabaseClient';
 import LoginScreen from './LoginScreen';
 import ChangePasswordModal from './ChangePasswordModal';
+//import HomeScreen from './HomeScreen';
 import HomeScreen from './HomeScreen';
+import ReportRasScreen from './ReportRasScreen';
 import AdminScreen from './AdminScreen';
 import AuditScreen from './AuditScreen';
 
@@ -1107,22 +1109,43 @@ export default function App() {
 function AppGateway() {
   const [destino, setDestino] = useState(() => sessionStorage.getItem('hap_destino') || null)
 
-  function navegarPara(dest) {
+  //function navegarPara(dest) {
+    //sessionStorage.setItem('hap_destino', dest)
+    //setDestino(dest)
+  //}
+
+function navegarPara(dest) {
     sessionStorage.setItem('hap_destino', dest)
+    // Limpa hap_screen ao trocar de destino para não vazar estado de outra tela
+    if (dest !== 'status' && dest !== 'portfolio') {
+      sessionStorage.removeItem('hap_screen')
+    }
     setDestino(dest)
   }
+  
   function voltarHome() {
     sessionStorage.removeItem('hap_destino')
     sessionStorage.removeItem('hap_screen')
     setDestino(null)
   }
 
+  //if (!destino) return (
+    //<HomeScreen
+      //onAcessarPortfolio={() => navegarPara('portfolio')}
+      //onAcessarStatus={() => navegarPara('status')}
+    ///>
+  //)
+  //return <AppContent initialScreen={destino} onVoltar={voltarHome} />
+//}
+
   if (!destino) return (
     <HomeScreen
       onAcessarPortfolio={() => navegarPara('portfolio')}
       onAcessarStatus={() => navegarPara('status')}
+      onAcessarRas={() => navegarPara('ras')}
     />
   )
+  if (destino === 'ras') return <ReportRasScreen onVoltar={voltarHome} />
   return <AppContent initialScreen={destino} onVoltar={voltarHome} />
 }
 
