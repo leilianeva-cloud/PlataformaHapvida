@@ -5,7 +5,6 @@ import { useAuth } from './AuthContext';
 import { supabase, logAudit, logSession } from './supabaseClient';
 import LoginScreen from './LoginScreen';
 import ChangePasswordModal from './ChangePasswordModal';
-//import HomeScreen from './HomeScreen';
 import HomeScreen from './HomeScreen';
 import ReportRasScreen from './ReportRasScreen';
 import AdminScreen from './AdminScreen';
@@ -350,10 +349,10 @@ function ImportScreen({ portfolioRows, onImport, existingProjects, onStart, onCo
   );
 
   return (
-    <div style={{ fontFamily:"'Archivo',sans-serif", background:"#F1F5F9", minHeight:"100vh", color:"#0f172a" }}>
+    <div style={{ fontFamily:"'Inter',sans-serif", background:"#F1F5F9", minHeight:"100vh", color:"#0f172a" }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,700&display=swap');
-        input,select{font-family:'Archivo',sans-serif;}
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        input,select{font-family:'Inter',sans-serif;}
         .inp{width:100%;padding:7px 9px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:#fff;outline:none;}
         .inp:focus{border-color:#2F5597;box-shadow:0 0 0 3px rgba(47,85,151,.12);}
         .btn{display:inline-flex;align-items:center;gap:6px;border:none;border-radius:9px;padding:8px 13px;font-size:13px;font-weight:600;cursor:pointer;}
@@ -427,7 +426,7 @@ function ImportScreen({ portfolioRows, onImport, existingProjects, onStart, onCo
           <div style={{ flex:"0 0 420px", background:"#fff", borderRadius:14, padding:"20px 24px", boxShadow:"0 1px 4px rgba(0,0,0,.08)" }}>
           <div style={{ display:"flex", alignItems:"center", gap:9, borderBottom:"1px solid #E2E8F0", paddingBottom:13, marginBottom:16 }}>
             <Upload size={16} color="#2F5597" />
-            <h2 style={{ fontFamily:"'Fraunces',serif", fontSize:15, fontWeight:700, color:"#1E293B", margin:0 }}>Importar Portfólio</h2>
+            <h2 style={{ fontFamily:"'Inter',sans-serif", fontSize:15, fontWeight:700, color:"#1E293B", margin:0 }}>Importar Portfólio</h2>
           </div>
           <input ref={fileRef} type="file" accept=".xlsx,.xls" onChange={handleFile} style={{ display:"none" }} />
           {!hasPortfolio ? (
@@ -502,7 +501,7 @@ function ImportScreen({ portfolioRows, onImport, existingProjects, onStart, onCo
         <div style={{ background:"#fff", borderRadius:14, padding:"20px 24px", boxShadow:"0 1px 4px rgba(0,0,0,.08)" }}>
           <div style={{ display:"flex", alignItems:"center", gap:9, borderBottom:"1px solid #E2E8F0", paddingBottom:13, marginBottom:18 }}>
             <Zap size={15} color="#F47B20"/>
-            <h2 style={{ fontFamily:"'Fraunces',serif", fontSize:15, fontWeight:700, color:"#1E293B", margin:0 }}>Ações</h2>
+            <h2 style={{ fontFamily:"'Inter',sans-serif", fontSize:15, fontWeight:700, color:"#1E293B", margin:0 }}>Ações</h2>
           </div>
 
           <div style={{ display:"flex", gap:12, flexWrap:"wrap" }}>
@@ -570,7 +569,7 @@ function ImportScreen({ portfolioRows, onImport, existingProjects, onStart, onCo
           {/* Painel: Selecionar Projetos */}
           {expanded==='selecionar' && (hasPortfolio || manualProjects.length>0) && (
             <div style={{ marginTop:18, borderTop:'1px solid #E2E8F0', paddingTop:18 }}>
-              <div style={{ fontFamily:"'Fraunces',serif", fontSize:14, fontWeight:700, color:"#1E293B", marginBottom:11 }}>Filtros</div>
+              <div style={{ fontFamily:"'Inter',sans-serif", fontSize:14, fontWeight:700, color:"#1E293B", marginBottom:11 }}>Filtros</div>
               <div style={{ display:"flex", gap:10, flexWrap:"wrap", marginBottom:8 }}>
                 {/* filtro tipo */}
                 <div style={{ minWidth:140 }}>
@@ -599,7 +598,7 @@ function ImportScreen({ portfolioRows, onImport, existingProjects, onStart, onCo
               {allSelectable.length > 0 && (
                 <>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-                    <div style={{ fontFamily:"'Fraunces',serif", fontSize:14, fontWeight:700, color:"#1E293B" }}>Projetos disponíveis</div>
+                    <div style={{ fontFamily:"'Inter',sans-serif", fontSize:14, fontWeight:700, color:"#1E293B" }}>Projetos disponíveis</div>
                     <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
                       <button className="btn" onClick={toggleAll} style={{ background:"#F1F5F9", color:"#334155", fontSize:12 }}>
                         {selected.size===allSelectable.length?"Desmarcar todos":"Selecionar todos"}
@@ -639,7 +638,7 @@ function ImportScreen({ portfolioRows, onImport, existingProjects, onStart, onCo
           {/* Painel: Incluir Projeto Manual */}
           {expanded==='manual' && (
             <div style={{ marginTop:18, borderTop:'1px solid #E2E8F0', paddingTop:18 }}>
-              <div style={{ fontFamily:"'Fraunces',serif", fontSize:14, fontWeight:700, color:"#1E293B", marginBottom:14 }}>Novo projeto manual</div>
+              <div style={{ fontFamily:"'Inter',sans-serif", fontSize:14, fontWeight:700, color:"#1E293B", marginBottom:14 }}>Novo projeto manual</div>
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10, marginBottom:12 }}>
                 <div style={{ gridColumn:"1 / -1" }}>
                   <div className="lbl">Nome do projeto *</div>
@@ -674,7 +673,7 @@ function ImportScreen({ portfolioRows, onImport, existingProjects, onStart, onCo
           {expanded==='atualizar' && hasProjects && (
             <div style={{ marginTop:18, borderTop:'1px solid #E2E8F0', paddingTop:18 }}>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
-                <div style={{ fontFamily:"'Fraunces',serif", fontSize:14, fontWeight:700, color:"#1E293B" }}>
+                <div style={{ fontFamily:"'Inter',sans-serif", fontSize:14, fontWeight:700, color:"#1E293B" }}>
                   Selecione os projetos para editar ({atualizarSelected.size} de {existingProjects.length})
                 </div>
                 <div style={{ display:"flex", gap:8 }}>
@@ -706,7 +705,7 @@ function ImportScreen({ portfolioRows, onImport, existingProjects, onStart, onCo
           {expanded==='gerar' && hasProjects && (
             <div style={{ marginTop:18, borderTop:'1px solid #E2E8F0', paddingTop:18 }}>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
-                <div style={{ fontFamily:"'Fraunces',serif", fontSize:14, fontWeight:700, color:"#1E293B" }}>
+                <div style={{ fontFamily:"'Inter',sans-serif", fontSize:14, fontWeight:700, color:"#1E293B" }}>
                   Selecione os projetos para gerar ({gerarSelected.size} de {existingProjects.length})
                 </div>
                 <div style={{ display:"flex", gap:8 }}>
@@ -838,10 +837,10 @@ function ReportScreen({ projects, setProjects, currentIdx, setCurrentIdx, active
   };
 
   return (
-    <div style={{ fontFamily: "'Archivo', sans-serif", background: "#F1F5F9", minHeight: "100vh", color: "#0f172a" }}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,700&display=swap');
+    <div style={{ fontFamily: "'Inter', sans-serif", background: "#F1F5F9", minHeight: "100vh", color: "#0f172a" }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-        input,select,textarea{font-family:'Archivo',sans-serif;}
+        input,select,textarea{font-family:'Inter',sans-serif;}
         .inp{width:100%;padding:7px 9px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:#fff;outline:none;}
         .inp:focus{border-color:#2F5597;box-shadow:0 0 0 3px rgba(47,85,151,.12);}
         .btn{display:inline-flex;align-items:center;gap:6px;border:none;border-radius:9px;padding:8px 13px;font-size:13px;font-weight:600;cursor:pointer;}
@@ -1014,7 +1013,7 @@ function ReportScreen({ projects, setProjects, currentIdx, setCurrentIdx, active
         {/* ---------- RAIAS ---------- */}
         <div style={{ background: "#fff", borderRadius: 12, padding: "16px 18px", marginTop: 16, boxShadow: "0 1px 2px rgba(0,0,0,.05)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-            <h2 style={{ fontFamily: "'Fraunces',serif", fontSize: 18, fontWeight: 700, color: "#003B82", margin: 0 }}>Demandas / Marcos ({raias.length})</h2>
+            <h2 style={{ fontFamily: "'Inter', sans-serif", fontSize: 18, fontWeight: 700, color: "#003B82", margin: 0 }}>Demandas / Marcos ({raias.length})</h2>
             <div style={{ display:"flex", gap:8 }}>
               <button className="btn" onClick={togglePacotes}
                 style={{ background: usaPacotes ? "#7030A0" : "#F1F5F9", color: usaPacotes ? "#fff" : "#334155", border: usaPacotes ? "none" : "1px solid #CBD5E1" }}>
@@ -1109,34 +1108,15 @@ export default function App() {
 function AppGateway() {
   const [destino, setDestino] = useState(() => sessionStorage.getItem('hap_destino') || null)
 
-  //function navegarPara(dest) {
-    //sessionStorage.setItem('hap_destino', dest)
-    //setDestino(dest)
-  //}
-
-function navegarPara(dest) {
+  function navegarPara(dest) {
     sessionStorage.setItem('hap_destino', dest)
-    // Limpa hap_screen ao trocar de destino para não vazar estado de outra tela
-    if (dest !== 'status' && dest !== 'portfolio') {
-      sessionStorage.removeItem('hap_screen')
-    }
     setDestino(dest)
   }
-  
   function voltarHome() {
     sessionStorage.removeItem('hap_destino')
     sessionStorage.removeItem('hap_screen')
     setDestino(null)
   }
-
-  //if (!destino) return (
-    //<HomeScreen
-      //onAcessarPortfolio={() => navegarPara('portfolio')}
-      //onAcessarStatus={() => navegarPara('status')}
-    ///>
-  //)
-  //return <AppContent initialScreen={destino} onVoltar={voltarHome} />
-//}
 
   if (!destino) return (
     <HomeScreen
@@ -1401,7 +1381,7 @@ function GanttPreview({ projeto, raias, timeline, hojeFrac, usaPacotes, pacotes 
     <div style={{ background: "#fff", borderRadius: 14, padding: "16px 18px", boxShadow: "0 1px 3px rgba(0,0,0,.08)", marginTop: 16, marginBottom: 8 }}>
       {/* título + status + legenda */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, flexWrap: "wrap", gap: 10 }}>
-        <div style={{ fontFamily: "'Fraunces',serif", fontWeight: 700, fontSize: 20, color: "#003B82", display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ fontFamily: "'Inter', sans-serif", fontWeight: 700, fontSize: 20, color: "#003B82", display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ width: 6, height: 22, background: "#F47B20", borderRadius: 3, display: "inline-block" }} />
           {projeto.nome}
         </div>
@@ -1804,7 +1784,7 @@ function RaiaCard({ r, aberta, toggle, upd, updFase, addFase, delFase, delRaia }
 function Section({ title, children }) {
   return (
     <div style={{ background: "#fff", borderRadius: 12, padding: "16px 18px", marginTop: 16, boxShadow: "0 1px 2px rgba(0,0,0,.05)" }}>
-      <h2 style={{ fontFamily: "'Fraunces',serif", fontSize: 16, fontWeight: 700, color: "#003B82", margin: "0 0 14px" }}>{title}</h2>
+      <h2 style={{ fontFamily: "'Inter', sans-serif", fontSize: 16, fontWeight: 700, color: "#003B82", margin: "0 0 14px" }}>{title}</h2>
       {children}
     </div>
   );
@@ -1862,7 +1842,7 @@ function lineToParas(content, rPrBase) {
     segs.forEach((seg, i) => { if (i > 0) lines.push([]); if (seg !== "" || segs.length === 1) lines[lines.length - 1].push({ text: seg, bold: r.bold }); });
   }
   return lines.map((line) => {
-    const runsXml = line.map((r) => `<a:r><a:rPr lang="pt-BR" sz="${rPrBase.sz}"${r.bold ? ' b="1"' : (rPrBase.bold ? ' b="1"' : "")}><a:solidFill><a:srgbClr val="${rPrBase.color}"/></a:solidFill><a:latin typeface="Archivo"/></a:rPr><a:t>${esc(r.text)}</a:t></a:r>`).join("");
+    const runsXml = line.map((r) => `<a:r><a:rPr lang="pt-BR" sz="${rPrBase.sz}"${r.bold ? ' b="1"' : (rPrBase.bold ? ' b="1"' : "")}><a:solidFill><a:srgbClr val="${rPrBase.color}"/></a:solidFill><a:latin typeface="Calibri"/></a:rPr><a:t>${esc(r.text)}</a:t></a:r>`).join("");
     const pPr = `<a:pPr algn="${rPrBase.algn}">${rPrBase.lnSpc ? `<a:lnSpc><a:spcPct val="${rPrBase.lnSpc}"/></a:lnSpc>` : ""}</a:pPr>`;
     return `<a:p>${pPr}${runsXml || '<a:endParaRPr lang="pt-BR"/>'}</a:p>`;
   }).join("");
@@ -1905,7 +1885,7 @@ function themeXml() {
   const fill3 = `<a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:solidFill><a:schemeClr val="phClr"/></a:solidFill>`;
   const ln3 = `<a:ln w="6350"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:ln><a:ln w="12700"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:ln><a:ln w="19050"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:ln>`;
   const eff3 = `<a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst/></a:effectStyle>`;
-  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" name="Tema"><a:themeElements><a:clrScheme name="Tema"><a:dk1><a:srgbClr val="${dk1}"/></a:dk1><a:lt1><a:srgbClr val="${lt1}"/></a:lt1><a:dk2><a:srgbClr val="${dk2}"/></a:dk2><a:lt2><a:srgbClr val="${lt2}"/></a:lt2>${accXml}<a:hlink><a:srgbClr val="0070C0"/></a:hlink><a:folHlink><a:srgbClr val="7030A0"/></a:folHlink></a:clrScheme><a:fontScheme name="Tema"><a:majorFont><a:latin typeface="Archivo"/><a:ea typeface=""/><a:cs typeface=""/></a:majorFont><a:minorFont><a:latin typeface="Archivo"/><a:ea typeface=""/><a:cs typeface=""/></a:minorFont></a:fontScheme><a:fmtScheme name="Tema"><a:fillStyleLst>${fill3}</a:fillStyleLst><a:lnStyleLst>${ln3}</a:lnStyleLst><a:effectStyleLst>${eff3}</a:effectStyleLst><a:bgFillStyleLst>${fill3}</a:bgFillStyleLst></a:fmtScheme></a:themeElements></a:theme>`;
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" name="Tema"><a:themeElements><a:clrScheme name="Tema"><a:dk1><a:srgbClr val="${dk1}"/></a:dk1><a:lt1><a:srgbClr val="${lt1}"/></a:lt1><a:dk2><a:srgbClr val="${dk2}"/></a:dk2><a:lt2><a:srgbClr val="${lt2}"/></a:lt2>${accXml}<a:hlink><a:srgbClr val="0070C0"/></a:hlink><a:folHlink><a:srgbClr val="7030A0"/></a:folHlink></a:clrScheme><a:fontScheme name="Tema"><a:majorFont><a:latin typeface="Calibri"/><a:ea typeface=""/><a:cs typeface=""/></a:majorFont><a:minorFont><a:latin typeface="Calibri"/><a:ea typeface=""/><a:cs typeface=""/></a:minorFont></a:fontScheme><a:fmtScheme name="Tema"><a:fillStyleLst>${fill3}</a:fillStyleLst><a:lnStyleLst>${ln3}</a:lnStyleLst><a:effectStyleLst>${eff3}</a:effectStyleLst><a:bgFillStyleLst>${fill3}</a:bgFillStyleLst></a:fmtScheme></a:themeElements></a:theme>`;
 }
 function slideXml(shapesXml) {
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="${REL}" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>${shapesXml}</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>`;

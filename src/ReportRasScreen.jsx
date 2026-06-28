@@ -1,7 +1,14 @@
 import { useState, useEffect } from "react";
 import * as XLSX from "xlsx";
 import JSZip from "jszip";
-import { ChevronLeft, LogOut } from "lucide-react";
+import {
+  ChevronLeft, LogOut,
+  BarChart2, Info, Download, Eye,
+  Check, AlertCircle, Users, Clock,
+  Paperclip, Table2, Presentation,
+  RefreshCw, Building2, Wrench, AlertTriangle,
+  TrendingUp, Loader2
+} from "lucide-react";
 import { useAuth } from './AuthContext';
 import { logAudit, loadRasTemplate, getRasTemplateInfo } from './supabaseClient';
 
@@ -639,129 +646,6 @@ const S = {
 
 
 /* ── SVG ICONS ───────────────────────────────────────────────────────────────── */
-const IC = {
-  // hospital cross
-  hospital: (sz=22,col="currentColor")=>(
-    <svg width={sz} height={sz} viewBox="0 0 24 24" fill="none" stroke={col} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 9a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9Z"/>
-      <path d="M8 2v4M16 2v4M12 11v6M9 14h6"/>
-    </svg>
-  ),
-  // bar chart rising
-  chart: (sz=28,col="currentColor")=>(
-    <svg width={sz} height={sz} viewBox="0 0 24 24" fill="none" stroke={col} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/>
-      <line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/>
-    </svg>
-  ),
-  // info circle
-  info: (sz=17,col="currentColor")=>(
-    <svg width={sz} height={sz} viewBox="0 0 24 24" fill="none" stroke={col} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
-    </svg>
-  ),
-  // presentation / slides
-  slides: (sz=14,col="currentColor")=>(
-    <svg width={sz} height={sz} viewBox="0 0 24 24" fill="none" stroke={col} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>
-    </svg>
-  ),
-  // refresh / swap
-  refresh: (sz=13,col="currentColor")=>(
-    <svg width={sz} height={sz} viewBox="0 0 24 24" fill="none" stroke={col} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
-      <path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
-      <path d="M8 16H3v5"/>
-    </svg>
-  ),
-  // download
-  download: (sz=15,col="currentColor")=>(
-    <svg width={sz} height={sz} viewBox="0 0 24 24" fill="none" stroke={col} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-      <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-    </svg>
-  ),
-  // eye
-  eye: (sz=15,col="currentColor")=>(
-    <svg width={sz} height={sz} viewBox="0 0 24 24" fill="none" stroke={col} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
-    </svg>
-  ),
-  // file pptx
-  filePpt: (sz=20,col="currentColor")=>(
-    <svg width={sz} height={sz} viewBox="0 0 24 24" fill="none" stroke={col} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-      <polyline points="14 2 14 8 20 8"/>
-      <line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="12" y2="17"/>
-    </svg>
-  ),
-  // users / team
-  users: (sz=20,col="currentColor")=>(
-    <svg width={sz} height={sz} viewBox="0 0 24 24" fill="none" stroke={col} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-      <circle cx="9" cy="7" r="4"/>
-      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-    </svg>
-  ),
-  // clock / pending
-  clock: (sz=20,col="currentColor")=>(
-    <svg width={sz} height={sz} viewBox="0 0 24 24" fill="none" stroke={col} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-    </svg>
-  ),
-  // check
-  check: (sz=13,col="currentColor")=>(
-    <svg width={sz} height={sz} viewBox="0 0 24 24" fill="none" stroke={col} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="20 6 9 17 4 12"/>
-    </svg>
-  ),
-  // paperclip
-  clip: (sz=11,col="currentColor")=>(
-    <svg width={sz} height={sz} viewBox="0 0 24 24" fill="none" stroke={col} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
-    </svg>
-  ),
-  // table / xlsx
-  table: (sz=16,col="currentColor")=>(
-    <svg width={sz} height={sz} viewBox="0 0 24 24" fill="none" stroke={col} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/>
-    </svg>
-  ),
-  // folder / projetos
-  folder: (sz=13,col="currentColor")=>(
-    <svg width={sz} height={sz} viewBox="0 0 24 24" fill="none" stroke={col} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-    </svg>
-  ),
-  // tool / melhorias
-  tool: (sz=13,col="currentColor")=>(
-    <svg width={sz} height={sz} viewBox="0 0 24 24" fill="none" stroke={col} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
-    </svg>
-  ),
-  // alert triangle
-  alertTri: (sz=13,col="currentColor")=>(
-    <svg width={sz} height={sz} viewBox="0 0 24 24" fill="none" stroke={col} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-      <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-    </svg>
-  ),
-  // alert circle
-  alertCirc: (sz=13,col="currentColor")=>(
-    <svg width={sz} height={sz} viewBox="0 0 24 24" fill="none" stroke={col} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10"/>
-      <line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-    </svg>
-  ),
-  // trending up / preview
-  trending: (sz=13,col="currentColor")=>(
-    <svg width={sz} height={sz} viewBox="0 0 24 24" fill="none" stroke={col} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
-      <polyline points="17 6 23 6 23 12"/>
-    </svg>
-  ),
-};
-
 /* ── REACT COMPONENT ───────────────────────────────────────────────────────── */
 export default function ReportRasScreen({ onVoltar }){
   const { profile, signOut } = useAuth();
@@ -1050,7 +934,7 @@ export default function ReportRasScreen({ onVoltar }){
         {/* ── HERO ── */}
         <div style={S.hero}>
           <div style={S.heroLeft}>
-            <div style={S.heroIcon}>{IC.chart(30,'#fff')}</div>
+            <div style={S.heroIcon}>{<BarChart2 size={30} color='#fff' />}</div>
             <div>
               <h1 style={S.heroTitle}>Atualizar RAS</h1>
               <p style={S.heroSub}>Reunião de Acompanhamento Semanal · Status Report Executivo</p>
@@ -1067,7 +951,7 @@ export default function ReportRasScreen({ onVoltar }){
 
         {/* ── INFO BANNER ── */}
         <div style={S.infoBanner}>
-          <span style={{display:"flex",flexShrink:0,marginTop:1}}>{IC.info(17,"#185fa5")}</span>
+          <span style={{display:"flex",flexShrink:0,marginTop:1}}>{<Info size={17} color="#185fa5" />}</span>
           <span>O template fica salvo na <strong>memória compartilhada da equipe</strong> — qualquer pessoa com o link vê o mesmo template. Os arquivos xlsx ficam só no seu navegador e não são compartilhados.</span>
         </div>
 
@@ -1090,7 +974,7 @@ export default function ReportRasScreen({ onVoltar }){
             </div>
           ):tplError?(
             <div style={{display:"flex",alignItems:"flex-start",gap:14,padding:"14px 20px",background:"#fdf2f2",borderRadius:12,border:"1px solid #f5c2c2"}}>
-              <span style={{flexShrink:0,marginTop:1}}>{IC.alertCirc(22,"#c0392b")}</span>
+              <span style={{flexShrink:0,marginTop:1}}>{<AlertCircle size={22} color="#c0392b" />}</span>
               <div>
                 <div style={{fontWeight:700,fontSize:14,color:"#a32d2d"}}>Template indisponível</div>
                 <div style={{fontSize:12,color:"#a32d2d",marginTop:3,lineHeight:1.45}}>{tplError}</div>
@@ -1098,7 +982,7 @@ export default function ReportRasScreen({ onVoltar }){
             </div>
           ):(
             <div style={{display:"flex",alignItems:"center",gap:16,padding:"14px 20px",background:"#f0faf5",borderRadius:12,border:"1px solid #b7e4cc"}}>
-              <span style={{display:"flex"}}>{IC.users(22,"#0f6e56")}</span>
+              <span style={{display:"flex"}}>{<Users size={22} color="#0f6e56" />}</span>
               <div style={{flex:1}}>
                 <div style={{fontWeight:700,fontSize:14,color:"#071735"}}>
                   {tplInfo?.name||'report_ras_template.pptx'}
@@ -1109,7 +993,7 @@ export default function ReportRasScreen({ onVoltar }){
                 </div>
               </div>
               <span style={{fontSize:13,color:"#0f6e56",fontWeight:600,display:"flex",alignItems:"center",gap:4}}>
-                {IC.check(13,"#0f6e56")} Pronto
+                {<Check size={13} color="#0f6e56" />} Pronto
               </span>
             </div>
           )}
@@ -1181,14 +1065,14 @@ export default function ReportRasScreen({ onVoltar }){
               style={canPrev?S.btnPreview:S.btnPreviewDisabled}>
               {previewing
                 ? <span style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8}}><Spinner color="#003d8f"/> Processando…</span>
-                : <span style={{display:"flex",alignItems:"center",justifyContent:"center",gap:7}}>{IC.eye(15,"#003d8f")} Pré-visualizar</span>
+                : <span style={{display:"flex",alignItems:"center",justifyContent:"center",gap:7}}>{<Eye size={15} color="#003d8f" />} Pré-visualizar</span>
               }
             </button>
             <button onClick={doGenerate} disabled={!canGen}
               style={canGen?S.btnGenerate:S.btnGenerateDisabled}>
               {busy
                 ? <span style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8}}><Spinner color="#fff"/> Gerando PPTX…</span>
-                : <span style={{display:"flex",alignItems:"center",justifyContent:"center",gap:7}}>{IC.download(15,"#fff")} Gerar e baixar PPTX</span>
+                : <span style={{display:"flex",alignItems:"center",justifyContent:"center",gap:7}}>{<Download size={15} color="#fff" />} Gerar e baixar PPTX</span>
               }
             </button>
           </div>
@@ -1206,8 +1090,8 @@ export default function ReportRasScreen({ onVoltar }){
                 background:genStatus.state==="error"?"#c0392b":genStatus.state==="ok"?"#008c35":"#5a6a82",
               }}>
                 {genStatus.state==="loading"?<Spinner color="#fff" size={18}/>
-                  :genStatus.state==="ok"?IC.check(20,"#fff")
-                  :IC.alertCirc(20,"#fff")}
+                  :genStatus.state==="ok"?<Check size={20} color="#fff" />
+                  :<AlertCircle size={20} color="#fff" />}
               </div>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontWeight:600,fontSize:13,
@@ -1221,7 +1105,7 @@ export default function ReportRasScreen({ onVoltar }){
                 {genStatus.state==="ok"&&genStatus.file?(
                   <div style={{fontSize:11,marginTop:4,color:"#526070",fontStyle:"italic",
                     whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
-                    <span style={{display:"inline-flex",alignItems:"center",gap:3}}>{IC.download(11,"#526070")} {genStatus.file}</span>
+                    <span style={{display:"inline-flex",alignItems:"center",gap:3}}>{<Download size={11} color="#526070" />} {genStatus.file}</span>
                   </div>
                 ):null}
               </div>
@@ -1280,7 +1164,7 @@ function XlsxCard({label,loaded,fileName,status,onChange}){
         borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",
         flexShrink:0,
       }}>
-        {isLoading?<Spinner color="#fff" size={18}/>:isError?IC.alertCirc(20,"#fff"):IC.table(18,"#fff")}
+        {isLoading?<Spinner color="#fff" size={18}/>:isError?<AlertCircle size={20} color="#fff" />:<Table2 size={18} color="#fff" />}
       </div>
       <div style={{overflow:"hidden",flex:1}}>
         <div style={{fontWeight:600,fontSize:13,color:"#071735"}}>{label}</div>
@@ -1289,7 +1173,7 @@ function XlsxCard({label,loaded,fileName,status,onChange}){
         {fileName&&!isError?(
           <div style={{fontSize:11,marginTop:3,color:"#526070",fontStyle:"italic",
             whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",maxWidth:230}}>
-            <span style={{display:"inline-flex",alignItems:"center",gap:3}}>{IC.clip(11,"#526070")} {fileName}</span>
+            <span style={{display:"inline-flex",alignItems:"center",gap:3}}>{<Paperclip size={11} color="#526070" />} {fileName}</span>
           </div>
         ):null}
 
@@ -1300,12 +1184,12 @@ function XlsxCard({label,loaded,fileName,status,onChange}){
           </div>
         ):isError?(
           <div style={{fontSize:12,marginTop:4,color:"#a32d2d",lineHeight:1.4,display:"flex",alignItems:"flex-start",gap:4}}>
-            <span style={{flexShrink:0,marginTop:1}}>{IC.alertCirc(12,"#a32d2d")}</span>
+            <span style={{flexShrink:0,marginTop:1}}>{<AlertCircle size={12} color="#a32d2d" />}</span>
             <span>{st.msg}</span>
           </div>
         ):loaded?(
           <div style={{fontSize:12,marginTop:3,color:"#0f6e56",display:"inline-flex",alignItems:"center",gap:4}}>
-            {IC.check(12,"#0f6e56")} Carregado — clique para trocar
+            {<Check size={12} color="#0f6e56" />} Carregado — clique para trocar
           </div>
         ):(
           <div style={{fontSize:12,marginTop:2,color:"#526070"}}>Clique para selecionar</div>
@@ -1330,7 +1214,7 @@ function PreviewPanel({d}){
   return(
     <div style={S.preview}>
       <div style={S.previewTitle}>
-        <span style={{display:"inline-flex",alignItems:"center",gap:7}}>{IC.trending(13,"#526070")} Pré-visualização · {d.lider} · {new Date().toLocaleDateString("pt-BR")}</span>
+        <span style={{display:"inline-flex",alignItems:"center",gap:7}}>{<TrendingUp size={13} color="#526070" />} Pré-visualização · {d.lider} · {new Date().toLocaleDateString("pt-BR")}</span>
       </div>
 
       <div style={S.kpiGrid}>
@@ -1342,14 +1226,14 @@ function PreviewPanel({d}){
 
       <div style={S.infoGrid}>
         <div style={S.infoBox}>
-          <div style={{...S.infoBoxTitle,display:"flex",alignItems:"center",gap:6}}>{IC.folder(13,"#071735")} Projetos Finalização ({d.total_p})</div>
+          <div style={{...S.infoBoxTitle,display:"flex",alignItems:"center",gap:6}}>{<FolderOpen size={13} color="#071735" />} Projetos Finalização ({d.total_p})</div>
           <div style={S.infoRow}>Entregues: {d.enc_p} ({d.pct_p_str}%)</div>
           <div style={S.infoRow}>Atrasados: {d.at_p} · Alerta: {d.er_p} · OK: {d.np_p}</div>
           <div style={S.infoRow}>Backlog Fin: {d.bl_fin.length} linhas{d.bl_fin.length>20?` · ${Math.ceil(d.bl_fin.length/20)} slides`:""}</div>
           <div style={S.infoRow}>Backlog EA: {d.bl_ea.length} linhas</div>
         </div>
         <div style={S.infoBox}>
-          <div style={{...S.infoBoxTitle,display:"flex",alignItems:"center",gap:6}}>{IC.tool(13,"#071735")} Melhorias ({d.total_m})</div>
+          <div style={{...S.infoBoxTitle,display:"flex",alignItems:"center",gap:6}}>{<Wrench size={13} color="#071735" />} Melhorias ({d.total_m})</div>
           <div style={S.infoRow}>Finalizadas: {d.fin_m} ({d.pct_m_str}%)</div>
           <div style={S.infoRow}>Atrasadas: {d.at_m} · Alerta: {d.er_m} · OK: {d.np_m}</div>
           <div style={S.infoRow}>Backlog Mel: {d.bl_mel.length} linhas{d.bl_mel.length>20?` · ${Math.ceil(d.bl_mel.length/20)} slides`:""}</div>
@@ -1359,7 +1243,7 @@ function PreviewPanel({d}){
       {(d.atraso_proj.length>0||d.atraso_mel.length>0)&&(
         <div style={{marginBottom:14}}>
           <div style={S.sectionLabel("#C00000")}>
-            <span style={{display:"inline-flex",alignItems:"center",gap:6}}>{IC.alertCirc(13,"#C00000")} Entregas em Atraso ({d.atraso_proj.length+d.atraso_mel.length})</span>
+            <span style={{display:"inline-flex",alignItems:"center",gap:6}}>{<AlertCircle size={13} color="#C00000" />} Entregas em Atraso ({d.atraso_proj.length+d.atraso_mel.length})</span>
           </div>
           <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
             {[...d.atraso_proj.map(r=>`${r.lecom} · ${r.target} (proj)`),...d.atraso_mel.map(r=>`${r.lecom} · ${r.target} (mel)`)].map((s,i)=>(
@@ -1372,7 +1256,7 @@ function PreviewPanel({d}){
       {(d.prx_proj.length>0||d.prx_mel.length>0)&&(
         <div>
           <div style={S.sectionLabel("#ED7D31")}>
-            <span style={{display:"inline-flex",alignItems:"center",gap:6}}>{IC.alertTri(13,"#ED7D31")} Entregas Próximas — 5 dias ({d.prx_proj.length+d.prx_mel.length})</span>
+            <span style={{display:"inline-flex",alignItems:"center",gap:6}}>{<AlertTriangle size={13} color="#ED7D31" />} Entregas Próximas — 5 dias ({d.prx_proj.length+d.prx_mel.length})</span>
           </div>
           <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
             {[...d.prx_proj.map(r=>`${r.lecom} · ${r.target}`),...d.prx_mel.map(r=>`${r.lecom} · ${r.target}`)].map((s,i)=>(
