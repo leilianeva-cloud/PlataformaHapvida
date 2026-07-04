@@ -1538,6 +1538,18 @@ function assignLanes(fases) {
   const laneEnds = [];
   const assignments = new Array(fases.length).fill(0);
 
+  // Folga mínima em dias entre fim de uma fase e início da próxima para poderem compartilhar lane.
+  // Menos que isso = risco de sobreposição visual dos textos → vai pra lane nova.
+  const FOLGA_MINIMA_DIAS = 15;
+
+  const diasEntre = (dataFim, dataInicio) => {
+    if (!dataFim || !dataInicio) return 0;
+    const d1 = new Date(dataFim);
+    const d2 = new Date(dataInicio);
+    if (isNaN(d1) || isNaN(d2)) return 0;
+    return Math.floor((d2 - d1) / (1000 * 60 * 60 * 24));
+  };
+
   // Processar fases com datas primeiro (ordem por início), depois aDefinir
   const comDatas   = fases.map((f, i) => ({ ...f, _i: i })).filter(f => !f.aDefinir)
                           .sort((a, b) => (a.inicio || '') <= (b.inicio || '') ? -1 : 1);
@@ -1545,7 +1557,11 @@ function assignLanes(fases) {
 
   for (const f of comDatas) {
     const fim = f.fimRepactuado || f.fim || '';
-    let lane = laneEnds.findIndex(end => (end || '') < (f.inicio || ''));
+    // Procura a primeira lane onde a folga entre o fim anterior e o início atual é suficiente
+    let lane = laneEnds.findIndex(end => {
+      if (!end) return true; // lane vazia
+      return diasEntre(end, f.inicio || '') >= FOLGA_MINIMA_DIAS;
+    });
     if (lane === -1) { lane = laneEnds.length; laneEnds.push(''); }
     laneEnds[lane] = fim;
     assignments[f._i] = lane;
