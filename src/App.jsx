@@ -49,16 +49,24 @@ function calcPacoteInfo(pac, pacRaias) {
   const maxFim    = allFim[allFim.length - 1] || '';
   const pcts      = pacRaias.map(calcPctRaia);
   const pctMedia  = pcts.length ? Math.round(pcts.reduce((s, p) => s + p, 0) / pcts.length) : 0;
+  //const statuses  = pacRaias.map(r => r.statusDemanda || 'A iniciar');
+ // const status    = statuses.includes('Atrasado') ? 'Atrasado'
+                 // : statuses.includes('Em Andamento') ? 'Em Andamento'
+                //  : statuses.length && statuses.every(s => s === 'Concluído') ? 'Concluído'
+                //  : 'A iniciar';
   const statuses  = pacRaias.map(r => r.statusDemanda || 'A iniciar');
   const status    = statuses.includes('Atrasado') ? 'Atrasado'
                   : statuses.includes('Em Andamento') ? 'Em Andamento'
+                  : statuses.includes('Aguardando Publicação') ? 'Aguardando Publicação'
+                  : statuses.includes('Op. Assistida') ? 'Op. Assistida'
                   : statuses.length && statuses.every(s => s === 'Concluído') ? 'Concluído'
                   : 'A iniciar';
   return { minInicio, maxFim, pctMedia, status };
 }
 
 function statusCor(s) {
-  return s === 'Concluído' ? '#00B050' : s === 'Em Andamento' ? '#0070C0' : s === 'Atrasado' ? '#C00000' : '#94A3B8';
+  //return s === 'Concluído' ? '#00B050' : s === 'Em Andamento' ? '#0070C0' : s === 'Atrasado' ? '#C00000' : '#94A3B8';
+  return s === 'Concluído' ? '#00B050' : s === 'Op. Assistida' ? '#14B8A6' : s === 'Aguardando Publicação' ? '#F59E0B' : s === 'Em Andamento' ? '#0070C0' : s === 'Atrasado' ? '#C00000' : '#94A3B8';
 }
 
 const STATUS_GERAL = {
@@ -800,12 +808,14 @@ function ReportScreen({ projects, setProjects, currentIdx, setCurrentIdx, active
   const updFase = (id, fi, patch) => setRaias(rs => rs.map(r => r.id === id ? { ...r, fases: r.fases.map((f, i) => i === fi ? { ...f, ...patch } : f) } : r));
   const addRaia = () => {
     const id = Date.now();
-    setRaias(rs => [...rs, { id, lecom: '', nome: 'NOVA DEMANDA', despriorizado: false, faseAtivaIdx: 0, fases: [{ fase: ORDEM_FASES[0], inicio: '', fim: '', pct: 0 }] }]);
+    //setRaias(rs => [...rs, { id, lecom: '', nome: 'NOVA DEMANDA', despriorizado: false, faseAtivaIdx: 0, fases: [{ fase: ORDEM_FASES[0], inicio: '', fim: '', pct: 0 }] }]);
+    setRaias(rs => [...rs, { id, lecom: '', nome: 'NOVA DEMANDA', despriorizado: false, fases: [{ fase: ORDEM_FASES[0], inicio: '', fim: '', pct: 0 }] }]);
     setAberta(a => ({ ...a, [id]: true }));
   };
   const addRaiaToPacote = (pid) => {
     const id = Date.now();
-    setRaias(rs => [...rs, { id, lecom:'', nome:'NOVA DEMANDA', despriorizado:false, faseAtivaIdx:0, fases:[{fase:ORDEM_FASES[0],inicio:'',fim:'',pct:0}] }]);
+    //setRaias(rs => [...rs, { id, lecom:'', nome:'NOVA DEMANDA', despriorizado:false, faseAtivaIdx:0, fases:[{fase:ORDEM_FASES[0],inicio:'',fim:'',pct:0}] }]);
+    setRaias(rs => [...rs, { id, lecom:'', nome:'NOVA DEMANDA', despriorizado:false, fases:[{fase:ORDEM_FASES[0],inicio:'',fim:'',pct:0}] }]);
     setPacotes(ps => ps.map(p => p.id===pid ? {...p, raiaIds:[...p.raiaIds, id]} : p));
     setAberta(a => ({ ...a, [id]: true }));
   };
@@ -1653,10 +1663,35 @@ function BarRow({ r, cells, atualizadoEm, rowH = 32 }) {
                 {f.pct || 0}%
               </span>
             )}
-            <span style={{ position: "absolute", right: 3, top: "50%", transform: "translateY(-50%)", zIndex: 2, fontSize: 8, fontWeight: 700, color: frac >= 0.9 ? "#fff" : "#1e293b", whiteSpace: "nowrap" }}>
+           {/* <span style={{ position: "absolute", right: 3, top: "50%", transform: "translateY(-50%)", zIndex: 2, fontSize: 8, fontWeight: 700, color: frac >= 0.9 ? "#fff" : "#1e293b", whiteSpace: "nowrap" }}>
               {isNarrow ? `${f.pct||0}% ` : ""}
               {f.fimRepactuado ? ddmm(f.fim) + " → " + ddmm(f.fimRepactuado) : ddmm(fimEfetivo)}
-            </span>
+            </span> */}
+
+            {(() => {
+              const textoDatas = f.fimRepactuado ? ddmm(f.fim) + " → " + ddmm(f.fimRepactuado) : ddmm(fimEfetivo);
+              const textoCompleto = isNarrow ? `${f.pct||0}% ${textoDatas}` : textoDatas;
+              // Estimativa: ~4.5px por caractere em fonte 8px bold
+              const larguraTextoPx = textoCompleto.length * 4.5;
+              const larguraBarraAprox = (displayW / 100) * 900; // aproximação da largura do Gantt em px
+              const textoCabeDentro = larguraTextoPx < larguraBarraAprox - 8;
+
+              if (textoCabeDentro) {
+                // Comportamento original: texto dentro da barra, alinhado à direita
+                return (
+                  <span style={{ position: "absolute", right: 3, top: "50%", transform: "translateY(-50%)", zIndex: 2, fontSize: 8, fontWeight: 700, color: frac >= 0.9 ? "#fff" : "#1e293b", whiteSpace: "nowrap" }}>
+                    {textoCompleto}
+                  </span>
+                );
+              }
+              // Barra curta: texto sai para fora, à direita da barra
+              return (
+                <span style={{ position: "absolute", left: "100%", marginLeft: 4, top: "50%", transform: "translateY(-50%)", zIndex: 3, fontSize: 8, fontWeight: 700, color: "#1e293b", whiteSpace: "nowrap" }}>
+                  {textoCompleto}
+                </span>
+              );
+            })()}
+            
           </div>
         );
       })}
@@ -1675,7 +1710,7 @@ function RaiaCard({ r, aberta, toggle, upd, updFase, addFase, delFase, delRaia }
         <input className="inp" style={{ width: 100 }} value={r.lecom} onChange={(e) => upd(r.id, { lecom: e.target.value })} placeholder="Lecom" />
         <input className="inp" style={{ flex: 1, fontWeight: 600 }} value={r.nome} onChange={(e) => upd(r.id, { nome: e.target.value })} placeholder="Nome da demanda/marco" />
         {/* Fase atual */}
-        {!r.despriorizado && r.fases.length > 0 && (
+        {/* {!r.despriorizado && r.fases.length > 0 && (
           <div style={{ display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
             <span style={{ fontSize: 11, color: "#94a3b8", whiteSpace: "nowrap" }}>Fase atual:</span>
             <select className="inp" style={{ width: 140, fontSize: 12, color: faseCor(r.fases[r.faseAtivaIdx ?? r.fases.length-1]), fontWeight: 700 }}
@@ -1686,18 +1721,25 @@ function RaiaCard({ r, aberta, toggle, upd, updFase, addFase, delFase, delRaia }
               ))}
             </select>
           </div>
-        )}
+        )} */}
         {/* Status da demanda */}
         {!r.despriorizado && (
           <div style={{ display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
             <span style={{ fontSize: 11, color: "#94a3b8", whiteSpace: "nowrap" }}>Status:</span>
             <select className="inp" style={{ width: 120, fontSize: 12, fontWeight: 700,
-              color: r.statusDemanda === 'Concluído' ? '#00B050' : r.statusDemanda === 'Em Andamento' ? '#0070C0' : r.statusDemanda === 'Atrasado' ? '#C00000' : '#94A3B8' }}
-              value={r.statusDemanda || 'A iniciar'}
+            color: statusCor(r.statusDemanda || 'A iniciar') }}
+            {/*  color: r.statusDemanda === 'Concluído' ? '#00B050' : r.statusDemanda === 'Em Andamento' ? '#0070C0' : r.statusDemanda === 'Atrasado' ? '#C00000' : '#94A3B8' }} */}
+            
               onChange={(e) => upd(r.id, { statusDemanda: e.target.value })}>
+             {/* <option value="A iniciar">A iniciar</option> */}
+            {/* <option value="Em Andamento">Em Andamento</option> */}
+             {/* <option value="Atrasado">Atrasado</option> */}
+             {/* <option value="Concluído">Concluído</option> */}
               <option value="A iniciar">A iniciar</option>
               <option value="Em Andamento">Em Andamento</option>
               <option value="Atrasado">Atrasado</option>
+              <option value="Aguardando Publicação">Aguardando Publicação</option>
+              <option value="Op. Assistida">Op. Assistida</option>
               <option value="Concluído">Concluído</option>
             </select>
           </div>
@@ -2154,7 +2196,8 @@ function gerarSlideXml({ projeto, raias, timeline, usaPacotes, pacotes }) {
     S.push(shape({x:0.16,y:ry,w:0.64,h:rh,text:r.lecom||"",textOpt:{sz:900,color:"404040",algn:"ctr",anchor:"ctr",wrap:"none"}}));
     S.push(shape({x:0.86,y:ry,w:2.28,h:rh,text:r.nome||"",textOpt:{sz:900,bold:true,color:"1F2A44",anchor:"ctr"}}));
     const stRaw = r.despriorizado ? 'Despriorizado' : (r.statusDemanda || 'A iniciar');
-    const stCor = r.despriorizado ? '7F7F7F' : stRaw === 'Concluído' ? '00B050' : stRaw === 'Em Andamento' ? '0070C0' : stRaw === 'Atrasado' ? 'C00000' : '94A3B8';
+    const stCor = r.despriorizado ? '7F7F7F' : stRaw === 'Concluído' ? '00B050' : stRaw === 'Op. Assistida' ? '14B8A6' : stRaw === 'Aguardando Publicação' ? 'F59E0B' : stRaw === 'Em Andamento' ? '0070C0' : stRaw === 'Atrasado' ? 'C00000' : '94A3B8';
+    //const stCor = r.despriorizado ? '7F7F7F' : stRaw === 'Concluído' ? '00B050' : stRaw === 'Em Andamento' ? '0070C0' : stRaw === 'Atrasado' ? 'C00000' : '94A3B8';
     S.push(shape({x:3.18,y:ry,w:0.98,h:rh,text:stRaw,textOpt:{sz:900,bold:true,color:stCor,algn:"ctr",anchor:"ctr",wrap:"none"}}));
     const dtIni=(()=>{const d=r.fases[0]?.inicio||"";if(!d)return"";const x=new Date(d+"T12:00:00");if(isNaN(x))return"";return String(x.getDate()).padStart(2,"0")+"/"+String(x.getMonth()+1).padStart(2,"0");})();
     S.push(shape({x:4.18,y:ry,w:0.68,h:rh,text:dtIni,textOpt:{sz:900,color:"404040",algn:"ctr",anchor:"ctr",wrap:"none"}}));
@@ -2227,7 +2270,8 @@ function gerarSlideXml({ projeto, raias, timeline, usaPacotes, pacotes }) {
     pacotes.forEach(pac => {
       const pacRaias = pac.raiaIds.map(id => raias.find(r=>r.id===id)).filter(Boolean);
       const info = calcPacoteInfo(pac, pacRaias);
-      const sCor = info.status==='Concluído'?'00B050':info.status==='Em Andamento'?'0070C0':info.status==='Atrasado'?'C00000':'94A3B8';
+      //const sCor = info.status==='Concluído'?'00B050':info.status==='Em Andamento'?'0070C0':info.status==='Atrasado'?'C00000':'94A3B8';
+      const sCor = info.status==='Concluído'?'00B050':info.status==='Op. Assistida'?'14B8A6':info.status==='Aguardando Publicação'?'F59E0B':info.status==='Em Andamento'?'0070C0':info.status==='Atrasado'?'C00000':'94A3B8';
       const pacH = rowH;
       const ry = curY;
       [[0.14,0.67],[0.81,2.37],[3.18,1.0],[4.18,0.69]].forEach(([cx,cw])=>S.push(shape({x:cx,y:ry,w:cw,h:pacH,fill:"EEF4FF",line:GRID_LN})));
