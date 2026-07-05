@@ -1643,10 +1643,11 @@ function BarRow({ r, cells, atualizadoEm, rowH = 32 }) {
          // : !sameMonth && naturalW < MIN_W ? Math.max(naturalW, MIN_W)
          //  : naturalW;
 
-      // Se a fase começa numa célula de trimestre comprimido (2T/4T colapsados),
-        // a barra ocupa EXATAMENTE a coluna inteira do trimestre, com datas e % dentro.
-        // Regra simples e previsível: zero vazamento para o trimestre vizinho.
-        const emTrimestreComprimido = !!currCell?.futuro;
+      // Se a fase é INTEIRAMENTE dentro de um trimestre comprimido (2T/4T colapsados),
+        // a barra ocupa EXATAMENTE a coluna inteira do trimestre.
+        // Se atravessa fronteira (ex: começa no 2T e termina no 3T vigente),
+        // permite transbordar naturalmente pra refletir a realidade cronológica.
+        const emTrimestreComprimido = !!currCell?.futuro && !!f1Cell?.futuro && currCell === f1Cell;
 
         let displayW, displayLeft;
         if (emTrimestreComprimido) {
@@ -2275,9 +2276,10 @@ function gerarSlideXml({ projeto, raias, timeline, usaPacotes, pacotes }) {
       const f1cellPptx=f1fracPptx!=null?cells.find(c=>f1fracPptx>=c.f0&&f1fracPptx<c.f1)||cells[cells.length-1]:null;
       const f0cellPptx=f0fracPptx!=null?cells.find(c=>f0fracPptx>=c.f0&&f0fracPptx<c.f1)||cells[cells.length-1]:null;
       const sameMonthPptx=!!(f0cellPptx?.mesLabel&&f0cellPptx.mesLabel===f1cellPptx?.mesLabel&&!f1cellPptx?.futuro);
-      // Trimestre comprimido: barra ocupa a coluna inteira, texto forçado dentro.
+      // Trimestre comprimido: barra ocupa a coluna inteira SE a fase for inteiramente
+      // dentro dele. Se atravessa fronteira com o vigente, transborda naturalmente.
       // Consistência total com o preview em tela.
-      const emComprimidoPptx = !!f0cellPptx?.futuro;
+      const emComprimidoPptx = !!f0cellPptx?.futuro && !!f1cellPptx?.futuro && f0cellPptx === f1cellPptx;
       const barX = emComprimidoPptx ? fx(f0cellPptx.f0) : xa;
       const barW = emComprimidoPptx
         ? (fx(f0cellPptx.f1) - fx(f0cellPptx.f0))
