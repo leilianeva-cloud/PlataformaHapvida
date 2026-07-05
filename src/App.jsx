@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import * as XLSX from 'xlsx';
-import { Plus, Trash2, ChevronDown, ChevronRight, Save, FileDown, ChevronLeft, Upload, FolderOpen, Search, Edit2, Download, Package, ClipboardList, Zap, LogOut, User, Shield, Filter } from "lucide-react";
+import { Plus, Trash2, ChevronDown, ChevronUp, ChevronRight, Save, FileDown, ChevronLeft, Upload, FolderOpen, Search, Edit2, Download, Package, ClipboardList, Zap, LogOut, User, Shield, Filter } from "lucide-react";
 import { useAuth } from './AuthContext';
 import { supabase, logAudit, logSession } from './supabaseClient';
 import LoginScreen from './LoginScreen';
@@ -825,6 +825,14 @@ function ReportScreen({ projects, setProjects, currentIdx, setCurrentIdx, active
   };
   const addFase = (id) => setRaias(rs => rs.map(r => r.id === id ? { ...r, fases: [...r.fases, { fase: ORDEM_FASES[Math.min(r.fases.length, ORDEM_FASES.length - 1)], inicio: '', fim: '', pct: 0 }] } : r));
   const delFase = (id, fi) => setRaias(rs => rs.map(r => r.id === id ? { ...r, fases: r.fases.filter((_, i) => i !== fi) } : r));
+  const moveFase = (id, fi, direcao) => setRaias(rs => rs.map(r => {
+    if (r.id !== id) return r;
+    const novoIdx = fi + direcao;
+    if (novoIdx < 0 || novoIdx >= r.fases.length) return r;
+    const novasFases = [...r.fases];
+    [novasFases[fi], novasFases[novoIdx]] = [novasFases[novoIdx], novasFases[fi]];
+    return { ...r, fases: novasFases };
+  }));
 
   const timeline = useMemo(() => buildTimeline(ano, mesInicio, nFuturos, nPassados), [ano, mesInicio, nFuturos, nPassados]);
   const hojeFrac = dateToFrac(projeto.atualizadoEm, timeline.cells);
@@ -992,16 +1000,26 @@ function ReportScreen({ projects, setProjects, currentIdx, setCurrentIdx, active
               <div className="lbl" style={{ marginBottom: 4 }}>Trimestre vigente (automático)</div>
               <div style={{ padding: "7px 12px", background: "#2F5597", color: "#fff", borderRadius: 8, fontSize: 13, fontWeight: 700, display: "inline-block" }}>{qLabel(0)}</div>
             </div>
+            
             <Field label="Trimestres anteriores">
-              <select className="inp" style={{ width: 80 }} value={nPassados} onChange={(e) => setNPassados(+e.target.value)}>
-                {[0, 1, 2, 3].map((n) => <option key={n} value={n}>{n}</option>)}
+              <select className="inp" style={{ width: 180 }} value={nPassados} onChange={(e) => setNPassados(+e.target.value)}>
+                {[0, 1, 2, 3].map((n) => (
+                  <option key={n} value={n}>
+                    {n === 0 ? "Nenhum" : `${qLabel(-n)} em diante`}
+                  </option>
+                ))}
               </select>
             </Field>
             <Field label="Trimestres futuros">
-              <select className="inp" style={{ width: 80 }} value={nFuturos} onChange={(e) => setNFuturos(+e.target.value)}>
-                {[0, 1, 2, 3].map((n) => <option key={n} value={n}>{n}</option>)}
+              <select className="inp" style={{ width: 180 }} value={nFuturos} onChange={(e) => setNFuturos(+e.target.value)}>
+                {[0, 1, 2, 3].map((n) => (
+                  <option key={n} value={n}>
+                    {n === 0 ? "Nenhum" : `Até ${qLabel(n)}`}
+                  </option>
+                ))}
               </select>
             </Field>
+            
           </div>
           <div style={{ marginTop: 12, fontSize: 12.5, color: "#334155" }}>
             <span style={{ fontWeight: 600 }}>Aparecerão: </span>
@@ -1038,7 +1056,7 @@ function ReportScreen({ projects, setProjects, currentIdx, setCurrentIdx, active
           {!usaPacotes && raias.map((r) => (
             <RaiaCard key={r.id} r={r} aberta={!!aberta[r.id]}
               toggle={() => setAberta((a) => ({ ...a, [r.id]: !a[r.id] }))}
-              upd={upd} updFase={updFase} addFase={addFase} delFase={delFase} delRaia={delRaia} />
+              upd={upd} updFase={updFase} addFase={addFase} delFase={delFase} moveFase={moveFase} delRaia={delRaia} />
           ))}
 
           {/* ── Modo pacotes ── */}
@@ -1069,7 +1087,7 @@ function ReportScreen({ projects, setProjects, currentIdx, setCurrentIdx, active
                   {pacRaias.map(r => (
                     <RaiaCard key={r.id} r={r} aberta={!!aberta[r.id]}
                       toggle={() => setAberta(a => ({...a, [r.id]: !a[r.id]}))}
-                      upd={upd} updFase={updFase} addFase={addFase} delFase={delFase} delRaia={delRaia} />
+                      upd={upd} updFase={updFase} addFase={addFase} delFase={delFase} moveFase={moveFase} delRaia={delRaia} />
                   ))}
                 </div>
               </div>
@@ -1535,46 +1553,12 @@ function GanttPreview({ projeto, raias, timeline, hojeFrac, usaPacotes, pacotes 
 // ---- helper: atribuição de lanes para fases sobrepostas ----
 function assignLanes(fases) {
   if (!fases.length) return { assignments: [], numLanes: 1 };
-  const laneEnds = [];
-  const assignments = new Array(fases.length).fill(0);
-
-  // Folga mínima em dias entre fim de uma fase e início da próxima para poderem compartilhar lane.
-  // Menos que isso = risco de sobreposição visual dos textos → vai pra lane nova.
-  const FOLGA_MINIMA_DIAS = 15;
-
-  const diasEntre = (dataFim, dataInicio) => {
-    if (!dataFim || !dataInicio) return 0;
-    const d1 = new Date(dataFim);
-    const d2 = new Date(dataInicio);
-    if (isNaN(d1) || isNaN(d2)) return 0;
-    return Math.floor((d2 - d1) / (1000 * 60 * 60 * 24));
+  // Regra: uma fase por lane, sempre, na ordem em que aparecem no array.
+  // A ordem é controlada pelo usuário via botões ⬆⬇ no card de edição.
+  return {
+    assignments: fases.map((_, i) => i),
+    numLanes: Math.max(fases.length, 1),
   };
-
-  // Processar fases com datas primeiro (ordem por início), depois aDefinir
-  const comDatas   = fases.map((f, i) => ({ ...f, _i: i })).filter(f => !f.aDefinir)
-                          .sort((a, b) => (a.inicio || '') <= (b.inicio || '') ? -1 : 1);
-  const semDatas   = fases.map((f, i) => ({ ...f, _i: i })).filter(f => f.aDefinir);
-
-  for (const f of comDatas) {
-    const fim = f.fimRepactuado || f.fim || '';
-    // Procura a primeira lane onde a folga entre o fim anterior e o início atual é suficiente
-    let lane = laneEnds.findIndex(end => {
-      if (!end) return true; // lane vazia
-      return diasEntre(end, f.inicio || '') >= FOLGA_MINIMA_DIAS;
-    });
-    if (lane === -1) { lane = laneEnds.length; laneEnds.push(''); }
-    laneEnds[lane] = fim;
-    assignments[f._i] = lane;
-  }
-
-  // aDefinir: sempre lane nova exclusiva (não sabe quando termina)
-  for (const f of semDatas) {
-    const lane = laneEnds.length;
-    laneEnds.push('9999-12-31');
-    assignments[f._i] = lane;
-  }
-
-  return { assignments, numLanes: Math.max(laneEnds.length, 1) };
 }
 
 // desenha as barras de uma raia
@@ -1654,10 +1638,26 @@ function BarRow({ r, cells, atualizadoEm, rowH = 32 }) {
         //   - isNarrow (mesmo mês, sem espaço à frente) → cresce para trás, limitado ao mês
         //   - barra curta com fim em mês/tri diferente → pode crescer para frente livremente
         //   - normal → usa naturalW
+        // const displayW = isNarrow
+          // ? Math.max(naturalW, Math.min(MIN_W, (monthEnd - monthStart) * 100))
+         // : !sameMonth && naturalW < MIN_W ? Math.max(naturalW, MIN_W)
+         //  : naturalW;
+
+      // Se a fase começa numa célula de trimestre comprimido (2T/4T colapsados),
+        // a barra NUNCA pode ultrapassar os limites da própria célula — senão vaza
+        // visualmente para o trimestre seguinte, distorcendo o report.
+        const emTrimestreComprimido = !!currCell?.futuro;
+        const larguraMaxTrimestre = emTrimestreComprimido
+          ? (currCell.f1 - currCell.f0) * 100
+          : Infinity;
+
         const displayW = isNarrow
-          ? Math.max(naturalW, Math.min(MIN_W, (monthEnd - monthStart) * 100))
-          : !sameMonth && naturalW < MIN_W ? Math.max(naturalW, MIN_W)
-          : naturalW;
+          ? Math.min(Math.max(naturalW, Math.min(MIN_W, (monthEnd - monthStart) * 100)), larguraMaxTrimestre)
+          : !sameMonth && naturalW < MIN_W
+            ? Math.min(Math.max(naturalW, MIN_W), larguraMaxTrimestre)
+            : Math.min(naturalW, larguraMaxTrimestre);
+
+      
         const adjustedLeft = isNarrow && spaceAhead < displayW
           ? Math.max(monthStart, monthEnd - displayW / 100)
           : f0;
@@ -1716,7 +1716,7 @@ function BarRow({ r, cells, atualizadoEm, rowH = 32 }) {
 }
 
 // ---------- Card de raia (editor) ----------
-function RaiaCard({ r, aberta, toggle, upd, updFase, addFase, delFase, delRaia }) {
+function RaiaCard({ r, aberta, toggle, upd, updFase, addFase, delFase, moveFase, delRaia }) {
   return (
     <div style={{ background: "#FAFBFC", borderRadius: 10, marginBottom: 10, border: r.despriorizado ? "1px solid #E2E8F0" : "1px solid #EEF2F7" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px" }}>
@@ -1808,8 +1808,21 @@ function RaiaCard({ r, aberta, toggle, upd, updFase, addFase, delFase, delRaia }
                   <input type="range" min={0} max={100} value={f.pct || 0} disabled={!!f.aDefinir} onChange={(e) => updFase(r.id, i, { pct: +e.target.value })} style={{ flex: 1, minWidth: 0, accentColor: faseCor(f) }} />
                   <span style={{ fontSize: 12.5, fontWeight: 700, width: 38, textAlign: "right", color: "#0f172a", flexShrink: 0 }}>{f.pct || 0}%</span>
                 </div>
-                {/* Trash */}
+                
+
+                {/* Reordenar + Trash */}
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+                  <button onClick={() => moveFase(r.id, i, -1)} disabled={i === 0} title="Mover para cima"
+                    style={{ background: "none", border: "none", cursor: i === 0 ? "not-allowed" : "pointer", color: i === 0 ? "#cbd5e1" : "#64748b", padding: 0, display: "flex", height: 14 }}>
+                    <ChevronUp size={14} />
+                  </button>
+                  <button onClick={() => moveFase(r.id, i, +1)} disabled={i === r.fases.length - 1} title="Mover para baixo"
+                    style={{ background: "none", border: "none", cursor: i === r.fases.length - 1 ? "not-allowed" : "pointer", color: i === r.fases.length - 1 ? "#cbd5e1" : "#64748b", padding: 0, display: "flex", height: 14 }}>
+                    <ChevronDown size={14} />
+                  </button>
+                </div>
                 <button onClick={() => delFase(r.id, i)} title="Remover fase" style={{ background: "none", border: "none", cursor: "pointer", color: "#ef4444", display: "flex", justifyContent: "center" }}><Trash2 size={15} /></button>
+                
               </div>
               {/* hint repactuação */}
               {f.fimRepactuado && !f.aDefinir && (
@@ -2223,14 +2236,13 @@ function gerarSlideXml({ projeto, raias, timeline, usaPacotes, pacotes }) {
       if(xb>xa){ S.push(shape({x:xa,y:cy,w:xb-xa,h:barH,fill:"D9D9D9",round:50000,text:"Despriorizado",textOpt:{sz:750,color:"64748B",algn:"ctr",anchor:"ctr",wrap:"none"}})); }
       return;
     }
-    const lanesInfo=(()=>{
-      const ends=[];const asgn=new Array(r.fases.length).fill(0);
-      const comDatas=r.fases.map((f,i)=>({...f,_i:i})).filter(f=>!f.aDefinir).sort((a,b)=>(a.inicio||'')<=(b.inicio||'')?-1:1);
-      const semDatas=r.fases.map((f,i)=>({...f,_i:i})).filter(f=>f.aDefinir);
-      for(const f of comDatas){const fim=f.fimRepactuado||f.fim||'';let l=ends.findIndex(e=>(e||'')<(f.inicio||''));if(l===-1){l=ends.length;ends.push('');}ends[l]=fim;asgn[f._i]=l;}
-      for(const f of semDatas){const l=ends.length;ends.push('9999-12-31');asgn[f._i]=l;}
-      return{asgn,n:Math.max(ends.length,1)};
-    })();
+    // Uma fase por lane, na ordem definida pelo usuário no card de edição (setas ⬆⬇).
+    // Mantém consistência entre card, preview do Gantt e PPTX exportado.
+    const lanesInfo = {
+      asgn: r.fases.map((_, i) => i),
+      n: Math.max(r.fases.length, 1),
+    };
+    
     const {asgn,n:numL}=lanesInfo;
     const lBarH=numL>1?Math.min(barH,(rh*0.75)/numL):barH;
     const lGap=numL>1?0.02:0;
