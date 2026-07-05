@@ -1774,7 +1774,19 @@ function RaiaCard({ r, aberta, toggle, upd, updFase, addFase, delFase, moveFase,
           </div>
           {r.fases.map((f, i) => (
             <div key={i} style={{ marginBottom: 8 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 120px 120px 110px 80px 1fr 36px", gap: 10, alignItems: "center" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "24px 1fr 120px 120px 110px 80px 1fr 30px", gap: 10, alignItems: "center" }}>
+                {/* Reordenar (início) */}
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+                  <button onClick={() => moveFase(r.id, i, -1)} disabled={i === 0} title="Mover para cima"
+                    style={{ background: "none", border: "none", cursor: i === 0 ? "not-allowed" : "pointer", color: i === 0 ? "#cbd5e1" : "#64748b", padding: 0, display: "flex", height: 14 }}>
+                    <ChevronUp size={14} />
+                  </button>
+                  <button onClick={() => moveFase(r.id, i, +1)} disabled={i === r.fases.length - 1} title="Mover para baixo"
+                    style={{ background: "none", border: "none", cursor: i === r.fases.length - 1 ? "not-allowed" : "pointer", color: i === r.fases.length - 1 ? "#cbd5e1" : "#64748b", padding: 0, display: "flex", height: 14 }}>
+                    <ChevronDown size={14} />
+                  </button>
+                </div>
+                {/* Fase: select + campo manual */}
                 {/* Fase: select + campo manual */}
                 <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
                   <select className="inp" style={{ fontSize: 12 }} value={f.fase} onChange={(e) => updFase(r.id, i, { fase: e.target.value, faseCustom: e.target.value === FASE_CUSTOM ? (f.faseCustom || '') : undefined })}>
@@ -1809,17 +1821,7 @@ function RaiaCard({ r, aberta, toggle, upd, updFase, addFase, delFase, moveFase,
                 </div>
                 
 
-                {/* Reordenar + Trash */}
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
-                  <button onClick={() => moveFase(r.id, i, -1)} disabled={i === 0} title="Mover para cima"
-                    style={{ background: "none", border: "none", cursor: i === 0 ? "not-allowed" : "pointer", color: i === 0 ? "#cbd5e1" : "#64748b", padding: 0, display: "flex", height: 14 }}>
-                    <ChevronUp size={14} />
-                  </button>
-                  <button onClick={() => moveFase(r.id, i, +1)} disabled={i === r.fases.length - 1} title="Mover para baixo"
-                    style={{ background: "none", border: "none", cursor: i === r.fases.length - 1 ? "not-allowed" : "pointer", color: i === r.fases.length - 1 ? "#cbd5e1" : "#64748b", padding: 0, display: "flex", height: 14 }}>
-                    <ChevronDown size={14} />
-                  </button>
-                </div>
+                
                 <button onClick={() => delFase(r.id, i)} title="Remover fase" style={{ background: "none", border: "none", cursor: "pointer", color: "#ef4444", display: "flex", justifyContent: "center" }}><Trash2 size={15} /></button>
                 
               </div>
@@ -2267,24 +2269,31 @@ function gerarSlideXml({ projeto, raias, timeline, usaPacotes, pacotes }) {
       const xa=dX(f.inicio), xb=dX(fimEfetivo);
       if(xa==null||xb==null) return;
       const naturalW=Math.max(xb-xa,0);
-      // mesma lógica do preview: barra curta com fim em mês diferente cresce para frente
       const MIN_DISPLAY=0.6; // ~polegadas mínimas para caber % + data
       const f1fracPptx=dateToFrac(fimEfetivo,cells);
       const f0fracPptx=dateToFrac(f.inicio,cells);
       const f1cellPptx=f1fracPptx!=null?cells.find(c=>f1fracPptx>=c.f0&&f1fracPptx<c.f1)||cells[cells.length-1]:null;
       const f0cellPptx=f0fracPptx!=null?cells.find(c=>f0fracPptx>=c.f0&&f0fracPptx<c.f1)||cells[cells.length-1]:null;
       const sameMonthPptx=!!(f0cellPptx?.mesLabel&&f0cellPptx.mesLabel===f1cellPptx?.mesLabel&&!f1cellPptx?.futuro);
-      const w=sameMonthPptx?Math.max(naturalW,MIN_BAR):Math.max(naturalW,naturalW<MIN_DISPLAY?MIN_DISPLAY:MIN_BAR);
-      const xd=xa+w*frac;
-      S.push(shape({x:xa,y:cy2,w:w,h:lBarH,fill:corL,round:50000}));
+      // Trimestre comprimido: barra ocupa a coluna inteira, texto forçado dentro.
+      // Consistência total com o preview em tela.
+      const emComprimidoPptx = !!f0cellPptx?.futuro;
+      const barX = emComprimidoPptx ? fx(f0cellPptx.f0) : xa;
+      const barW = emComprimidoPptx
+        ? (fx(f0cellPptx.f1) - fx(f0cellPptx.f0))
+        : (sameMonthPptx ? Math.max(naturalW, MIN_BAR) : Math.max(naturalW, naturalW < MIN_DISPLAY ? MIN_DISPLAY : MIN_BAR));
+      const xd = barX + barW * frac;
+      S.push(shape({x:barX,y:cy2,w:barW,h:lBarH,fill:corL,round:50000}));
       if(f.fimRepactuado){const xbOrig=dX(f.fim);if(xbOrig!=null&&xbOrig<xb){S.push(shape({x:xbOrig-0.01,y:cy2,w:0.02,h:lBarH,fill:"F47B20"}));}}
-      if(frac>0.01) S.push(shape({x:xa,y:cy2,w:w*frac,h:lBarH,fill:cor,round:50000}));
+      if(frac>0.01) S.push(shape({x:barX,y:cy2,w:barW*frac,h:lBarH,fill:cor,round:50000}));
       const dataTexto = f.fimRepactuado ? ddmm(f.fim)+'→'+ddmm(f.fimRepactuado) : ddmm(fimEfetivo);
-      if(naturalW>=MIN_BAR){
-        S.push(shape({x:xa+0.03,y:cy2,w:Math.max(0.3,xd-xa),h:lBarH,text:`${f.pct||0}%`,textOpt:{sz:600,bold:true,color:frac>0.12?"FFFFFF":"1E293B",algn:"l",anchor:"ctr",wrap:"none"}}));
-        S.push(shape({x:xa,y:cy2,w:w,h:lBarH,text:dataTexto,textOpt:{sz:600,bold:true,color:frac>=0.9?"FFFFFF":"1E293B",algn:"r",anchor:"ctr",wrap:"none"}}));
+      // Em trimestre comprimido, barra é larga o suficiente pra dois textos (% esq + data dir)
+      const mostrar2Textos = naturalW >= MIN_BAR || emComprimidoPptx;
+      if(mostrar2Textos){
+        S.push(shape({x:barX+0.03,y:cy2,w:Math.max(0.3,xd-barX),h:lBarH,text:`${f.pct||0}%`,textOpt:{sz:emComprimidoPptx?550:600,bold:true,color:frac>0.12?"FFFFFF":"1E293B",algn:"l",anchor:"ctr",wrap:"none"}}));
+        S.push(shape({x:barX,y:cy2,w:barW,h:lBarH,text:dataTexto,textOpt:{sz:emComprimidoPptx?550:600,bold:true,color:frac>=0.9?"FFFFFF":"1E293B",algn:"r",anchor:"ctr",wrap:"none"}}));
       } else {
-        S.push(shape({x:xa,y:cy2,w:w,h:lBarH,text:`${f.pct||0}% ${dataTexto}`,textOpt:{sz:550,bold:true,color:"1E293B",algn:"ctr",anchor:"ctr",wrap:"none"}}));
+        S.push(shape({x:barX,y:cy2,w:barW,h:lBarH,text:`${f.pct||0}% ${dataTexto}`,textOpt:{sz:550,bold:true,color:"1E293B",algn:"ctr",anchor:"ctr",wrap:"none"}}));
       }
     });
   };
