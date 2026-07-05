@@ -1643,17 +1643,25 @@ function BarRow({ r, cells, atualizadoEm, rowH = 32 }) {
          // : !sameMonth && naturalW < MIN_W ? Math.max(naturalW, MIN_W)
          //  : naturalW;
 
-      // Se a fase é INTEIRAMENTE dentro de um trimestre comprimido (2T/4T colapsados),
-        // a barra ocupa EXATAMENTE a coluna inteira do trimestre.
-        // Se atravessa fronteira (ex: começa no 2T e termina no 3T vigente),
-        // permite transbordar naturalmente pra refletir a realidade cronológica.
-        const emTrimestreComprimido = !!currCell?.futuro && !!f1Cell?.futuro && currCell === f1Cell;
+      // Fase inteira em tri comprimido → ocupa coluna inteira.
+        // Fase que INICIA em tri comprimido (e transborda) → âncora no INÍCIO da coluna.
+        // Fase que TERMINA em tri comprimido (começou no vigente) → âncora no FIM da coluna.
+        // Consistência visual: textos e barras respeitam os limites das colunas comprimidas.
+        const iniciaEmComprimido = !!currCell?.futuro;
+        const terminaEmComprimido = !!f1Cell?.futuro;
+        const emTrimestreComprimido = iniciaEmComprimido && terminaEmComprimido && currCell === f1Cell;
 
         let displayW, displayLeft;
         if (emTrimestreComprimido) {
-          displayW = (currCell.f1 - currCell.f0) * 100;
           displayLeft = currCell.f0 * 100;
+          displayW = (currCell.f1 - currCell.f0) * 100;
+        } else if (iniciaEmComprimido || terminaEmComprimido) {
+          const leftFrac = iniciaEmComprimido ? currCell.f0 : f0;
+          const rightFrac = terminaEmComprimido ? f1Cell.f1 : f1;
+          displayLeft = leftFrac * 100;
+          displayW = (rightFrac - leftFrac) * 100;
         } else if (isNarrow) {
+          
           displayW = Math.max(naturalW, Math.min(MIN_W, (monthEnd - monthStart) * 100));
           displayLeft = (spaceAhead < displayW ? Math.max(monthStart, monthEnd - displayW / 100) : f0) * 100;
         } else if (!sameMonth && naturalW < MIN_W) {
@@ -2276,15 +2284,29 @@ function gerarSlideXml({ projeto, raias, timeline, usaPacotes, pacotes }) {
       const f1cellPptx=f1fracPptx!=null?cells.find(c=>f1fracPptx>=c.f0&&f1fracPptx<c.f1)||cells[cells.length-1]:null;
       const f0cellPptx=f0fracPptx!=null?cells.find(c=>f0fracPptx>=c.f0&&f0fracPptx<c.f1)||cells[cells.length-1]:null;
       const sameMonthPptx=!!(f0cellPptx?.mesLabel&&f0cellPptx.mesLabel===f1cellPptx?.mesLabel&&!f1cellPptx?.futuro);
-      // Trimestre comprimido: barra ocupa a coluna inteira SE a fase for inteiramente
-      // dentro dele. Se atravessa fronteira com o vigente, transborda naturalmente.
+      
+      // Fase inteira em tri comprimido → ocupa coluna inteira.
+      // Fase que INICIA em tri comprimido → âncora no início da coluna.
+      // Fase que TERMINA em tri comprimido → âncora no fim da coluna.
       // Consistência total com o preview em tela.
-      const emComprimidoPptx = !!f0cellPptx?.futuro && !!f1cellPptx?.futuro && f0cellPptx === f1cellPptx;
-      const barX = emComprimidoPptx ? fx(f0cellPptx.f0) : xa;
-      const barW = emComprimidoPptx
-        ? (fx(f0cellPptx.f1) - fx(f0cellPptx.f0))
-        : (sameMonthPptx ? Math.max(naturalW, MIN_BAR) : Math.max(naturalW, naturalW < MIN_DISPLAY ? MIN_DISPLAY : MIN_BAR));
+      const iniciaComprimidoPptx = !!f0cellPptx?.futuro;
+      const terminaComprimidoPptx = !!f1cellPptx?.futuro;
+      const emComprimidoPptx = iniciaComprimidoPptx && terminaComprimidoPptx && f0cellPptx === f1cellPptx;
+
+      let barX, barW;
+      if (emComprimidoPptx) {
+        barX = fx(f0cellPptx.f0);
+        barW = fx(f0cellPptx.f1) - fx(f0cellPptx.f0);
+      } else if (iniciaComprimidoPptx || terminaComprimidoPptx) {
+        barX = iniciaComprimidoPptx ? fx(f0cellPptx.f0) : xa;
+        const rightX = terminaComprimidoPptx ? fx(f1cellPptx.f1) : xb;
+        barW = rightX - barX;
+      } else {
+        barX = xa;
+        barW = sameMonthPptx ? Math.max(naturalW, MIN_BAR) : Math.max(naturalW, naturalW < MIN_DISPLAY ? MIN_DISPLAY : MIN_BAR);
+      }
       const xd = barX + barW * frac;
+      
       S.push(shape({x:barX,y:cy2,w:barW,h:lBarH,fill:corL,round:50000}));
       if(f.fimRepactuado){const xbOrig=dX(f.fim);if(xbOrig!=null&&xbOrig<xb){S.push(shape({x:xbOrig-0.01,y:cy2,w:0.02,h:lBarH,fill:"F47B20"}));}}
       if(frac>0.01) S.push(shape({x:barX,y:cy2,w:barW*frac,h:lBarH,fill:cor,round:50000}));
