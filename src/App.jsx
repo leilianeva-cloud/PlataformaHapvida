@@ -1644,24 +1644,24 @@ function BarRow({ r, cells, atualizadoEm, rowH = 32 }) {
          //  : naturalW;
 
       // Se a fase começa numa célula de trimestre comprimido (2T/4T colapsados),
-        // a barra NUNCA pode ultrapassar os limites da própria célula — senão vaza
-        // visualmente para o trimestre seguinte, distorcendo o report.
+        // a barra ocupa EXATAMENTE a coluna inteira do trimestre, com datas e % dentro.
+        // Regra simples e previsível: zero vazamento para o trimestre vizinho.
         const emTrimestreComprimido = !!currCell?.futuro;
-        const larguraMaxTrimestre = emTrimestreComprimido
-          ? (currCell.f1 - currCell.f0) * 100
-          : Infinity;
 
-        const displayW = isNarrow
-          ? Math.min(Math.max(naturalW, Math.min(MIN_W, (monthEnd - monthStart) * 100)), larguraMaxTrimestre)
-          : !sameMonth && naturalW < MIN_W
-            ? Math.min(Math.max(naturalW, MIN_W), larguraMaxTrimestre)
-            : Math.min(naturalW, larguraMaxTrimestre);
-
-      
-        const adjustedLeft = isNarrow && spaceAhead < displayW
-          ? Math.max(monthStart, monthEnd - displayW / 100)
-          : f0;
-        const displayLeft = adjustedLeft * 100;
+        let displayW, displayLeft;
+        if (emTrimestreComprimido) {
+          displayW = (currCell.f1 - currCell.f0) * 100;
+          displayLeft = currCell.f0 * 100;
+        } else if (isNarrow) {
+          displayW = Math.max(naturalW, Math.min(MIN_W, (monthEnd - monthStart) * 100));
+          displayLeft = (spaceAhead < displayW ? Math.max(monthStart, monthEnd - displayW / 100) : f0) * 100;
+        } else if (!sameMonth && naturalW < MIN_W) {
+          displayW = Math.max(naturalW, MIN_W);
+          displayLeft = f0 * 100;
+        } else {
+          displayW = naturalW;
+          displayLeft = f0 * 100;
+        }
         const f1orig = f.fimRepactuado ? dateToFrac(f.fim, cells) : null;
         const origPct = f1orig != null ? Math.max(0, Math.min(1, (f1orig - f0) / (f1 - f0 || 1))) : null;
 
@@ -1690,17 +1690,16 @@ function BarRow({ r, cells, atualizadoEm, rowH = 32 }) {
               // Estimativa: ~4.5px por caractere em fonte 8px bold
               const larguraTextoPx = textoCompleto.length * 4.5;
               const larguraBarraAprox = (displayW / 100) * 900; // aproximação da largura do Gantt em px
-              const textoCabeDentro = larguraTextoPx < larguraBarraAprox - 8;
+              // Em trimestre comprimido: força texto DENTRO da barra (regra: nunca vazar)
+              const textoCabeDentro = emTrimestreComprimido || (larguraTextoPx < larguraBarraAprox - 8);
 
               if (textoCabeDentro) {
-                // Comportamento original: texto dentro da barra, alinhado à direita
                 return (
-                  <span style={{ position: "absolute", right: 3, top: "50%", transform: "translateY(-50%)", zIndex: 2, fontSize: 8, fontWeight: 700, color: frac >= 0.9 ? "#fff" : "#1e293b", whiteSpace: "nowrap" }}>
+                  <span style={{ position: "absolute", right: 3, top: "50%", transform: "translateY(-50%)", zIndex: 2, fontSize: emTrimestreComprimido ? 7 : 8, fontWeight: 700, color: frac >= 0.9 ? "#fff" : "#1e293b", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "clip", maxWidth: "100%" }}>
                     {textoCompleto}
                   </span>
                 );
               }
-              // Barra curta: texto sai para fora, à direita da barra
               return (
                 <span style={{ position: "absolute", left: "100%", marginLeft: 4, top: "50%", transform: "translateY(-50%)", zIndex: 3, fontSize: 8, fontWeight: 700, color: "#1e293b", whiteSpace: "nowrap" }}>
                   {textoCompleto}
