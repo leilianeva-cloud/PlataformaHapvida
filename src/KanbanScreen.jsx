@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, Component } from 'react'
 import { supabase, logAudit } from './supabaseClient'
 import {
   ChevronLeft, LayoutGrid, Users, NotebookPen, Plus, Pencil, Trash2,
@@ -27,9 +27,57 @@ const fmtDiaMes = (s) => { const dt = parseDate(s); if (!dt) return ''; return d
 const hojeISO = () => new Date().toISOString().slice(0,10)
 
 // ════════════════════════════════════════════════════════════════════
-//  TELA PRINCIPAL
+//  EXPORT com Error Boundary (CAPTURADOR TEMPORÁRIO DE ERRO)
+//  → mostra o erro na tela em vez de deixar branco.
+//  Depois de descobrirmos a causa, este bloco pode ser removido e o
+//  KanbanInner volta a ser o export default.
 // ════════════════════════════════════════════════════════════════════
-export default function KanbanScreen({ onBack }) {
+export default function KanbanScreen(props) {
+  return (
+    <ErrorCatcher>
+      <KanbanInner {...props} />
+    </ErrorCatcher>
+  )
+}
+
+class ErrorCatcher extends Component {
+  constructor(props) { super(props); this.state = { err: null, info: null } }
+  static getDerivedStateFromError(err) { return { err } }
+  componentDidCatch(err, info) { this.setState({ info }); console.error('KanbanScreen erro:', err, info) }
+  render() {
+    if (this.state.err) {
+      const e = this.state.err
+      return (
+        <div style={{ minHeight:'100vh', background:'#FEF2F2', padding:24, fontFamily:'monospace' }}>
+          <div style={{ maxWidth:800, margin:'0 auto', background:'#fff', border:'2px solid #DC2626', borderRadius:12, padding:20 }}>
+            <div style={{ fontSize:16, fontWeight:700, color:'#DC2626', marginBottom:12, fontFamily:'sans-serif' }}>
+              ⚠️ Erro capturado na tela Kanban
+            </div>
+            <div style={{ fontSize:13, color:'#7F1D1D', marginBottom:8 }}>
+              <b>Mensagem:</b> {e?.message || String(e)}
+            </div>
+            {e?.stack && (
+              <pre style={{ fontSize:11, color:'#334155', background:'#F8FAFC', border:'1px solid #E2E8F0', borderRadius:8, padding:12, overflow:'auto', maxHeight:260, whiteSpace:'pre-wrap' }}>
+                {e.stack}
+              </pre>
+            )}
+            {this.state.info?.componentStack && (
+              <pre style={{ fontSize:11, color:'#64748b', background:'#F8FAFC', border:'1px solid #E2E8F0', borderRadius:8, padding:12, overflow:'auto', maxHeight:200, whiteSpace:'pre-wrap', marginTop:10 }}>
+                {this.state.info.componentStack}
+              </pre>
+            )}
+          </div>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  TELA PRINCIPAL (interna)
+// ════════════════════════════════════════════════════════════════════
+function KanbanInner({ onBack }) {
   const [me, setMe]             = useState(null)   // { id, email, nome }
   const [tasks, setTasks]       = useState([])
   const [meetings, setMeetings] = useState([])
@@ -44,6 +92,7 @@ export default function KanbanScreen({ onBack }) {
   const [erroId, setErroId]         = useState(null)
   const [suggestions, setSuggestions] = useState(null)
   const [toast, setToast]           = useState(null)
+  const [loadErr, setLoadErr]       = useState(null)  // DEBUG: erro da carga inicial
 
   const readOnly = aba === 'compartilhado'
 
@@ -52,30 +101,40 @@ export default function KanbanScreen({ onBack }) {
   // ── Carga inicial ──
   useEffect(() => {
     (async () => {
-      const { data:{ user } } = await supabase.auth.getUser()
-      if (!user) { setLoading(false); return }
-      let nome = user.email
-      const { data: prof } = await supabase.from('profiles').select('name').eq('id', user.id).single()
-      if (prof?.name) nome = prof.name
-      setMe({ id:user.id, email:user.email, nome })
-      await Promise.all([carregarTasks(user.id), carregarMeetings(user.id)])
-      setLoading(false)
+      try {
+        const { data:{ user }, error: uErr } = await supabase.auth.getUser()
+        if (uErr) throw new Error('auth.getUser: ' + uErr.message)
+        if (!user) { setLoading(false); return }
+        let nome = user.email
+        const { data: prof, error: pErr } = await supabase.from('profiles').select('name').eq('id', user.id).single()
+        if (pErr) throw new Error('profiles.select: ' + pErr.message)
+        if (prof?.name) nome = prof.name
+        setMe({ id:user.id, email:user.email, nome })
+        await Promise.all([carregarTasks(user.id), carregarMeetings(user.id)])
+      } catch (e) {
+        setLoadErr(e?.message || String(e))
+        console.error('Kanban carga inicial:', e)
+      } finally {
+        setLoading(false)
+      }
     })()
   }, [])
 
   async function carregarTasks(uid) {
     // RLS entrega: minhas tasks + qualquer task com is_shared = true
-    const { data } = await supabase.from('kanban_tasks')
+    const { data, error } = await supabase.from('kanban_tasks')
       .select('*')
       .order('position', { ascending:true })
       .order('created_at', { ascending:true })
+    if (error) throw new Error('kanban_tasks.select: ' + error.message)
     setTasks(data || [])
   }
 
   async function carregarMeetings(uid) {
-    const { data } = await supabase.from('kanban_meetings')
+    const { data, error } = await supabase.from('kanban_meetings')
       .select('*')
       .order('created_at', { ascending:false })
+    if (error) throw new Error('kanban_meetings.select: ' + error.message)
     setMeetings(data || [])
   }
 
@@ -204,6 +263,19 @@ export default function KanbanScreen({ onBack }) {
       <div style={{ minHeight:'100vh', background:'#F1F5F9', display:'flex', alignItems:'center', justifyContent:'center' }}>
         <div style={{ display:'flex', alignItems:'center', gap:10, color:'#64748b' }}>
           <Loader2 size={18} className="spin" /> Carregando quadro…
+        </div>
+      </div>
+    )
+  }
+
+  // DEBUG: se a carga inicial falhou, mostra o erro na tela (em vez de branco)
+  if (loadErr) {
+    return (
+      <div style={{ minHeight:'100vh', background:'#FEF2F2', padding:24, fontFamily:'sans-serif' }}>
+        <div style={{ maxWidth:800, margin:'0 auto', background:'#fff', border:'2px solid #DC2626', borderRadius:12, padding:20 }}>
+          <div style={{ fontSize:16, fontWeight:700, color:'#DC2626', marginBottom:12 }}>⚠️ Erro ao carregar dados do Kanban</div>
+          <pre style={{ fontSize:13, color:'#7F1D1D', background:'#F8FAFC', border:'1px solid #E2E8F0', borderRadius:8, padding:12, whiteSpace:'pre-wrap' }}>{loadErr}</pre>
+          <button onClick={onBack} style={{ marginTop:16, background:'#003B82', color:'#fff', border:'none', borderRadius:8, padding:'10px 20px', cursor:'pointer', fontWeight:600 }}>Voltar</button>
         </div>
       </div>
     )
