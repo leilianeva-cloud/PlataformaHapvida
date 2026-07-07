@@ -1151,10 +1151,13 @@ function AppGateway() {
       onAcessarPortfolio={() => navegarPara('portfolio')}
       onAcessarStatus={() => navegarPara('status')}
       onAcessarRas={() => navegarPara('ras')}
-      onAcessarKanban={() => irPara('kanban')}
+      onAcessarKanban={() => navegarPara('kanban')}
     />
   )
+  
+
   if (destino === 'ras') return <ReportRasScreen onVoltar={voltarHome} />
+  if (destino === 'kanban') return <KanbanScreen onBack={voltarHome} />
   return <AppContent initialScreen={destino} onVoltar={voltarHome} />
 }
 
