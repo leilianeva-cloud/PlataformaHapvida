@@ -7,6 +7,7 @@ import LoginScreen from './LoginScreen';
 import ChangePasswordModal from './ChangePasswordModal';
 import HomeScreen from './HomeScreen';
 import ReportRasScreen from './ReportRasScreen';
+import KanbanScreen from './KanbanScreen';
 import AdminScreen from './AdminScreen';
 import AuditScreen from './AuditScreen';
 
