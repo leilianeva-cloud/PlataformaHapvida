@@ -1,7 +1,7 @@
-import { FolderOpen, BarChart2, CalendarCheck, Info, LogOut } from 'lucide-react'
+import { FolderOpen, BarChart2, CalendarCheck, Info, LogOut, ClipboardList } from 'lucide-react'
 import { useAuth } from './AuthContext'
 
-export default function HomeScreen({ onAcessarPortfolio, onAcessarStatus, onAcessarRas }) {
+export default function HomeScreen({ onAcessarPortfolio, onAcessarStatus, onAcessarRas, onAcessarKanban }) {
   const { profile, signOut } = useAuth()
 
   const iniciais = (profile?.name || profile?.email || 'US')
@@ -197,6 +197,18 @@ export default function HomeScreen({ onAcessarPortfolio, onAcessarStatus, onAces
               <p>Gere o Status Report Executivo da RAS a partir do Portfólio e Melhorias da semana.</p>
               <button className="hm-card-btn" onClick={onAcessarRas}>Acessar →</button>
             </div>
+
+            {/* Card Tarefas & Reuniões */}
+            <div className="hm-card">
+              <div className="hm-card-icon">
+                <ClipboardList size={40} />
+              </div>
+              <h2>Tarefas &amp; Reuniões</h2>
+              <h3>Quadro de atividades</h3>
+              <p>Organize as tarefas da equipe em quadro Kanban e gere ações automáticas a partir das atas de reunião.</p>
+              <button className="hm-card-btn" onClick={onAcessarKanban}>Acessar →</button>
+            </div>
+            
           </section>
 
           <div className="hm-future">
