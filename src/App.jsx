@@ -1363,11 +1363,9 @@ function AppContent({ initialScreen, onVoltar }) {
         }));
         setProjects(finalProjects);
         if (activateIds && activateIds.length) {
-          // Consolida salvar + ativar + posicionar em uma única passada,
-          // usando finalProjects (não o projects obsoleto do closure) para o findIndex.
+          // Ativa filtro e posiciona no primeiro dos filtrados (sempre índice 0 no array visível).
           setActiveProjectIds(new Set(activateIds));
-          const first = finalProjects.findIndex(p => activateIds.includes(p.id));
-          setCurrentIdx(Math.max(0, first));
+          setCurrentIdx(0);
           navegarScreen('report');
         } else {
           setCurrentIdx(0);
@@ -1377,9 +1375,9 @@ function AppContent({ initialScreen, onVoltar }) {
       onContinue={(ids) => {
         if (ids && ids.length) {
           setActiveProjectIds(new Set(ids));
-          // posicionar no primeiro da seleção
-          const first = projects.findIndex(p => ids.includes(p.id));
-          setCurrentIdx(Math.max(0, first));
+          // currentIdx é sobre visibleProjects (array já filtrado).
+          // Ao ativar filtro, o primeiro dos ativos está sempre no índice 0.
+          setCurrentIdx(0);
         } else {
           setActiveProjectIds(null);
           setCurrentIdx(0);
