@@ -208,7 +208,7 @@ const defaultProjeto = () => {
 // =====================================================================
 //  TELA 1 — ImportScreen (dashboard principal)
 // =====================================================================
-function ImportScreen({ portfolioRows, onImport, existingProjects, onStart, onContinue, onGenerate, importedAt, onVoltar }) {
+function ImportScreen({ portfolioRows, onImport, existingProjects, manualProjects, setManualProjects, onStart, onContinue, onGenerate, importedAt, onVoltar }) {
   const fileRef = useRef(null);
   const [loading, setLoading] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -216,7 +216,7 @@ function ImportScreen({ portfolioRows, onImport, existingProjects, onStart, onCo
   const [filters, setFilters] = useState({ sm:'', trimestre:'', compromisso:'', tipo:'todos' }); // tipo: 'todos'|'importados'|'manuais'
   const [selected, setSelected] = useState(new Set());
   // projetos manuais (fora do portfólio)
-  const [manualProjects, setManualProjects] = useState([]);
+  // const [manualProjects, setManualProjects] = useState([]);
   const [manualForm, setManualForm] = useState({ nome:'', smPmo:'', resumoLecom:'', areaCliente:'', areaExec:'' });
   // seleção para Gerar Report
   const [gerarSelected, setGerarSelected] = useState(new Set());
@@ -332,8 +332,9 @@ function ImportScreen({ portfolioRows, onImport, existingProjects, onStart, onCo
     const novosIds = new Set(novos.map(p=>p.id));
     const mantidos = existingProjects.filter(p=>!novosIds.has(p.id));
     const merged = [...mantidos, ...novos];
-    onStart(merged, false); // salva sem navegar
-    onContinue(novos.map(p=>p.id)); // navega mostrando só os recém-selecionados
+    // Uma única chamada: salva merged, ativa novos ids e navega para o primeiro selecionado.
+    // Evita race condition entre setProjects (assíncrono) e findIndex sobre state antigo.
+    onStart(merged, true, novos.map(p=>p.id));
   };
 
   // seleção para Gerar Report
@@ -1217,6 +1218,7 @@ function AppContent({ initialScreen, onVoltar }) {
   const [portfolioRows, setPortfolioRows] = useState([])
   const [importedAt, setImportedAt] = useState('')
   const [projects, setProjects] = useState([])
+  const [manualProjects, setManualProjects] = useState([])
   const [currentIdx, setCurrentIdx] = useState(0)
   const [activeProjectIds, setActiveProjectIds] = useState(null)
   const [loaded, setLoaded] = useState(false)
@@ -1349,16 +1351,28 @@ function AppContent({ initialScreen, onVoltar }) {
       onImport={handlePortfolioImport}
       importedAt={importedAt}
       existingProjects={projects}
-      onStart={(merged, navegar=true) => {
+      manualProjects={manualProjects}
+      setManualProjects={setManualProjects}
+      onStart={(merged, navegar=true, activateIds=null) => {
         const existMap = Object.fromEntries(projects.map(p=>[p.id, p]));
-        setProjects(merged.map(p => ({
+        const finalProjects = merged.map(p => ({
           nFuturos: existMap[p.id]?.nFuturos ?? p.nFuturos ?? 1,
           nPassados: existMap[p.id]?.nPassados ?? p.nPassados ?? 0,
           ...p,
           raias: existMap[p.id]?.raias ?? p.raias ?? [],
-        })));
-        setCurrentIdx(0);
-        if (navegar) navegarScreen('report');
+        }));
+        setProjects(finalProjects);
+        if (activateIds && activateIds.length) {
+          // Consolida salvar + ativar + posicionar em uma única passada,
+          // usando finalProjects (não o projects obsoleto do closure) para o findIndex.
+          setActiveProjectIds(new Set(activateIds));
+          const first = finalProjects.findIndex(p => activateIds.includes(p.id));
+          setCurrentIdx(Math.max(0, first));
+          navegarScreen('report');
+        } else {
+          setCurrentIdx(0);
+          if (navegar) navegarScreen('report');
+        }
       }}
       onContinue={(ids) => {
         if (ids && ids.length) {
