@@ -337,13 +337,15 @@ function ImportScreen({ portfolioRows, onImport, existingProjects, manualProject
     const selecionados = manualProjects.filter(m => manualSelected.has(m.id));
     if (!selecionados.length) return;
     // Converte manuais em formato de projeto e mescla com os existentes
+    const existing = Object.fromEntries(existingProjects.map(p=>[p.id,p]));
     const novos = selecionados.map(m => ({
       id: m.id,
-      projeto: defaultProjeto({
-        nome: m.nome, smPmo: m.smPmo, areaCliente: m.areaCliente,
-        areaExec: m.areaExec, resumoLecom: m.resumoLecom,
-      }),
-      raias: [], nFuturos: 1, nPassados: 0, usaPacotes: false, pacotes: [],
+      nFuturos: existing[m.id]?.nFuturos ?? 1,
+      nPassados: existing[m.id]?.nPassados ?? 0,
+      usaPacotes: existing[m.id]?.usaPacotes ?? false,
+      pacotes: existing[m.id]?.pacotes ?? [],
+      projeto: { ...defaultProjeto(), nome:m.nome, smPmo:m.smPmo||'', resumoLecom:m.resumoLecom||'', areaCliente:m.areaCliente||'', areaExec:m.areaExec||'' },
+      raias: existing[m.id]?.raias ?? [],
     }));
     const novosIds = new Set(novos.map(p=>p.id));
     const mantidos = existingProjects.filter(p=>!novosIds.has(p.id));
