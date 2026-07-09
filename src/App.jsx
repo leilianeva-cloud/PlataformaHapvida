@@ -1867,8 +1867,7 @@ function RaiaCard({ r, aberta, toggle, upd, updFase, addFase, delFase, moveFase,
             <span style={{ fontSize: 11, color: "#94a3b8", whiteSpace: "nowrap" }}>Status:</span>
             <select className="inp" style={{ width: 120, fontSize: 12, fontWeight: 700,
             color: statusCor(r.statusDemanda || 'A iniciar') }}
-            
-            
+            value={r.statusDemanda || 'A iniciar'} 
               onChange={(e) => upd(r.id, { statusDemanda: e.target.value })}>
               <option value="A iniciar">A iniciar</option>
               <option value="Em Andamento">Em Andamento</option>
