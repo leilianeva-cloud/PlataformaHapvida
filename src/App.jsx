@@ -1506,7 +1506,7 @@ function GanttPreview({ projeto, raias, timeline, hojeFrac, usaPacotes, pacotes 
   const { cells } = timeline;
   const ROTULO_W = 415; // Lecom+Marcos/Demanda+Status+Dt Início
   const ROW_H = 32;
-
+const GANTT_MAX_H = 440; // altura máxima antes de rolar
   const totalPeso = cells.reduce((s, c) => s + c.peso, 0);
   // template de grid para as colunas de tempo (garante alinhamento perfeito)
   const cellsGrid = cells.map(c => `${c.peso / totalPeso}fr`).join(' ');
@@ -1572,7 +1572,7 @@ function GanttPreview({ projeto, raias, timeline, hojeFrac, usaPacotes, pacotes 
             </div>
           </div>
         </div>
-
+<div style={{ maxHeight: GANTT_MAX_H, overflowY: "auto", overflowX: "hidden" }}>
         {/* linhas */}
         <div style={{ position: "relative" }}>
           {/* grid vertical de fundo */}
@@ -1660,6 +1660,7 @@ function GanttPreview({ projeto, raias, timeline, hojeFrac, usaPacotes, pacotes 
             });
           })()}
         </div>
+           </div>
       </div>
     </div>
   );
