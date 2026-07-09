@@ -205,7 +205,7 @@ const defaultProjeto = () => {
 // =====================================================================
 //  TELA 1 — ImportScreen (dashboard principal)
 // =====================================================================
-function ImportScreen({ portfolioRows, onImport, existingProjects, manualProjects, setManualProjects, onStart, onContinue, onGenerate, importedAt, onVoltar }) {
+function ImportScreen({ portfolioRows, onImport, existingProjects, manualProjects, setManualProjects, deleteProject, onStart, onContinue, onGenerate, importedAt, onVoltar }) {
   const fileRef = useRef(null);
   const [loading, setLoading] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -215,8 +215,23 @@ function ImportScreen({ portfolioRows, onImport, existingProjects, manualProject
   // projetos manuais (fora do portfólio)
   // const [manualProjects, setManualProjects] = useState([]);
   const [manualForm, setManualForm] = useState({ nome:'', smPmo:'', resumoLecom:'', areaCliente:'', areaExec:'' });
+  
   // seleção para Gerar Report
   const [gerarSelected, setGerarSelected] = useState(new Set());
+  // Filtros de texto por sessão (busca em tempo real por nome/título)
+  const [filtroAtualizar, setFiltroAtualizar] = useState('');
+  const [filtroGerar, setFiltroGerar] = useState('');
+  const [filtroManual, setFiltroManual] = useState('');
+  // Handler unificado de exclusão permanente com confirmação
+  const handleDelete = (id, nome) => {
+    if (!window.confirm(`Excluir permanentemente o projeto "${nome}"?\n\nEsta ação NÃO pode ser desfeita.`)) return;
+    deleteProject(id);
+    // Limpa qualquer seleção pendente desse id
+    setSelected(s => { const ns = new Set(s); ns.delete(id); return ns; });
+    setAtualizarSelected(s => { const ns = new Set(s); ns.delete(id); return ns; });
+    setGerarSelected(s => { const ns = new Set(s); ns.delete(id); return ns; });
+  };
+  
   // seleção para Atualizar Report
   const [atualizarSelected, setAtualizarSelected] = useState(new Set());
 
@@ -677,11 +692,15 @@ function ImportScreen({ portfolioRows, onImport, existingProjects, manualProject
           {/* Painel: Atualizar Report — seleção de projetos */}
           {expanded==='atualizar' && hasProjects && (
             <div style={{ marginTop:18, borderTop:'1px solid #E2E8F0', paddingTop:18 }}>
-              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+
+              
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12, gap:12, flexWrap:"wrap" }}>
                 <div style={{ fontFamily:"'Inter',sans-serif", fontSize:14, fontWeight:700, color:"#1E293B" }}>
                   Selecione os projetos para editar ({atualizarSelected.size} de {existingProjects.length})
                 </div>
-                <div style={{ display:"flex", gap:8 }}>
+                <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
+                  <input type="text" placeholder="🔍 Filtrar por nome..." value={filtroAtualizar} onChange={e=>setFiltroAtualizar(e.target.value)}
+                    style={{ padding:"6px 10px", borderRadius:6, border:"1px solid #CBD5E1", fontSize:12, width:180 }} />
                   <button className="btn" onClick={toggleAtualizarAll} style={{ background:"#F1F5F9", color:"#334155", fontSize:12 }}>
                     {atualizarSelected.size===existingProjects.length?"Desmarcar todos":"Selecionar todos"}
                   </button>
@@ -692,7 +711,9 @@ function ImportScreen({ portfolioRows, onImport, existingProjects, manualProject
                 </div>
               </div>
               <div style={{ maxHeight:320, overflowY:"auto" }}>
-                {existingProjects.map(p=>(
+                {existingProjects
+                  .filter(p => !filtroAtualizar || (p.projeto?.nome||'').toLowerCase().includes(filtroAtualizar.toLowerCase()))
+                  .map(p=>(
                   <div key={p.id} onClick={()=>toggleAtualizar(p.id)} style={{ display:"flex", alignItems:"center", gap:10, padding:"7px 11px", borderRadius:8, marginBottom:4, cursor:"pointer",
                     background:atualizarSelected.has(p.id)?"#FFF7ED":"#FAFBFC", border:`1px solid ${atualizarSelected.has(p.id)?"#F47B20":"#E2E8F0"}`, transition:"all .12s" }}>
                     <input type="checkbox" checked={atualizarSelected.has(p.id)} onChange={()=>toggleAtualizar(p.id)} onClick={e=>e.stopPropagation()} />
@@ -700,20 +721,31 @@ function ImportScreen({ portfolioRows, onImport, existingProjects, manualProject
                     {p.projeto?.smPmo&&<span style={{ fontSize:11, color:"#64748b", whiteSpace:"nowrap" }}>{p.projeto.smPmo}</span>}
                     <span style={{ fontSize:11, color:"#64748b", whiteSpace:"nowrap" }}>{p.raias?.length||0} raia{p.raias?.length!==1?'s':''}</span>
                     {p.id?.startsWith('manual:')&&<span style={{ fontSize:10, background:"#F5F0FF", color:"#7030A0", borderRadius:6, padding:"2px 6px", fontWeight:700 }}>MANUAL</span>}
+                    <button onClick={e=>{ e.stopPropagation(); handleDelete(p.id, p.projeto?.nome||'projeto'); }}
+                      title="Excluir permanentemente"
+                      style={{ background:"none", border:"none", cursor:"pointer", color:"#EF4444", display:"flex", padding:2 }}>
+                      <Trash2 size={15} />
+                    </button>
                   </div>
                 ))}
               </div>
+
+      
             </div>
           )}
 
           {/* Painel: Gerar Report — seleção de projetos */}
           {expanded==='gerar' && hasProjects && (
             <div style={{ marginTop:18, borderTop:'1px solid #E2E8F0', paddingTop:18 }}>
-              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+              
+              
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12, gap:12, flexWrap:"wrap" }}>
                 <div style={{ fontFamily:"'Inter',sans-serif", fontSize:14, fontWeight:700, color:"#1E293B" }}>
                   Selecione os projetos para gerar ({gerarSelected.size} de {existingProjects.length})
                 </div>
-                <div style={{ display:"flex", gap:8 }}>
+                <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
+                  <input type="text" placeholder="🔍 Filtrar por nome..." value={filtroGerar} onChange={e=>setFiltroGerar(e.target.value)}
+                    style={{ padding:"6px 10px", borderRadius:6, border:"1px solid #CBD5E1", fontSize:12, width:180 }} />
                   <button className="btn" onClick={toggleGerarAll} style={{ background:"#F1F5F9", color:"#334155", fontSize:12 }}>
                     {gerarSelected.size===existingProjects.length?"Desmarcar todos":"Selecionar todos"}
                   </button>
@@ -724,16 +756,25 @@ function ImportScreen({ portfolioRows, onImport, existingProjects, manualProject
                 </div>
               </div>
               <div style={{ maxHeight:320, overflowY:"auto" }}>
-                {existingProjects.map(p=>(
+                {existingProjects
+                  .filter(p => !filtroGerar || (p.projeto?.nome||'').toLowerCase().includes(filtroGerar.toLowerCase()))
+                  .map(p=>(
                   <div key={p.id} onClick={()=>toggleGerar(p.id)} style={{ display:"flex", alignItems:"center", gap:10, padding:"7px 11px", borderRadius:8, marginBottom:4, cursor:"pointer",
                     background:gerarSelected.has(p.id)?"#F0FDF4":"#FAFBFC", border:`1px solid ${gerarSelected.has(p.id)?"#16A34A":"#E2E8F0"}`, transition:"all .12s" }}>
                     <input type="checkbox" checked={gerarSelected.has(p.id)} onChange={()=>toggleGerar(p.id)} onClick={e=>e.stopPropagation()} />
                     <span style={{ fontWeight:600, color:"#1E293B", flex:1, fontSize:12.5 }}>{p.projeto?.nome||'(sem nome)'}</span>
                     {p.projeto?.smPmo&&<span style={{ fontSize:11, color:"#64748b", whiteSpace:"nowrap" }}>{p.projeto.smPmo}</span>}
                     <span style={{ fontSize:11, color:"#64748b", whiteSpace:"nowrap" }}>{p.raias?.length||0} raia{p.raias?.length!==1?'s':''}</span>
+                    <button onClick={e=>{ e.stopPropagation(); handleDelete(p.id, p.projeto?.nome||'projeto'); }}
+                      title="Excluir permanentemente"
+                      style={{ background:"none", border:"none", cursor:"pointer", color:"#EF4444", display:"flex", padding:2 }}>
+                      <Trash2 size={15} />
+                    </button>
                   </div>
                 ))}
               </div>
+
+                
             </div>
           )}
         </div>
@@ -1212,9 +1253,34 @@ function AppContent({ initialScreen, onVoltar }) {
   }
   const [portfolioRows, setPortfolioRows] = useState([])
   const [importedAt, setImportedAt] = useState('')
+  
   const [projects, setProjects] = useState([])
   const [manualProjects, setManualProjects] = useState([])
   const [currentIdx, setCurrentIdx] = useState(0)
+
+  // Exclusão permanente: remove do state + Supabase + manualProjects (se aplicável).
+  // Usado pelas lixeiras nos cards Manual, Atualizar Report e Gerar Report.
+  const deleteProject = async (projectId) => {
+    if (!user?.id) return;
+    try {
+      const { error } = await supabase
+        .from('report_projects')
+        .delete()
+        .match({ project_id: projectId, user_id: user.id });
+      if (error) {
+        console.error('[DELETE] Erro Supabase:', error);
+        alert(`❌ Erro ao excluir: ${error.message}`);
+        return;
+      }
+      setProjects(prev => prev.filter(p => p.id !== projectId));
+      setManualProjects(prev => prev.filter(m => m.id !== projectId));
+      logAudit('DELETE_PROJECT', 'project', projectId, { via: 'ImportScreen' });
+    } catch (e) {
+      console.error('[DELETE] Erro geral:', e);
+      alert(`❌ Erro ao excluir: ${e.message}`);
+    }
+  };
+  
   const [activeProjectIds, setActiveProjectIds] = useState(null)
   const [loaded, setLoaded] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -1348,6 +1414,7 @@ function AppContent({ initialScreen, onVoltar }) {
       existingProjects={projects}
       manualProjects={manualProjects}
       setManualProjects={setManualProjects}
+      deleteProject={deleteProject}
       onStart={(merged, navegar=true, activateIds=null) => {
         const existMap = Object.fromEntries(projects.map(p=>[p.id, p]));
         const finalProjects = merged.map(p => ({
