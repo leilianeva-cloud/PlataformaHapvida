@@ -205,7 +205,9 @@ const defaultProjeto = () => {
 // =====================================================================
 //  TELA 1 — ImportScreen (dashboard principal)
 // =====================================================================
-function ImportScreen({ portfolioRows, onImport, existingProjects, manualProjects, setManualProjects, deleteProject, onStart, onContinue, onGenerate, importedAt, onVoltar }) {
+function ImportScreen({ portfolioRows, onImport, existingProjects: allProjects, manualProjects, setManualProjects, removerDaFila, onStart, onContinue, onGenerate, importedAt, onVoltar }) {
+  // Só projetos na fila aparecem nas sessões Atualizar Report e Gerar Report.
+  const existingProjects = allProjects.filter(p => p.naFila !== false);
   const fileRef = useRef(null);
   const [loading, setLoading] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -224,11 +226,10 @@ function ImportScreen({ portfolioRows, onImport, existingProjects, manualProject
   const [filtroManual, setFiltroManual] = useState('');
   const [manualSelected, setManualSelected] = useState(new Set());
   const toggleManual = (id) => setManualSelected(s=>{ const ns=new Set(s); ns.has(id)?ns.delete(id):ns.add(id); return ns; });
-  // Handler unificado de exclusão permanente com confirmação
+  // Remove da fila de trabalho — o projeto e seu Gantt continuam salvos no banco.
   const handleDelete = (id, nome) => {
-    if (!window.confirm(`Excluir permanentemente o projeto "${nome}"?\n\nEsta ação NÃO pode ser desfeita.`)) return;
-    deleteProject(id);
-    // Limpa qualquer seleção pendente desse id
+    if (!window.confirm(`Remover "${nome}" da fila de atualização?\n\nO Gantt e os dados ficam salvos. Para trazer de volta, selecione o projeto novamente em "Selecionar Projetos" ou "Incluir Projeto Manual".`)) return;
+    removerDaFila(id);
     setSelected(s => { const ns = new Set(s); ns.delete(id); return ns; });
     setAtualizarSelected(s => { const ns = new Set(s); ns.delete(id); return ns; });
     setGerarSelected(s => { const ns = new Set(s); ns.delete(id); return ns; });
@@ -310,7 +311,7 @@ function ImportScreen({ portfolioRows, onImport, existingProjects, manualProject
   const handleSelecionarParaAtualizar = () => {
     const selItems = allSelectable.filter(x=>selected.has(x.key));
     if (!selItems.length) return;
-    const existing = Object.fromEntries(existingProjects.map(p=>[p.id,p]));
+    const existing = Object.fromEntries(allProjects.map(p=>[p.id,p]));
     const novos = selItems.map(x => {
       if (x.type === 'manual') {
         const id = x.key;
@@ -323,7 +324,7 @@ function ImportScreen({ portfolioRows, onImport, existingProjects, manualProject
         projeto:makeProjetoFromRow(x.row), raias:existing[id]?.raias||[] };
     });
     const novosIds = new Set(novos.map(p=>p.id));
-    const mantidos = existingProjects.filter(p=>!novosIds.has(p.id));
+    const mantidos = allProjects.filter(p=>!novosIds.has(p.id));
     onStart([...mantidos, ...novos], false); // false = não navegar
   };
 
@@ -333,11 +334,14 @@ function ImportScreen({ portfolioRows, onImport, existingProjects, manualProject
     if (manualSelected.size === visiveis.length) setManualSelected(new Set());
     else setManualSelected(new Set(visiveis.map(m => m.id)));
   };
-  const handleManualAtualizarAgora = () => {
+
+  
+  // Envia os manuais selecionados para a fila de Atualizar Report, sem navegar.
+  // Eles continuam listados aqui no card Incluir Projeto Manual.
+  const handleManualSelecionarParaAtualizar = () => {
     const selecionados = manualProjects.filter(m => manualSelected.has(m.id));
     if (!selecionados.length) return;
-    // Converte manuais em formato de projeto e mescla com os existentes
-    const existing = Object.fromEntries(existingProjects.map(p=>[p.id,p]));
+    const existing = Object.fromEntries(allProjects.map(p=>[p.id,p]));
     const novos = selecionados.map(m => ({
       id: m.id,
       nFuturos: existing[m.id]?.nFuturos ?? 1,
@@ -348,7 +352,29 @@ function ImportScreen({ portfolioRows, onImport, existingProjects, manualProject
       raias: existing[m.id]?.raias ?? [],
     }));
     const novosIds = new Set(novos.map(p=>p.id));
-    const mantidos = existingProjects.filter(p=>!novosIds.has(p.id));
+    const mantidos = allProjects.filter(p=>!novosIds.has(p.id));
+    onStart([...mantidos, ...novos], false);
+    setManualSelected(new Set());
+  };
+
+  const handleManualAtualizarAgora = () => {
+
+    
+    const selecionados = manualProjects.filter(m => manualSelected.has(m.id));
+    if (!selecionados.length) return;
+    // Converte manuais em formato de projeto e mescla com os existentes
+    const existing = Object.fromEntries(allProjects.map(p=>[p.id,p]));
+    const novos = selecionados.map(m => ({
+      id: m.id,
+      nFuturos: existing[m.id]?.nFuturos ?? 1,
+      nPassados: existing[m.id]?.nPassados ?? 0,
+      usaPacotes: existing[m.id]?.usaPacotes ?? false,
+      pacotes: existing[m.id]?.pacotes ?? [],
+      projeto: { ...defaultProjeto(), nome:m.nome, smPmo:m.smPmo||'', resumoLecom:m.resumoLecom||'', areaCliente:m.areaCliente||'', areaExec:m.areaExec||'' },
+      raias: existing[m.id]?.raias ?? [],
+    }));
+    const novosIds = new Set(novos.map(p=>p.id));
+    const mantidos = allProjects.filter(p=>!novosIds.has(p.id));
     const merged = [...mantidos, ...novos];
     onStart(merged, true, novos.map(p=>p.id));
   };
@@ -360,7 +386,7 @@ function ImportScreen({ portfolioRows, onImport, existingProjects, manualProject
     
     const selItems = allSelectable.filter(x=>selected.has(x.key));
     if (!selItems.length) return;
-    const existing = Object.fromEntries(existingProjects.map(p=>[p.id,p]));
+    const existing = Object.fromEntries(allProjects.map(p=>[p.id,p]));
     const novos = selItems.map(x => {
       if (x.type === 'manual') {
         const id = x.key;
@@ -373,7 +399,7 @@ function ImportScreen({ portfolioRows, onImport, existingProjects, manualProject
         projeto:makeProjetoFromRow(x.row), raias:existing[id]?.raias||[] };
     });
     const novosIds = new Set(novos.map(p=>p.id));
-    const mantidos = existingProjects.filter(p=>!novosIds.has(p.id));
+    const mantidos = allProjects.filter(p=>!novosIds.has(p.id));
     const merged = [...mantidos, ...novos];
     // Uma única chamada: salva merged, ativa novos ids e navega para o primeiro selecionado.
     // Evita race condition entre setProjects (assíncrono) e findIndex sobre state antigo.
@@ -722,6 +748,10 @@ function ImportScreen({ portfolioRows, onImport, existingProjects, manualProject
                         style={{ background:"#F1F5F9", color:"#334155", opacity:manualSelected.size===0?.45:1, fontSize:12 }}>
                         <Plus size={13} />Selecionar para atualizar ({manualSelected.size})
                       </button>
+                      <button className="btn" onClick={handleManualSelecionarParaAtualizar} disabled={manualSelected.size===0}
+                        style={{ background:"#F1F5F9", color:"#334155", opacity:manualSelected.size===0?.45:1, fontSize:12 }}>
+                        <Plus size={13} />Selecionar para atualizar ({manualSelected.size})
+                      </button>
                       <button className="btn" onClick={handleManualAtualizarAgora} disabled={manualSelected.size===0}
                         style={{ background:"#7030A0", color:"#fff", opacity:manualSelected.size===0?.45:1, fontSize:12 }}>
                         ✏️ Atualizar agora ({manualSelected.size})
@@ -786,7 +816,7 @@ function ImportScreen({ portfolioRows, onImport, existingProjects, manualProject
                     <span style={{ fontSize:11, color:"#64748b", whiteSpace:"nowrap" }}>{p.raias?.length||0} raia{p.raias?.length!==1?'s':''}</span>
                     {p.id?.startsWith('manual:')&&<span style={{ fontSize:10, background:"#F5F0FF", color:"#7030A0", borderRadius:6, padding:"2px 6px", fontWeight:700 }}>MANUAL</span>}
                     <button onClick={e=>{ e.stopPropagation(); handleDelete(p.id, p.projeto?.nome||'projeto'); }}
-                      title="Excluir permanentemente"
+                      title="Remover da fila (mantém o Gantt salvo)"
                       style={{ background:"none", border:"none", cursor:"pointer", color:"#EF4444", display:"flex", padding:2 }}>
                       <Trash2 size={15} />
                     </button>
@@ -829,11 +859,7 @@ function ImportScreen({ portfolioRows, onImport, existingProjects, manualProject
                     <span style={{ fontWeight:600, color:"#1E293B", flex:1, fontSize:12.5 }}>{p.projeto?.nome||'(sem nome)'}</span>
                     {p.projeto?.smPmo&&<span style={{ fontSize:11, color:"#64748b", whiteSpace:"nowrap" }}>{p.projeto.smPmo}</span>}
                     <span style={{ fontSize:11, color:"#64748b", whiteSpace:"nowrap" }}>{p.raias?.length||0} raia{p.raias?.length!==1?'s':''}</span>
-                    <button onClick={e=>{ e.stopPropagation(); handleDelete(p.id, p.projeto?.nome||'projeto'); }}
-                      title="Excluir permanentemente"
-                      style={{ background:"none", border:"none", cursor:"pointer", color:"#EF4444", display:"flex", padding:2 }}>
-                      <Trash2 size={15} />
-                    </button>
+                    
                   </div>
                 ))}
               </div>
@@ -1322,29 +1348,11 @@ function AppContent({ initialScreen, onVoltar }) {
   const [manualProjects, setManualProjects] = useState([])
   const [currentIdx, setCurrentIdx] = useState(0)
 
-  // Exclusão permanente: remove do state + Supabase + manualProjects (se aplicável).
-  // Usado pelas lixeiras nos cards Manual, Atualizar Report e Gerar Report.
-  const deleteProject = async (projectId) => {
-    if (!user?.id) return;
-    try {
-      const { error } = await supabase
-        .from('report_projects')
-        .delete()
-        .match({ project_id: projectId, user_id: user.id });
-      if (error) {
-        console.error('[DELETE] Erro Supabase:', error);
-        alert(`❌ Erro ao excluir: ${error.message}`);
-        return;
-      }
-      setProjects(prev => prev.filter(p => p.id !== projectId));
-      // Nota: NÃO removemos de manualProjects aqui — a exclusão nas sessões
-      // Atualizar/Gerar remove só do relatório. A remoção do card manual
-      // é tratada separadamente pelo removeManual (deleta da lista de manuais).
-      logAudit('DELETE_PROJECT', 'project', projectId, { via: 'ImportScreen' });
-    } catch (e) {
-      console.error('[DELETE] Erro geral:', e);
-      alert(`❌ Erro ao excluir: ${e.message}`);
-    }
+  // Remove o projeto da FILA de trabalho (na_fila = false).
+  // O registro e o Gantt permanecem no banco — voltam ao ser re-selecionado na fonte.
+  const removerDaFila = (projectId) => {
+    setProjects(prev => prev.map(p => p.id === projectId ? { ...p, naFila: false } : p));
+    logAudit('UPDATE_PROJECT', 'project', projectId, { acao: 'removido_da_fila' });
   };
   
   const [activeProjectIds, setActiveProjectIds] = useState(null)
@@ -1372,6 +1380,7 @@ function AppContent({ initialScreen, onVoltar }) {
             nFuturos:  row.n_futuros  ?? 1,
             nPassados: row.n_passados ?? 0,
             usaPacotes: !!row.usa_pacotes,
+            naFila:    row.na_fila ?? true,
             projeto:   row.projeto_json   ? JSON.parse(row.projeto_json)  : {},
             raias:     row.raias_json     ? JSON.parse(row.raias_json)    : [],
             pacotes:   row.pacotes_json   ? JSON.parse(row.pacotes_json)  : [],
@@ -1417,6 +1426,7 @@ function AppContent({ initialScreen, onVoltar }) {
         n_futuros:     Number(p.nFuturos  ?? 1),
         n_passados:    Number(p.nPassados ?? 0),
         usa_pacotes:   !!p.usaPacotes,
+        na_fila:       p.naFila !== false,
         projeto_json:  JSON.stringify(p.projeto  || {}),
         raias_json:    JSON.stringify(p.raias    || []),
         pacotes_json:  JSON.stringify(p.pacotes  || []),
@@ -1507,13 +1517,14 @@ function AppContent({ initialScreen, onVoltar }) {
       existingProjects={projects}
       manualProjects={manualProjects}
       setManualProjects={setManualProjects}
-      deleteProject={deleteProject}
+      removerDaFila={removerDaFila}
       onStart={(merged, navegar=true, activateIds=null) => {
         const existMap = Object.fromEntries(projects.map(p=>[p.id, p]));
         const finalProjects = merged.map(p => ({
           nFuturos: existMap[p.id]?.nFuturos ?? p.nFuturos ?? 1,
           nPassados: existMap[p.id]?.nPassados ?? p.nPassados ?? 0,
           ...p,
+          naFila: true,   // selecionar na fonte sempre traz o projeto de volta pra fila
           raias: existMap[p.id]?.raias ?? p.raias ?? [],
         }));
         setProjects(finalProjects);
