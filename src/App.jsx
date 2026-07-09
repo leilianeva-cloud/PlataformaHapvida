@@ -50,24 +50,21 @@ function calcPacoteInfo(pac, pacRaias) {
   const maxFim    = allFim[allFim.length - 1] || '';
   const pcts      = pacRaias.map(calcPctRaia);
   const pctMedia  = pcts.length ? Math.round(pcts.reduce((s, p) => s + p, 0) / pcts.length) : 0;
-  //const statuses  = pacRaias.map(r => r.statusDemanda || 'A iniciar');
- // const status    = statuses.includes('Atrasado') ? 'Atrasado'
-                 // : statuses.includes('Em Andamento') ? 'Em Andamento'
-                //  : statuses.length && statuses.every(s => s === 'Concluído') ? 'Concluído'
-                //  : 'A iniciar';
+  
   const statuses  = pacRaias.map(r => r.statusDemanda || 'A iniciar');
   const status    = statuses.includes('Atrasado') ? 'Atrasado'
                   : statuses.includes('Em Andamento') ? 'Em Andamento'
                   : statuses.includes('Aguardando Publicação') ? 'Aguardando Publicação'
                   : statuses.includes('Op. Assistida') ? 'Op. Assistida'
+                  : statuses.includes('Monitoramento e Controle') ? 'Monitoramento e Controle'
                   : statuses.length && statuses.every(s => s === 'Concluído') ? 'Concluído'
                   : 'A iniciar';
+  
   return { minInicio, maxFim, pctMedia, status };
 }
 
 function statusCor(s) {
-  //return s === 'Concluído' ? '#00B050' : s === 'Em Andamento' ? '#0070C0' : s === 'Atrasado' ? '#C00000' : '#94A3B8';
-  return s === 'Concluído' ? '#00B050' : s === 'Op. Assistida' ? '#14B8A6' : s === 'Aguardando Publicação' ? '#F59E0B' : s === 'Em Andamento' ? '#0070C0' : s === 'Atrasado' ? '#C00000' : '#94A3B8';
+  return s === 'Concluído' ? '#00B050' : s === 'Monitoramento e Controle' ? '#0891B2' : s === 'Op. Assistida' ? '#14B8A6' : s === 'Aguardando Publicação' ? '#F59E0B' : s === 'Em Andamento' ? '#0070C0' : s === 'Atrasado' ? '#C00000' : '#94A3B8';
 }
 
 const STATUS_GERAL = {
@@ -569,9 +566,7 @@ function ImportScreen({ portfolioRows, onImport, existingProjects, manualProject
                     {a.badge}
                   </div>
                 )}
-                {a.key==='selecionar' && (
-                  <div style={{ fontSize:11, fontWeight:600, color:a.cor }}>{a.active?'▲ fechar filtros':'▼ abrir filtros'}</div>
-                )}
+                
               </div>
             ))}
           </div>
@@ -1772,15 +1767,12 @@ function RaiaCard({ r, aberta, toggle, upd, updFase, addFase, delFase, moveFase,
             
             
               onChange={(e) => upd(r.id, { statusDemanda: e.target.value })}>
-             {/* <option value="A iniciar">A iniciar</option> */}
-            {/* <option value="Em Andamento">Em Andamento</option> */}
-             {/* <option value="Atrasado">Atrasado</option> */}
-             {/* <option value="Concluído">Concluído</option> */}
               <option value="A iniciar">A iniciar</option>
               <option value="Em Andamento">Em Andamento</option>
               <option value="Atrasado">Atrasado</option>
               <option value="Aguardando Publicação">Aguardando Publicação</option>
               <option value="Op. Assistida">Op. Assistida</option>
+              <option value="Monitoramento e Controle">Monitoramento e Controle</option>
               <option value="Concluído">Concluído</option>
             </select>
           </div>
@@ -2252,8 +2244,7 @@ function gerarSlideXml({ projeto, raias, timeline, usaPacotes, pacotes }) {
     S.push(shape({x:0.16,y:ry,w:0.64,h:rh,text:r.lecom||"",textOpt:{sz:900,color:"404040",algn:"ctr",anchor:"ctr",wrap:"none"}}));
     S.push(shape({x:0.86,y:ry,w:2.28,h:rh,text:r.nome||"",textOpt:{sz:900,bold:true,color:"1F2A44",anchor:"ctr"}}));
     const stRaw = r.despriorizado ? 'Despriorizado' : (r.statusDemanda || 'A iniciar');
-    const stCor = r.despriorizado ? '7F7F7F' : stRaw === 'Concluído' ? '00B050' : stRaw === 'Op. Assistida' ? '14B8A6' : stRaw === 'Aguardando Publicação' ? 'F59E0B' : stRaw === 'Em Andamento' ? '0070C0' : stRaw === 'Atrasado' ? 'C00000' : '94A3B8';
-    //const stCor = r.despriorizado ? '7F7F7F' : stRaw === 'Concluído' ? '00B050' : stRaw === 'Em Andamento' ? '0070C0' : stRaw === 'Atrasado' ? 'C00000' : '94A3B8';
+    const stCor = r.despriorizado ? '7F7F7F' : stRaw === 'Concluído' ? '00B050' : stRaw === 'Monitoramento e Controle' ? '0891B2' : stRaw === 'Op. Assistida' ? '14B8A6' : stRaw === 'Aguardando Publicação' ? 'F59E0B' : stRaw === 'Em Andamento' ? '0070C0' : stRaw === 'Atrasado' ? 'C00000' : '94A3B8';
     S.push(shape({x:3.18,y:ry,w:0.98,h:rh,text:stRaw,textOpt:{sz:900,bold:true,color:stCor,algn:"ctr",anchor:"ctr",wrap:"none"}}));
     const dtIni=(()=>{const d=r.fases[0]?.inicio||"";if(!d)return"";const x=new Date(d+"T12:00:00");if(isNaN(x))return"";return String(x.getDate()).padStart(2,"0")+"/"+String(x.getMonth()+1).padStart(2,"0");})();
     S.push(shape({x:4.18,y:ry,w:0.68,h:rh,text:dtIni,textOpt:{sz:900,color:"404040",algn:"ctr",anchor:"ctr",wrap:"none"}}));
@@ -2347,8 +2338,8 @@ function gerarSlideXml({ projeto, raias, timeline, usaPacotes, pacotes }) {
     pacotes.forEach(pac => {
       const pacRaias = pac.raiaIds.map(id => raias.find(r=>r.id===id)).filter(Boolean);
       const info = calcPacoteInfo(pac, pacRaias);
-      //const sCor = info.status==='Concluído'?'00B050':info.status==='Em Andamento'?'0070C0':info.status==='Atrasado'?'C00000':'94A3B8';
-      const sCor = info.status==='Concluído'?'00B050':info.status==='Op. Assistida'?'14B8A6':info.status==='Aguardando Publicação'?'F59E0B':info.status==='Em Andamento'?'0070C0':info.status==='Atrasado'?'C00000':'94A3B8';
+      
+      const sCor = info.status==='Concluído'?'00B050':info.status==='Monitoramento e Controle'?'0891B2':info.status==='Op. Assistida'?'14B8A6':info.status==='Aguardando Publicação'?'F59E0B':info.status==='Em Andamento'?'0070C0':info.status==='Atrasado'?'C00000':'94A3B8';
       const pacH = rowH;
       const ry = curY;
       [[0.14,0.67],[0.81,2.37],[3.18,1.0],[4.18,0.69]].forEach(([cx,cw])=>S.push(shape({x:cx,y:ry,w:cw,h:pacH,fill:"EEF4FF",line:GRID_LN})));
