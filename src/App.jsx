@@ -325,7 +325,7 @@ function ImportScreen({ portfolioRows, onImport, existingProjects: allProjects, 
     });
     const novosIds = new Set(novos.map(p=>p.id));
     const mantidos = allProjects.filter(p=>!novosIds.has(p.id));
-    onStart([...mantidos, ...novos], false); // false = não navegar
+    onStart([...mantidos, ...novos], false, null, novos.map(p=>p.id)); // false = não navegar
   };
 
   // Ações do card Manual
@@ -342,18 +342,21 @@ function ImportScreen({ portfolioRows, onImport, existingProjects: allProjects, 
     const selecionados = manualProjects.filter(m => manualSelected.has(m.id));
     if (!selecionados.length) return;
     const existing = Object.fromEntries(allProjects.map(p=>[p.id,p]));
-    const novos = selecionados.map(m => ({
-      id: m.id,
-      nFuturos: existing[m.id]?.nFuturos ?? 1,
-      nPassados: existing[m.id]?.nPassados ?? 0,
-      usaPacotes: existing[m.id]?.usaPacotes ?? false,
-      pacotes: existing[m.id]?.pacotes ?? [],
-      projeto: { ...defaultProjeto(), nome:m.nome, smPmo:m.smPmo||'', resumoLecom:m.resumoLecom||'', areaCliente:m.areaCliente||'', areaExec:m.areaExec||'' },
-      raias: existing[m.id]?.raias ?? [],
-    }));
+    const novos = selecionados.map(m => {
+      const pid = manualKey(m);   // mesmo formato do handleSelecionarParaAtualizar
+      return {
+        id: pid,
+        nFuturos: existing[pid]?.nFuturos ?? 1,
+        nPassados: existing[pid]?.nPassados ?? 0,
+        usaPacotes: existing[pid]?.usaPacotes ?? false,
+        pacotes: existing[pid]?.pacotes ?? [],
+        projeto: { ...defaultProjeto(), nome:m.nome, smPmo:m.smPmo||'', resumoLecom:m.resumoLecom||'', areaCliente:m.areaCliente||'', areaExec:m.areaExec||'' },
+        raias: existing[pid]?.raias ?? [],
+      };
+    });
     const novosIds = new Set(novos.map(p=>p.id));
     const mantidos = allProjects.filter(p=>!novosIds.has(p.id));
-    onStart([...mantidos, ...novos], false);
+    onStart([...mantidos, ...novos], false, null, novos.map(p=>p.id));
     setManualSelected(new Set());
   };
 
@@ -364,19 +367,22 @@ function ImportScreen({ portfolioRows, onImport, existingProjects: allProjects, 
     if (!selecionados.length) return;
     // Converte manuais em formato de projeto e mescla com os existentes
     const existing = Object.fromEntries(allProjects.map(p=>[p.id,p]));
-    const novos = selecionados.map(m => ({
-      id: m.id,
-      nFuturos: existing[m.id]?.nFuturos ?? 1,
-      nPassados: existing[m.id]?.nPassados ?? 0,
-      usaPacotes: existing[m.id]?.usaPacotes ?? false,
-      pacotes: existing[m.id]?.pacotes ?? [],
-      projeto: { ...defaultProjeto(), nome:m.nome, smPmo:m.smPmo||'', resumoLecom:m.resumoLecom||'', areaCliente:m.areaCliente||'', areaExec:m.areaExec||'' },
-      raias: existing[m.id]?.raias ?? [],
-    }));
+    const novos = selecionados.map(m => {
+      const pid = manualKey(m);   // mesmo formato do handleSelecionarParaAtualizar
+      return {
+        id: pid,
+        nFuturos: existing[pid]?.nFuturos ?? 1,
+        nPassados: existing[pid]?.nPassados ?? 0,
+        usaPacotes: existing[pid]?.usaPacotes ?? false,
+        pacotes: existing[pid]?.pacotes ?? [],
+        projeto: { ...defaultProjeto(), nome:m.nome, smPmo:m.smPmo||'', resumoLecom:m.resumoLecom||'', areaCliente:m.areaCliente||'', areaExec:m.areaExec||'' },
+        raias: existing[pid]?.raias ?? [],
+      };
+    });
     const novosIds = new Set(novos.map(p=>p.id));
     const mantidos = allProjects.filter(p=>!novosIds.has(p.id));
     const merged = [...mantidos, ...novos];
-    onStart(merged, true, novos.map(p=>p.id));
+    onStart(merged, true, novos.map(p=>p.id), novos.map(p=>p.id));
   };
 
   // "Atualizar agora": salva e navega para tela 2 mostrando apenas os selecionados
@@ -403,7 +409,7 @@ function ImportScreen({ portfolioRows, onImport, existingProjects: allProjects, 
     const merged = [...mantidos, ...novos];
     // Uma única chamada: salva merged, ativa novos ids e navega para o primeiro selecionado.
     // Evita race condition entre setProjects (assíncrono) e findIndex sobre state antigo.
-    onStart(merged, true, novos.map(p=>p.id));
+    onStart(merged, true, novos.map(p=>p.id), novos.map(p=>p.id));
   };
 
   // seleção para Gerar Report
@@ -1515,13 +1521,16 @@ function AppContent({ initialScreen, onVoltar }) {
       manualProjects={manualProjects}
       setManualProjects={setManualProjects}
       removerDaFila={removerDaFila}
-      onStart={(merged, navegar=true, activateIds=null) => {
+      onStart={(merged, navegar=true, activateIds=null, novosIds=null) => {
         const existMap = Object.fromEntries(projects.map(p=>[p.id, p]));
+        // Só os projetos recém-selecionados na fonte entram (ou voltam) para a fila.
+        // Os demais preservam o naFila que já tinham — senão a lixeira seria desfeita.
+        const entrandoNaFila = new Set(novosIds || activateIds || []);
         const finalProjects = merged.map(p => ({
           nFuturos: existMap[p.id]?.nFuturos ?? p.nFuturos ?? 1,
           nPassados: existMap[p.id]?.nPassados ?? p.nPassados ?? 0,
           ...p,
-          naFila: true,   // selecionar na fonte sempre traz o projeto de volta pra fila
+          naFila: entrandoNaFila.has(p.id) ? true : (existMap[p.id]?.naFila ?? p.naFila ?? true),
           raias: existMap[p.id]?.raias ?? p.raias ?? [],
         }));
         setProjects(finalProjects);
