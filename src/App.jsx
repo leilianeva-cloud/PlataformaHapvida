@@ -2182,100 +2182,77 @@ function buildMultiSlidePptxParts(slideXmlsArr) {
   return parts;
 }
 
-// Gera 1 ou mais slides para um projeto (paginação automática)
+// Gera 1 ou mais slides para um projeto.
+// Paginação por número de linhas (máx. 12: pacotes + demandas) E por altura útil.
+// Cada página é um slide completo: cabeçalho do report, topo da tabela e rodapé.
+// A ordem das linhas é exatamente a ordem cadastrada pelo usuário.
 function gerarSlidesXmls({ projeto, raias, timeline, usaPacotes, pacotes }) {
-  // Slide 1 sempre usa gerarSlideXml original (layout correto e validado)
-  const slide1 = gerarSlideXml({ projeto, raias, timeline, usaPacotes, pacotes });
+  const MAX_LINHAS  = 12;
+  const bodyTop     = 2.91;
+  const bodyBottom  = 5.92;
+  const ALTURA_UTIL = bodyBottom - bodyTop;   // 3.01"
 
-  // Verificar se precisa paginar
-  const cells = timeline.cells;
-  const hY1 = 2.34, hH = 0.57;
-  const bodyTop1 = hY1 + hH;   // 2.91
-  const bodyTopC = 0.99;        // cabeçalho compacto
-  const bodyBottom = 5.92;
-
-  const totalRows = usaPacotes && pacotes?.length
-    ? pacotes.reduce((s, p) => s + 1 + p.raiaIds.length, 0)
-    : raias.length;
-  // Limita altura da linha considerando no máximo 12 linhas por slide (13 com o cabeçalho fixo).
-  // Se houver mais que 12, quebra automaticamente em novo slide mantendo legibilidade.
-  const MAX_ROWS_POR_SLIDE = 12;
-  const nRows = Math.max(Math.min(totalRows, MAX_ROWS_POR_SLIDE), 7);
-  const rowH = Math.min(0.42, (bodyBottom - bodyTop1) / nRows);
-
-  const calcRh = (r) => {
-    if (r.despriorizado) return rowH;
-    const com = (r.fases || []).filter(f => !f.aDefinir);
-    const sem = (r.fases || []).filter(f => f.aDefinir);
-    const ends = [];
-    [...com].sort((a, b) => (a.inicio || '') <= (b.inicio || '') ? -1 : 1).forEach(f => {
-      const fim = f.fimRepactuado || f.fim || '';
-      let l = ends.findIndex(e => (e || '') < (f.inicio || ''));
-      if (l === -1) { l = ends.length; ends.push(''); } ends[l] = fim;
-    });
-    const n = Math.max(ends.length + sem.length, 1);
-    if (n <= 1) return rowH;
-    return Math.max(rowH, n * 0.13 + (n - 1) * 0.02 + 0.06);
+  // Altura mínima de uma raia: cada fase ocupa uma lane exclusiva.
+  const MIN_LANE = 0.13;
+  const alturaMinRaia = (r) => {
+    if (r.despriorizado) return 0;
+    const n = Math.max((r.fases || []).length, 1);
+    if (n <= 1) return 0;
+    return n * MIN_LANE + (n - 1) * 0.02 + 0.06;
   };
 
-  const allRows = [];
+  // Replica exatamente o cálculo interno de rowH de gerarSlideXml.
+  const alturaPagina = (us) => {
+    const rh = Math.min(0.42, ALTURA_UTIL / Math.max(us.length, 7));
+    return us.reduce((s, u) => s + (u.kind === 'pac' ? rh : Math.max(rh, u.min)), 0);
+  };
+
+  // 1) Linearizar tudo na ORDEM cadastrada
+  const units = [];
   if (!usaPacotes || !pacotes?.length) {
-    raias.forEach(r => allRows.push({ r, rh: calcRh(r) }));
+    raias.forEach(r => units.push({ kind: 'raia', r, min: alturaMinRaia(r) }));
   } else {
     pacotes.forEach(pac => {
-      const pr = pac.raiaIds.map(id => raias.find(r => r.id === id)).filter(Boolean);
-      allRows.push({ rh: rowH });
-      pr.forEach(r => allRows.push({ r, rh: calcRh(r) }));
+      units.push({ kind: 'pac', pac });
+      pac.raiaIds.forEach(id => {
+        const r = raias.find(x => x.id === id);
+        if (r) units.push({ kind: 'raia', r, min: alturaMinRaia(r), pacId: pac.id });
+      });
     });
   }
+  if (!units.length) return [gerarSlideXml({ projeto, raias, timeline, usaPacotes, pacotes })];
 
-  const totalH = allRows.reduce((s, r) => s + r.rh, 0);
-  if (totalH <= bodyBottom - bodyTop1 + 0.1) {
-    // Cabe num só slide
-    return [slide1];
-  }
-
-  // Determinar quais raias ficam no slide 1 e quais vão para continuação
-  let curY = bodyTop1;
-  const page1Ids = new Set();
-  const contRows = [];
-  let inCont = false;
-  for (const row of allRows) {
-    if (!inCont && curY + row.rh <= bodyBottom + 0.05) {
-      if (row.r) page1Ids.add(row.r.id);
-      curY += row.rh;
-    } else {
-      inCont = true;
-      if (row.r) contRows.push(row.r);
+  // 2) Fatiar em páginas respeitando MAX_LINHAS e a altura útil
+  const pages = [];
+  let cur = [];
+  for (const u of units) {
+    const tentativa = [...cur, u];
+    const estoura = cur.length > 0 &&
+      (tentativa.length > MAX_LINHAS || alturaPagina(tentativa) > ALTURA_UTIL + 0.02);
+    if (estoura) { pages.push(cur); cur = []; }
+    // Se a página nova começa com raia de um pacote, repete o cabeçalho do pacote.
+    if (cur.length === 0 && u.kind === 'raia' && u.pacId) {
+      const pac = pacotes.find(p => p.id === u.pacId);
+      if (pac) cur.push({ kind: 'pac', pac });
     }
+    cur.push(u);
   }
+  if (cur.length) pages.push(cur);
 
-  if (contRows.length === 0) return [slide1];
-
-  // Gerar slide de continuação com as raias restantes
-  const contSlides = [];
-  let batch = [];
-  let bY = bodyTopC;
-
-  const flushBatch = () => {
-    if (batch.length === 0) return;
-    const batchSlide = gerarSlideContXml({ projeto, raias: batch, timeline, usaPacotes: false, pacotes: [] });
-    contSlides.push(batchSlide);
-    batch = [];
-    bY = bodyTopC;
-  };
-
-  for (const r of contRows) {
-    const rh = calcRh(r);
-    if (bY + rh > bodyBottom + 0.05 && batch.length > 0) flushBatch();
-    batch.push(r);
-    bY += rh;
-  }
-  flushBatch();
-
-  return [slide1, ...contSlides];
+  // 3) Cada página vira um slide completo
+  return pages.map(page => {
+    const pageRaias = page.filter(u => u.kind === 'raia').map(u => u.r);
+    if (!usaPacotes || !pacotes?.length) {
+      return gerarSlideXml({ projeto, raias: pageRaias, timeline, usaPacotes: false, pacotes: [] });
+    }
+    const pagePacotes = page.filter(u => u.kind === 'pac').map(u => ({ ...u.pac, raiaIds: [] }));
+    page.filter(u => u.kind === 'raia').forEach(u => {
+      const p = pagePacotes.find(pp => pp.id === u.pacId);
+      if (p) p.raiaIds.push(u.r.id);
+    });
+    return gerarSlideXml({ projeto, raias: pageRaias, timeline, usaPacotes: true, pacotes: pagePacotes });
+  });
 }
-
 
 function baixarPptx(projects) {
   const hoje = new Date();
