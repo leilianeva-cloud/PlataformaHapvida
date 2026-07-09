@@ -222,6 +222,8 @@ function ImportScreen({ portfolioRows, onImport, existingProjects, manualProject
   const [filtroAtualizar, setFiltroAtualizar] = useState('');
   const [filtroGerar, setFiltroGerar] = useState('');
   const [filtroManual, setFiltroManual] = useState('');
+  const [manualSelected, setManualSelected] = useState(new Set());
+  const toggleManual = (id) => setManualSelected(s=>{ const ns=new Set(s); ns.has(id)?ns.delete(id):ns.add(id); return ns; });
   // Handler unificado de exclusão permanente com confirmação
   const handleDelete = (id, nome) => {
     if (!window.confirm(`Excluir permanentemente o projeto "${nome}"?\n\nEsta ação NÃO pode ser desfeita.`)) return;
@@ -325,8 +327,35 @@ function ImportScreen({ portfolioRows, onImport, existingProjects, manualProject
     onStart([...mantidos, ...novos], false); // false = não navegar
   };
 
+  // Ações do card Manual
+  const toggleManualAll = () => {
+    const visiveis = manualProjects.filter(m => !filtroManual || (m.nome||'').toLowerCase().includes(filtroManual.toLowerCase()));
+    if (manualSelected.size === visiveis.length) setManualSelected(new Set());
+    else setManualSelected(new Set(visiveis.map(m => m.id)));
+  };
+  const handleManualAtualizarAgora = () => {
+    const selecionados = manualProjects.filter(m => manualSelected.has(m.id));
+    if (!selecionados.length) return;
+    // Converte manuais em formato de projeto e mescla com os existentes
+    const novos = selecionados.map(m => ({
+      id: m.id,
+      projeto: defaultProjeto({
+        nome: m.nome, smPmo: m.smPmo, areaCliente: m.areaCliente,
+        areaExec: m.areaExec, resumoLecom: m.resumoLecom,
+      }),
+      raias: [], nFuturos: 1, nPassados: 0, usaPacotes: false, pacotes: [],
+    }));
+    const novosIds = new Set(novos.map(p=>p.id));
+    const mantidos = existingProjects.filter(p=>!novosIds.has(p.id));
+    const merged = [...mantidos, ...novos];
+    onStart(merged, true, novos.map(p=>p.id));
+  };
+
   // "Atualizar agora": salva e navega para tela 2 mostrando apenas os selecionados
   const handleAtualizarAgora = () => {
+
+
+    
     const selItems = allSelectable.filter(x=>selected.has(x.key));
     if (!selItems.length) return;
     const existing = Object.fromEntries(existingProjects.map(p=>[p.id,p]));
@@ -673,19 +702,48 @@ function ImportScreen({ portfolioRows, onImport, existingProjects, manualProject
                 style={{ background:"#7030A0", color:"#fff", opacity:manualForm.nome.trim()?1:.5 }}>
                 ➕ Salvar projeto
               </button>
+
+              
               {manualProjects.length > 0 && (
-                <div style={{ marginTop:16 }}>
-                  <div style={{ fontSize:13, fontWeight:600, color:"#64748B", marginBottom:8 }}>Projetos manuais adicionados</div>
-                  {manualProjects.map(m=>(
-                    <div key={m.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"7px 11px", borderRadius:8, marginBottom:4, background:"#F5F0FF", border:"1px solid #D8B4FE" }}>
-                      <span style={{ fontWeight:600, color:"#1E293B", flex:1, fontSize:12.5 }}>{m.nome}</span>
-                      {m.smPmo&&<span style={{ fontSize:11, color:"#7030A0" }}>{m.smPmo}</span>}
-                      {m.resumoLecom&&<span style={{ fontSize:11, color:"#64748b" }}>{m.resumoLecom}</span>}
-                      <button onClick={()=>removeManual(m.id)} style={{ background:"none", border:"none", cursor:"pointer", color:"#ef4444", fontSize:14, padding:"0 4px" }}>✕</button>
+                <div style={{ marginTop:20, borderTop:'1px solid #E2E8F0', paddingTop:16 }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12, gap:12, flexWrap:"wrap" }}>
+                    <div style={{ fontSize:13, fontWeight:600, color:"#64748B" }}>
+                      Projetos manuais adicionados ({manualSelected.size} de {manualProjects.length})
                     </div>
-                  ))}
+                    <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
+                      <input type="text" placeholder="🔍 Filtrar por nome..." value={filtroManual} onChange={e=>setFiltroManual(e.target.value)}
+                        style={{ padding:"6px 10px", borderRadius:6, border:"1px solid #CBD5E1", fontSize:12, width:180 }} />
+                      <button className="btn" onClick={toggleManualAll} style={{ background:"#F1F5F9", color:"#334155", fontSize:12 }}>
+                        {manualSelected.size===manualProjects.filter(m=>!filtroManual||(m.nome||'').toLowerCase().includes(filtroManual.toLowerCase())).length && manualSelected.size>0 ? "Desmarcar todos" : "Selecionar todos"}
+                      </button>
+                      <button className="btn" onClick={handleManualAtualizarAgora} disabled={manualSelected.size===0}
+                        style={{ background:"#7030A0", color:"#fff", opacity:manualSelected.size===0?.45:1, fontSize:12 }}>
+                        ✏️ Atualizar agora ({manualSelected.size})
+                      </button>
+                    </div>
+                  </div>
+                  <div style={{ maxHeight:320, overflowY:"auto" }}>
+                    {manualProjects
+                      .filter(m => !filtroManual || (m.nome||'').toLowerCase().includes(filtroManual.toLowerCase()))
+                      .map(m=>(
+                      <div key={m.id} onClick={()=>toggleManual(m.id)} style={{ display:"flex", alignItems:"center", gap:10, padding:"7px 11px", borderRadius:8, marginBottom:4, cursor:"pointer",
+                        background:manualSelected.has(m.id)?"#EDE0FA":"#F5F0FF", border:`1px solid ${manualSelected.has(m.id)?"#7030A0":"#D8B4FE"}`, transition:"all .12s" }}>
+                        <input type="checkbox" checked={manualSelected.has(m.id)} onChange={()=>toggleManual(m.id)} onClick={e=>e.stopPropagation()} />
+                        <span style={{ fontWeight:600, color:"#1E293B", flex:1, fontSize:12.5 }}>{m.nome}</span>
+                        {m.smPmo&&<span style={{ fontSize:11, color:"#7030A0", whiteSpace:"nowrap" }}>{m.smPmo}</span>}
+                        {m.resumoLecom&&<span style={{ fontSize:11, color:"#64748b", whiteSpace:"nowrap" }}>{m.resumoLecom}</span>}
+                        <button onClick={e=>{ e.stopPropagation(); if (window.confirm(`Remover "${m.nome}" da lista de manuais?\n\n(Se já foi levado ao relatório, o relatório mantém.)`)) { removeManual(m.id); setManualSelected(s=>{ const ns=new Set(s); ns.delete(m.id); return ns; }); } }}
+                          title="Remover da lista de manuais"
+                          style={{ background:"none", border:"none", cursor:"pointer", color:"#EF4444", display:"flex", padding:2 }}>
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
+
+              
             </div>
           )}
 
@@ -1273,7 +1331,9 @@ function AppContent({ initialScreen, onVoltar }) {
         return;
       }
       setProjects(prev => prev.filter(p => p.id !== projectId));
-      setManualProjects(prev => prev.filter(m => m.id !== projectId));
+      // Nota: NÃO removemos de manualProjects aqui — a exclusão nas sessões
+      // Atualizar/Gerar remove só do relatório. A remoção do card manual
+      // é tratada separadamente pelo removeManual (deleta da lista de manuais).
       logAudit('DELETE_PROJECT', 'project', projectId, { via: 'ImportScreen' });
     } catch (e) {
       console.error('[DELETE] Erro geral:', e);
@@ -1323,6 +1383,14 @@ function AppContent({ initialScreen, onVoltar }) {
           setPortfolioRows(JSON.parse(port.rows_json))
           setImportedAt(port.imported_at || '')
         }
+        // Carrega lista de projetos manuais persistidos
+        const { data: mp, error: mpErr } = await supabase
+          .from('user_manual_projects')
+          .select('data')
+          .eq('user_id', user.id)
+          .single();
+        if (mpErr && mpErr.code !== 'PGRST116') console.warn('[LOAD] Manual projects:', mpErr.message);
+        if (mp?.data) setManualProjects(mp.data);
       } catch(e) {
         console.error('[LOAD] Erro geral:', e)
         alert(`Erro ao carregar dados: ${e.message}`)
@@ -1375,6 +1443,25 @@ function AppContent({ initialScreen, onVoltar }) {
     saveTimer.current = setTimeout(() => saveToSupabase(projects), 800)
     return () => clearTimeout(saveTimer.current)
   }, [projects, loaded])
+
+  // Auto-save de manualProjects com debounce próprio
+  const saveManualTimer = useRef(null)
+  useEffect(() => {
+    if (!loaded || !user) return
+    clearTimeout(saveManualTimer.current)
+    saveManualTimer.current = setTimeout(async () => {
+      try {
+        await supabase.from('user_manual_projects').upsert({
+          user_id:    user.id,
+          data:       manualProjects,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'user_id' });
+      } catch (e) {
+        console.error('[SAVE] Manual projects:', e);
+      }
+    }, 800)
+    return () => clearTimeout(saveManualTimer.current)
+  }, [manualProjects, loaded, user])
 
   const salvarManual = () => saveToSupabase(projects)
 
