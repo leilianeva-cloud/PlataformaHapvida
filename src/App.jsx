@@ -223,9 +223,7 @@ function ImportScreen({ portfolioRows, onImport, existingProjects: allProjects, 
   // Filtros de texto por sessão (busca em tempo real por nome/título)
   const [filtroAtualizar, setFiltroAtualizar] = useState('');
   const [filtroGerar, setFiltroGerar] = useState('');
-  const [filtroManual, setFiltroManual] = useState('');
-  const [manualSelected, setManualSelected] = useState(new Set());
-  const toggleManual = (id) => setManualSelected(s=>{ const ns=new Set(s); ns.has(id)?ns.delete(id):ns.add(id); return ns; });
+  const [filtroSelecionar, setFiltroSelecionar] = useState('');
   // Remove da fila de trabalho — o projeto e seu Gantt continuam salvos no banco.
   const handleDelete = (id, nome) => {
     if (!window.confirm(`Remover "${nome}" da fila de atualização?\n\nO Gantt e os dados ficam salvos. Para trazer de volta, selecione o projeto novamente em "Selecionar Projetos" ou "Incluir Projeto Manual".`)) return;
@@ -288,7 +286,19 @@ function ImportScreen({ portfolioRows, onImport, existingProjects: allProjects, 
     return [...portfolio, ...manuais];
   }, [filtered, manualProjects, filters.tipo]);
 
-  const toggleAll = () => { if (selected.size===allSelectable.length) setSelected(new Set()); else setSelected(new Set(allSelectable.map(x=>x.key))); };
+  // Lista visível de Selecionar Projetos, com filtro por nome
+  const visibleSelectable = useMemo(() =>
+    allSelectable.filter(x => !filtroSelecionar || (x.nome||'').toLowerCase().includes(filtroSelecionar.toLowerCase())),
+  [allSelectable, filtroSelecionar]);
+
+  // Remove um manual da lista de origem. O registro em report_projects (e o Gantt) permanecem.
+  const handleDeleteManual = (m) => {
+    if (!window.confirm(`Excluir "${m.nome}" da lista de projetos manuais?\n\nSe ele já foi para Atualizar Report, continua lá com o Gantt salvo — mas não poderá ser re-selecionado por aqui.`)) return;
+    removeManual(m.id);
+    setSelected(sel => { const ns = new Set(sel); ns.delete(manualKey(m)); return ns; });
+  };
+
+  const toggleAll = () => { if (selected.size===visibleSelectable.length) setSelected(new Set()); else setSelected(new Set(visibleSelectable.map(x=>x.key))); };
   const toggle    = (k) => setSelected(s=>{ const ns=new Set(s); ns.has(k)?ns.delete(k):ns.add(k); return ns; });
 
   // helpers para Atualizar Report
@@ -328,63 +338,8 @@ function ImportScreen({ portfolioRows, onImport, existingProjects: allProjects, 
     onStart([...mantidos, ...novos], false, null, novos.map(p=>p.id)); // false = não navegar
   };
 
-  // Ações do card Manual
-  const toggleManualAll = () => {
-    const visiveis = manualProjects.filter(m => !filtroManual || (m.nome||'').toLowerCase().includes(filtroManual.toLowerCase()));
-    if (manualSelected.size === visiveis.length) setManualSelected(new Set());
-    else setManualSelected(new Set(visiveis.map(m => m.id)));
-  };
 
   
-  // Envia os manuais selecionados para a fila de Atualizar Report, sem navegar.
-  // Eles continuam listados aqui no card Incluir Projeto Manual.
-  const handleManualSelecionarParaAtualizar = () => {
-    const selecionados = manualProjects.filter(m => manualSelected.has(m.id));
-    if (!selecionados.length) return;
-    const existing = Object.fromEntries(allProjects.map(p=>[p.id,p]));
-    const novos = selecionados.map(m => {
-      const pid = manualKey(m);   // mesmo formato do handleSelecionarParaAtualizar
-      return {
-        id: pid,
-        nFuturos: existing[pid]?.nFuturos ?? 1,
-        nPassados: existing[pid]?.nPassados ?? 0,
-        usaPacotes: existing[pid]?.usaPacotes ?? false,
-        pacotes: existing[pid]?.pacotes ?? [],
-        projeto: { ...defaultProjeto(), nome:m.nome, smPmo:m.smPmo||'', resumoLecom:m.resumoLecom||'', areaCliente:m.areaCliente||'', areaExec:m.areaExec||'' },
-        raias: existing[pid]?.raias ?? [],
-      };
-    });
-    const novosIds = new Set(novos.map(p=>p.id));
-    const mantidos = allProjects.filter(p=>!novosIds.has(p.id));
-    onStart([...mantidos, ...novos], false, null, novos.map(p=>p.id));
-    setManualSelected(new Set());
-  };
-
-  const handleManualAtualizarAgora = () => {
-
-    
-    const selecionados = manualProjects.filter(m => manualSelected.has(m.id));
-    if (!selecionados.length) return;
-    // Converte manuais em formato de projeto e mescla com os existentes
-    const existing = Object.fromEntries(allProjects.map(p=>[p.id,p]));
-    const novos = selecionados.map(m => {
-      const pid = manualKey(m);   // mesmo formato do handleSelecionarParaAtualizar
-      return {
-        id: pid,
-        nFuturos: existing[pid]?.nFuturos ?? 1,
-        nPassados: existing[pid]?.nPassados ?? 0,
-        usaPacotes: existing[pid]?.usaPacotes ?? false,
-        pacotes: existing[pid]?.pacotes ?? [],
-        projeto: { ...defaultProjeto(), nome:m.nome, smPmo:m.smPmo||'', resumoLecom:m.resumoLecom||'', areaCliente:m.areaCliente||'', areaExec:m.areaExec||'' },
-        raias: existing[pid]?.raias ?? [],
-      };
-    });
-    const novosIds = new Set(novos.map(p=>p.id));
-    const mantidos = allProjects.filter(p=>!novosIds.has(p.id));
-    const merged = [...mantidos, ...novos];
-    onStart(merged, true, novos.map(p=>p.id), novos.map(p=>p.id));
-  };
-
   // "Atualizar agora": salva e navega para tela 2 mostrando apenas os selecionados
   const handleAtualizarAgora = () => {
 
@@ -593,6 +548,14 @@ function ImportScreen({ portfolioRows, onImport, existingProjects: allProjects, 
 
             {/* Selecionar Projetos */}
             {[
+              { key:'manual', icon:'➕', cor:'#7030A0', bg:'#F5F0FF',
+                titulo:'Incluir Projeto Manual',
+                desc:'Cadastre projetos fora do portfólio — aparecem em Selecionar Projetos',
+                badge: manualProjects.length>0?`${manualProjects.length} adicionado${manualProjects.length!==1?'s':''}`:null,
+                badgeCor:'#F5F0FF', textCor:'#7030A0',
+                disabled: false,
+                onClick: ()=>setExpanded(e=>e==='manual'?null:'manual'),
+                active: expanded==='manual' },
               { key:'selecionar', icon:'🔍', cor:'#2F5597', bg:'#EFF6FF',
                 titulo:'Selecionar Projetos',
                 desc:'Filtre por SM, trimestre ou compromisso e escolha os projetos para o report',
@@ -601,14 +564,6 @@ function ImportScreen({ portfolioRows, onImport, existingProjects: allProjects, 
                 disabled: !hasPortfolio && manualProjects.length===0,
                 onClick: ()=>setExpanded(e=>e==='selecionar'?null:'selecionar'),
                 active: expanded==='selecionar' },
-              { key:'manual', icon:'➕', cor:'#7030A0', bg:'#F5F0FF',
-                titulo:'Incluir Projeto Manual',
-                desc:'Adicione projetos que não estão no portfólio importado — 100% manual',
-                badge: manualProjects.length>0?`${manualProjects.length} adicionado${manualProjects.length!==1?'s':''}`:null,
-                badgeCor:'#F5F0FF', textCor:'#7030A0',
-                disabled: false,
-                onClick: ()=>setExpanded(e=>e==='manual'?null:'manual'),
-                active: expanded==='manual' },
               { key:'atualizar', icon:'✏️', cor:'#F47B20', bg:'#FFF7ED',
                 titulo:'Atualizar Report',
                 desc:'Edite marcos, cronogramas e pontos de atenção de cada projeto selecionado',
@@ -682,9 +637,11 @@ function ImportScreen({ portfolioRows, onImport, existingProjects: allProjects, 
                 <>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
                     <div style={{ fontFamily:"'Inter',sans-serif", fontSize:14, fontWeight:700, color:"#1E293B" }}>Projetos disponíveis</div>
-                    <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                    <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
+                      <input type="text" placeholder="🔍 Filtrar por nome..." value={filtroSelecionar} onChange={e=>setFiltroSelecionar(e.target.value)}
+                        style={{ padding:"6px 10px", borderRadius:6, border:"1px solid #CBD5E1", fontSize:12, width:180 }} />
                       <button className="btn" onClick={toggleAll} style={{ background:"#F1F5F9", color:"#334155", fontSize:12 }}>
-                        {selected.size===allSelectable.length?"Desmarcar todos":"Selecionar todos"}
+                        {selected.size===visibleSelectable.length && selected.size>0?"Desmarcar todos":"Selecionar todos"}
                       </button>
                       <button className="btn" onClick={handleSelecionarParaAtualizar} disabled={selected.size===0}
                         style={{ background:"#2F5597", color:"#fff", border:"none", opacity:selected.size===0?.45:1, fontSize:12 }}>
@@ -697,7 +654,7 @@ function ImportScreen({ portfolioRows, onImport, existingProjects: allProjects, 
                     </div>
                   </div>
                   <div style={{ maxHeight:340, overflowY:"auto" }}>
-                    {allSelectable.map(x=>{
+                    {visibleSelectable.map(x=>{
                       const isSaved=existingProjects.some(p=>p.id===x.key);
                       return(
                         <div key={x.key} onClick={()=>toggle(x.key)} style={{ display:"flex", alignItems:"center", gap:10, padding:"7px 11px", borderRadius:8, marginBottom:4, cursor:"pointer",
@@ -709,6 +666,13 @@ function ImportScreen({ portfolioRows, onImport, existingProjects: allProjects, 
                           <span style={{ fontSize:11, color:"#64748b", whiteSpace:"nowrap" }}>{x.compromisso}</span>
                           {x.type==='manual'&&<span style={{ fontSize:10, background:"#F5F0FF", color:"#7030A0", borderRadius:6, padding:"2px 6px", fontWeight:700 }}>MANUAL</span>}
                           {isSaved&&<span style={{ fontSize:10, background:"#d1fae5", color:"#065f46", borderRadius:6, padding:"2px 6px", fontWeight:700 }}>SALVO</span>}
+                          {x.type==='manual'
+                            ? <button onClick={e=>{ e.stopPropagation(); handleDeleteManual(x.manual); }}
+                                title="Excluir projeto manual"
+                                style={{ background:"none", border:"none", cursor:"pointer", color:"#EF4444", display:"flex", padding:2 }}>
+                                <Trash2 size={15} />
+                              </button>
+                            : <span style={{ width:19 }} />}
                         </div>
                       );
                     })}
@@ -739,46 +703,8 @@ function ImportScreen({ portfolioRows, onImport, existingProjects: allProjects, 
 
               
               {manualProjects.length > 0 && (
-                <div style={{ marginTop:20, borderTop:'1px solid #E2E8F0', paddingTop:16 }}>
-                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12, gap:12, flexWrap:"wrap" }}>
-                    <div style={{ fontSize:13, fontWeight:600, color:"#64748B" }}>
-                      Projetos manuais adicionados ({manualSelected.size} de {manualProjects.length})
-                    </div>
-                    <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
-                      <input type="text" placeholder="🔍 Filtrar por nome..." value={filtroManual} onChange={e=>setFiltroManual(e.target.value)}
-                        style={{ padding:"6px 10px", borderRadius:6, border:"1px solid #CBD5E1", fontSize:12, width:180 }} />
-                      <button className="btn" onClick={toggleManualAll} style={{ background:"#F1F5F9", color:"#334155", fontSize:12 }}>
-                        {manualSelected.size===manualProjects.filter(m=>!filtroManual||(m.nome||'').toLowerCase().includes(filtroManual.toLowerCase())).length && manualSelected.size>0 ? "Desmarcar todos" : "Selecionar todos"}
-                      </button>
-                      
-                      <button className="btn" onClick={handleManualSelecionarParaAtualizar} disabled={manualSelected.size===0}
-                        style={{ background:"#F1F5F9", color:"#334155", opacity:manualSelected.size===0?.45:1, fontSize:12 }}>
-                        <Plus size={13} />Selecionar para atualizar ({manualSelected.size})
-                      </button>
-                      <button className="btn" onClick={handleManualAtualizarAgora} disabled={manualSelected.size===0}
-                        style={{ background:"#7030A0", color:"#fff", opacity:manualSelected.size===0?.45:1, fontSize:12 }}>
-                        ✏️ Atualizar agora ({manualSelected.size})
-                      </button>
-                    </div>
-                  </div>
-                  <div style={{ maxHeight:320, overflowY:"auto" }}>
-                    {manualProjects
-                      .filter(m => !filtroManual || (m.nome||'').toLowerCase().includes(filtroManual.toLowerCase()))
-                      .map(m=>(
-                      <div key={m.id} onClick={()=>toggleManual(m.id)} style={{ display:"flex", alignItems:"center", gap:10, padding:"7px 11px", borderRadius:8, marginBottom:4, cursor:"pointer",
-                        background:manualSelected.has(m.id)?"#EDE0FA":"#F5F0FF", border:`1px solid ${manualSelected.has(m.id)?"#7030A0":"#D8B4FE"}`, transition:"all .12s" }}>
-                        <input type="checkbox" checked={manualSelected.has(m.id)} onChange={()=>toggleManual(m.id)} onClick={e=>e.stopPropagation()} />
-                        <span style={{ fontWeight:600, color:"#1E293B", flex:1, fontSize:12.5 }}>{m.nome}</span>
-                        {m.smPmo&&<span style={{ fontSize:11, color:"#7030A0", whiteSpace:"nowrap" }}>{m.smPmo}</span>}
-                        {m.resumoLecom&&<span style={{ fontSize:11, color:"#64748b", whiteSpace:"nowrap" }}>{m.resumoLecom}</span>}
-                        <button onClick={e=>{ e.stopPropagation(); if (window.confirm(`Remover "${m.nome}" da lista de manuais?\n\n(Se já foi levado ao relatório, o relatório mantém.)`)) { removeManual(m.id); setManualSelected(s=>{ const ns=new Set(s); ns.delete(m.id); return ns; }); } }}
-                          title="Remover da lista de manuais"
-                          style={{ background:"none", border:"none", cursor:"pointer", color:"#EF4444", display:"flex", padding:2 }}>
-                          <Trash2 size={15} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
+                <div style={{ marginTop:16, padding:"10px 12px", background:"#F5F0FF", border:"1px solid #D8B4FE", borderRadius:8, fontSize:12, color:"#7030A0" }}>
+                  {manualProjects.length} projeto{manualProjects.length!==1?'s':''} manual{manualProjects.length!==1?'is':''} cadastrado{manualProjects.length!==1?'s':''}. Gerencie-os em <strong>Selecionar Projetos</strong>.
                 </div>
               )}
 
