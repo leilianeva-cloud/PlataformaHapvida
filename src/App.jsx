@@ -744,10 +744,7 @@ function ImportScreen({ portfolioRows, onImport, existingProjects: allProjects, 
                       <button className="btn" onClick={toggleManualAll} style={{ background:"#F1F5F9", color:"#334155", fontSize:12 }}>
                         {manualSelected.size===manualProjects.filter(m=>!filtroManual||(m.nome||'').toLowerCase().includes(filtroManual.toLowerCase())).length && manualSelected.size>0 ? "Desmarcar todos" : "Selecionar todos"}
                       </button>
-                      <button className="btn" onClick={handleManualSelecionarParaAtualizar} disabled={manualSelected.size===0}
-                        style={{ background:"#F1F5F9", color:"#334155", opacity:manualSelected.size===0?.45:1, fontSize:12 }}>
-                        <Plus size={13} />Selecionar para atualizar ({manualSelected.size})
-                      </button>
+                      
                       <button className="btn" onClick={handleManualSelecionarParaAtualizar} disabled={manualSelected.size===0}
                         style={{ background:"#F1F5F9", color:"#334155", opacity:manualSelected.size===0?.45:1, fontSize:12 }}>
                         <Plus size={13} />Selecionar para atualizar ({manualSelected.size})
