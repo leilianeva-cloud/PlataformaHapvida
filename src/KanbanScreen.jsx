@@ -87,9 +87,10 @@ function KanbanInner({ onBack }) {
   const [dragId, setDragId]         = useState(null)
   const [dragOverCol, setDragOverCol] = useState(null)
   const [taskModal, setTaskModal]   = useState(null)  // { task, col }
-  const [meetingModal, setMeetingModal] = useState(false)
+  const [novaAta, setNovaAta] = useState(false)  // form inline de nova anotação
   const [gerandoId, setGerandoId]   = useState(null)
   const [erroId, setErroId]         = useState(null)
+  const [erroDetalhe, setErroDetalhe] = useState(null)  // DEBUG: detalhe do erro da geração
   const [suggestions, setSuggestions] = useState(null)
   const [toast, setToast]           = useState(null)
   const [loadErr, setLoadErr]       = useState(null)  // DEBUG: erro da carga inicial
@@ -207,7 +208,7 @@ function KanbanInner({ onBack }) {
     }).select().single()
     if (data) setMeetings(ms => [data, ...ms])
     logAudit({ action:'CREATE_MEETING_NOTE', entity:'kanban_meeting', entityId:data?.id, detail:{ title:dados.title } })
-    setMeetingModal(false)
+    setNovaAta(false)
   }
 
   async function excluirReuniao(id) {
@@ -217,7 +218,7 @@ function KanbanInner({ onBack }) {
   }
 
   async function gerarTasks(m) {
-    setGerandoId(m.id); setErroId(null)
+    setGerandoId(m.id); setErroId(null); setErroDetalhe(null)
     try {
       // Chama a função serverless da Vercel (a chave da API fica protegida lá)
       const resp = await fetch('/api/gerar-tasks', {
@@ -225,8 +226,14 @@ function KanbanInner({ onBack }) {
         headers:{ 'Content-Type':'application/json' },
         body:JSON.stringify({ title:m.title, date:m.meeting_date, notes:m.notes }),
       })
-      if (!resp.ok) throw new Error('falha')
-      const parsed = await resp.json()
+      const raw = await resp.text()  // lê como texto primeiro, pra capturar erro mesmo se não for JSON
+      if (!resp.ok) {
+        setErroDetalhe(`HTTP ${resp.status} — ${raw.slice(0, 400)}`)
+        setErroId(m.id); return
+      }
+      let parsed
+      try { parsed = JSON.parse(raw) }
+      catch { setErroDetalhe('Resposta não é JSON (provável rota /api não encontrada). Início: ' + raw.slice(0, 200)); setErroId(m.id); return }
       const items = (parsed.tasks || []).map(t => ({
         id:Math.random().toString(36).slice(2,9),
         title:t.title,
@@ -235,7 +242,8 @@ function KanbanInner({ onBack }) {
       }))
       setSuggestions({ meetingId:m.id, meetingTitle:m.title, items })
       logAudit({ action:'GENERATE_TASKS_AI', entity:'kanban_meeting', entityId:m.id, detail:{ qtd:items.length } })
-    } catch {
+    } catch (e) {
+      setErroDetalhe('Exceção: ' + String(e?.message || e))
       setErroId(m.id)
     } finally {
       setGerandoId(null)
@@ -314,8 +322,10 @@ function KanbanInner({ onBack }) {
       {/* Conteúdo */}
       {aba === 'reunioes' ? (
         <MeetingsTab
-          meetings={meetings} onNova={()=>setMeetingModal(true)} onExcluir={excluirReuniao}
-          onGerar={gerarTasks} gerandoId={gerandoId} erroId={erroId}
+          meetings={meetings} onExcluir={excluirReuniao}
+          novaAta={novaAta} onAbrirNova={()=>setNovaAta(true)} onCancelarNova={()=>setNovaAta(false)}
+          onSalvarNova={salvarReuniao}
+          onGerar={gerarTasks} gerandoId={gerandoId} erroId={erroId} erroDetalhe={erroDetalhe}
         />
       ) : (
         <div style={{ padding:24, display:'flex', gap:16, alignItems:'flex-start', overflowX:'auto' }}>
@@ -366,7 +376,6 @@ function KanbanInner({ onBack }) {
 
       {/* Modais */}
       {taskModal && <TaskModal task={taskModal.task} colInicial={taskModal.col} onSalvar={salvarTask} onFechar={()=>setTaskModal(null)} />}
-      {meetingModal && <MeetingModal onSalvar={salvarReuniao} onFechar={()=>setMeetingModal(false)} />}
       {suggestions && <SuggestionsModal data={suggestions} onConfirmar={confirmarSugestoes} onFechar={()=>setSuggestions(null)} />}
 
       {/* Toast */}
@@ -462,18 +471,23 @@ function IconBtn({ children, onClick, title }) {
 }
 
 // ── Aba Reuniões ──
-function MeetingsTab({ meetings, onNova, onExcluir, onGerar, gerandoId, erroId }) {
+function MeetingsTab({ meetings, onExcluir, onGerar, gerandoId, erroId, erroDetalhe, novaAta, onAbrirNova, onCancelarNova, onSalvarNova }) {
   return (
     <div style={{ padding:24, maxWidth:900, margin:'0 auto' }}>
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:16 }}>
         <p style={{ margin:0, fontSize:13, color:'#64748b' }}>Registre a ata e, quando quiser, gere sugestões de tasks a partir do texto.</p>
-        <button onClick={onNova}
-          style={{ background:'#003B82', color:'#fff', border:'none', borderRadius:9, padding:'9px 14px', fontSize:13, fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', gap:6 }}>
-          <Plus size={15} /> Nova anotação
-        </button>
+        {!novaAta && (
+          <button onClick={onAbrirNova}
+            style={{ background:'#003B82', color:'#fff', border:'none', borderRadius:9, padding:'9px 14px', fontSize:13, fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', gap:6 }}>
+            <Plus size={15} /> Nova anotação
+          </button>
+        )}
       </div>
 
-      {meetings.length === 0 && (
+      {/* Formulário inline — aparece acima das anotações já registradas */}
+      {novaAta && <NovaAtaInline onSalvar={onSalvarNova} onCancelar={onCancelarNova} />}
+
+      {meetings.length === 0 && !novaAta && (
         <div style={{ background:'#fff', border:'1px solid #E2E8F0', borderRadius:12, padding:'56px 0', textAlign:'center', color:'#94a3b8', fontSize:14, display:'flex', flexDirection:'column', alignItems:'center', gap:8 }}>
           <NotebookPen size={22} style={{ opacity:.4 }} />
           Nenhuma reunião registrada ainda. Comece pela primeira ata.
@@ -504,9 +518,69 @@ function MeetingsTab({ meetings, onNova, onExcluir, onGerar, gerandoId, erroId }
                   : <><Sparkles size={13} /> Gerar tasks</>}
               </button>
             </div>
-            {erroId===m.id && <p style={{ margin:'8px 0 0', fontSize:12, color:'#C00000' }}>Não foi possível gerar as sugestões agora. Tente novamente.</p>}
+            {erroId===m.id && (
+              <div style={{ margin:'8px 0 0' }}>
+                <p style={{ margin:0, fontSize:12, color:'#C00000', fontWeight:700 }}>Não foi possível gerar as sugestões.</p>
+                {erroDetalhe && (
+                  <pre style={{ marginTop:6, fontSize:11, color:'#7F1D1D', background:'#FEF2F2', border:'1px solid #FCA5A5', borderRadius:8, padding:10, whiteSpace:'pre-wrap', wordBreak:'break-word' }}>
+                    {erroDetalhe}
+                  </pre>
+                )}
+              </div>
+            )}
           </div>
         ))}
+      </div>
+    </div>
+  )
+}
+
+// ── Formulário inline de nova anotação (no topo da lista) ──
+function NovaAtaInline({ onSalvar, onCancelar }) {
+  const [title, setTitle] = useState('')
+  const [date, setDate]   = useState(hojeISO())
+  const [notes, setNotes] = useState('')
+  const podeSalvar = title.trim() && notes.trim()
+
+  return (
+    <div style={{ background:'#fff', border:'1px solid #003B82', borderRadius:12, padding:16, marginBottom:12, boxShadow:'0 2px 10px rgba(0,59,130,.08)' }}>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:8, fontSize:14, fontWeight:700, color:'#1e293b' }}>
+          <NotebookPen size={16} color="#003B82" /> Nova anotação de reunião
+        </div>
+        <IconBtn title="Cancelar" onClick={onCancelar}><X size={17} color="#64748b" /></IconBtn>
+      </div>
+
+      <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+        <div style={{ display:'flex', gap:12, flexWrap:'wrap' }}>
+          <div style={{ flex:'2 1 220px' }}>
+            <Campo label="Título da reunião">
+              <Input value={title} onChange={setTitle} placeholder="Ex.: RAS — 06/07" autoFocus />
+            </Campo>
+          </div>
+          <div style={{ flex:'1 1 140px' }}>
+            <Campo label="Data">
+              <input type="date" value={date} onChange={e=>setDate(e.target.value)} style={inputStyle} />
+            </Campo>
+          </div>
+        </div>
+
+        <Campo label="Anotações (texto livre)">
+          <textarea value={notes} onChange={e=>setNotes(e.target.value)} rows={6}
+            placeholder="Cole ou escreva aqui o que foi discutido e decidido na reunião…"
+            style={{ ...inputStyle, resize:'vertical' }} />
+        </Campo>
+      </div>
+
+      <div style={{ display:'flex', justifyContent:'flex-end', gap:8, marginTop:14 }}>
+        <button onClick={onCancelar}
+          style={{ background:'none', border:'none', color:'#64748b', fontSize:13, fontWeight:600, padding:'8px 16px', borderRadius:8, cursor:'pointer' }}>
+          Cancelar
+        </button>
+        <button onClick={()=>podeSalvar && onSalvar({ title:title.trim(), date, notes:notes.trim() })} disabled={!podeSalvar}
+          style={{ background:'#FF7900', color:'#fff', border:'none', fontSize:13, fontWeight:700, padding:'8px 16px', borderRadius:8, cursor:podeSalvar?'pointer':'default', opacity:podeSalvar?1:.4, display:'flex', alignItems:'center', gap:6 }}>
+          <Check size={15} /> Salvar anotação
+        </button>
       </div>
     </div>
   )
