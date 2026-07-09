@@ -718,6 +718,10 @@ function ImportScreen({ portfolioRows, onImport, existingProjects, manualProject
                       <button className="btn" onClick={toggleManualAll} style={{ background:"#F1F5F9", color:"#334155", fontSize:12 }}>
                         {manualSelected.size===manualProjects.filter(m=>!filtroManual||(m.nome||'').toLowerCase().includes(filtroManual.toLowerCase())).length && manualSelected.size>0 ? "Desmarcar todos" : "Selecionar todos"}
                       </button>
+                      <button className="btn" onClick={handleManualSelecionarParaAtualizar} disabled={manualSelected.size===0}
+                        style={{ background:"#F1F5F9", color:"#334155", opacity:manualSelected.size===0?.45:1, fontSize:12 }}>
+                        <Plus size={13} />Selecionar para atualizar ({manualSelected.size})
+                      </button>
                       <button className="btn" onClick={handleManualAtualizarAgora} disabled={manualSelected.size===0}
                         style={{ background:"#7030A0", color:"#fff", opacity:manualSelected.size===0?.45:1, fontSize:12 }}>
                         ✏️ Atualizar agora ({manualSelected.size})
@@ -2415,7 +2419,7 @@ function gerarSlideXml({ projeto, raias, timeline, usaPacotes, pacotes }) {
         const adefX=celsRef.length>0?fx(celsRef[0].f0):(X0+(X1-X0)*0.72);
         const adefW=celsRef.length>0?Math.max(fx(celsRef[celsRef.length-1].f1)-adefX,0.6):(X1-X0)*0.22;
         const adefLabel = faseLabel(f) ? faseLabel(f) + ' · A definir' : 'A definir';
-        S.push(shape({x:adefX,y:cy2,w:adefW,h:lBarH,fill:"D9D9D9",round:50000,text:adefLabel,textOpt:{sz:550,bold:true,color:"64748B",algn:"ctr",anchor:"ctr",wrap:"none"}}));
+        S.push(shape({x:adefX,y:cy2,w:adefW,h:lBarH,fill:"D9D9D9",round:50000,text:adefLabel,textOpt:{sz:700,bold:true,color:"64748B",algn:"ctr",anchor:"ctr",wrap:"none"}}));
         return;
       }
       const fimEfetivo = f.fimRepactuado || f.fim;
@@ -2458,10 +2462,10 @@ function gerarSlideXml({ projeto, raias, timeline, usaPacotes, pacotes }) {
       // Em trimestre comprimido, barra é larga o suficiente pra dois textos (% esq + data dir)
       const mostrar2Textos = naturalW >= MIN_BAR || emComprimidoPptx;
       if(mostrar2Textos){
-        S.push(shape({x:barX+0.03,y:cy2,w:Math.max(0.3,xd-barX),h:lBarH,text:`${f.pct||0}%`,textOpt:{sz:emComprimidoPptx?550:600,bold:true,color:frac>0.12?"FFFFFF":"1E293B",algn:"l",anchor:"ctr",wrap:"none"}}));
-        S.push(shape({x:barX,y:cy2,w:barW,h:lBarH,text:dataTexto,textOpt:{sz:emComprimidoPptx?550:600,bold:true,color:frac>=0.9?"FFFFFF":"1E293B",algn:"r",anchor:"ctr",wrap:"none"}}));
+        S.push(shape({x:barX+0.03,y:cy2,w:Math.max(0.3,xd-barX),h:lBarH,text:`${f.pct||0}%`,textOpt:{sz:700,bold:true,color:frac>0.12?"FFFFFF":"1E293B",algn:"l",anchor:"ctr",wrap:"none"}}));
+        S.push(shape({x:barX,y:cy2,w:barW,h:lBarH,text:dataTexto,textOpt:{sz:700,bold:true,color:frac>=0.9?"FFFFFF":"1E293B",algn:"r",anchor:"ctr",wrap:"none"}}));
       } else {
-        S.push(shape({x:barX,y:cy2,w:barW,h:lBarH,text:`${f.pct||0}% ${dataTexto}`,textOpt:{sz:550,bold:true,color:"1E293B",algn:"ctr",anchor:"ctr",wrap:"none"}}));
+        S.push(shape({x:barX,y:cy2,w:barW,h:lBarH,text:`${f.pct||0}% ${dataTexto}`,textOpt:{sz:700,bold:true,color:"1E293B",algn:"ctr",anchor:"ctr",wrap:"none"}}));
       }
     });
   };
@@ -2489,7 +2493,7 @@ function gerarSlideXml({ projeto, raias, timeline, usaPacotes, pacotes }) {
         const wPac=xbPac-xaPac; const frac=Math.max(0,Math.min(1,info.pctMedia/100));
         S.push(shape({x:xaPac,y:ry+(pacH-barH)/2,w:wPac,h:barH,fill:tintHex(sCor,0.7),round:50000}));
         if(frac>0.01) S.push(shape({x:xaPac,y:ry+(pacH-barH)/2,w:wPac*frac,h:barH,fill:sCor,round:50000}));
-        S.push(shape({x:xaPac,y:ry+(pacH-barH)/2,w:wPac,h:barH,text:`${info.pctMedia}%  ${ddmm(info.maxFim)}`,textOpt:{sz:600,bold:true,color:frac>0.5?"FFFFFF":"1E293B",algn:"ctr",anchor:"ctr",wrap:"none"}}));
+        S.push(shape({x:xaPac,y:ry+(pacH-barH)/2,w:wPac,h:barH,text:`${info.pctMedia}%  ${ddmm(info.maxFim)}`,textOpt:{sz:700,bold:true,color:frac>0.5?"FFFFFF":"1E293B",algn:"ctr",anchor:"ctr",wrap:"none"}}));
       }
       curY += pacH;
       pacRaias.forEach(r => { const rh=calcRhPptx(r); renderRaiaRow(r, curY, rh); curY+=rh; });
