@@ -1854,8 +1854,8 @@ function RaiaCard({ r, aberta, toggle, upd, updFase, addFase, delFase, moveFase,
       {aberta && !r.despriorizado && (
         <div style={{ padding: "0 14px 14px 40px" }}>
           {/* cabeçalho */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 120px 120px 110px 80px 1fr 36px", gap: 10, fontSize: 11, fontWeight: 600, color: "#94a3b8", textTransform: "uppercase", padding: "0 2px 5px" }}>
-            <span>Fase</span><span>Início</span><span>Fim</span><span title="Nova data fim (repactuação)">↪ Repac.</span><span style={{ fontSize:9 }} title="Sem data definida">DT A<br/>DEF.</span><span>% executado</span><span style={{ textAlign: "center" }}>—</span>
+          <div style={{ display: "grid", gridTemplateColumns: "24px 1fr 120px 120px 110px 80px 1fr 30px", gap: 10, fontSize: 11, fontWeight: 600, color: "#94a3b8", textTransform: "uppercase", padding: "0 2px 5px" }}>
+            <span></span><span>Fase</span><span>Início</span><span>Fim</span><span title="Nova data fim (repactuação)">↪ Repac.</span><span style={{ fontSize:9, textAlign: "center" }} title="Sem data definida">DT A<br/>DEF.</span><span>% executado</span><span style={{ textAlign: "center" }}>—</span>
           </div>
           {r.fases.map((f, i) => (
             <div key={i} style={{ marginBottom: 8 }}>
@@ -2110,7 +2110,10 @@ function gerarSlidesXmls({ projeto, raias, timeline, usaPacotes, pacotes }) {
   const totalRows = usaPacotes && pacotes?.length
     ? pacotes.reduce((s, p) => s + 1 + p.raiaIds.length, 0)
     : raias.length;
-  const nRows = Math.max(totalRows, 7);
+  // Limita altura da linha considerando no máximo 12 linhas por slide (13 com o cabeçalho fixo).
+  // Se houver mais que 12, quebra automaticamente em novo slide mantendo legibilidade.
+  const MAX_ROWS_POR_SLIDE = 12;
+  const nRows = Math.max(Math.min(totalRows, MAX_ROWS_POR_SLIDE), 7);
   const rowH = Math.min(0.42, (bodyBottom - bodyTop1) / nRows);
 
   const calcRh = (r) => {
@@ -2413,7 +2416,7 @@ function gerarSlideXml({ projeto, raias, timeline, usaPacotes, pacotes }) {
       cells.forEach(c=>{ const xa=fx(c.f0),xb=fx(c.f1); S.push(shape({x:xa,y:ry,w:xb-xa,h:pacH,fill:c.futuro?"EEF4FF":"F0F6FF",line:GRID_LN})); });
       S.push(shape({x:0.16,y:ry,w:0.64,h:pacH,text:"Pac",textOpt:{sz:800,bold:true,color:"2F5597",algn:"ctr",anchor:"ctr"}}));
       S.push(shape({x:0.86,y:ry,w:2.28,h:pacH,text:pac.nome,textOpt:{sz:900,bold:true,color:"1E3A6E",anchor:"ctr"}}));
-      S.push(shape({x:3.18,y:ry,w:0.98,h:pacH,text:info.status,textOpt:{sz:650,bold:true,color:sCor,algn:"ctr",anchor:"ctr",wrap:"none"}}));
+      S.push(shape({x:3.18,y:ry,w:0.98,h:pacH,text:info.status,textOpt:{sz:900,bold:true,color:sCor,algn:"ctr",anchor:"ctr",wrap:"none"}}));
       S.push(shape({x:4.18,y:ry,w:0.68,h:pacH,text:ddmm(info.minInicio),textOpt:{sz:700,bold:true,color:"2F5597",algn:"ctr",anchor:"ctr",wrap:"none"}}));
       const xaPac=dX(info.minInicio), xbPac=dX(info.maxFim);
       if(xaPac!=null&&xbPac!=null&&xbPac>xaPac){
