@@ -32,9 +32,18 @@ function fmtDate(v){
   if(!v) return "—";
   if(v instanceof Date && !isNaN(v)){
     const d=v.getDate().toString().padStart(2,"0"), m=(v.getMonth()+1).toString().padStart(2,"0");
-    return `${d}/${m}/${v.getFullYear()}`;
+    const y=v.getFullYear().toString().slice(-2);
+    return `${d}/${m}/${y}`;
   }
   return "—";
+}
+/* Trunca o nome do projeto para caber em UMA linha da coluna "Projeto".
+   Medido no template: coluna = 6,62cm @ 8pt → ~42 caracteres.
+   Sem isso, um nome longo quebra em 2-3 linhas e estoura a box. */
+const NOME_MAX = 42;
+function trunc(s, max = NOME_MAX){
+  const t = String(s ?? "");
+  return t.length > max ? t.slice(0, max - 1).trimEnd() + "…" : t;
 }
 function parseNP(val){
   if(val===null||val===undefined||String(val).trim()===""||String(val)==="NaN") return "—";
@@ -208,22 +217,81 @@ const emptyRow6=(bg="FFFFFF")=>tr([tc("—",{bg}),tc("—",{bg}),tc("Sem dados",
 const emptyRow7=(bg="FFFFFF")=>tr([tc("—",{bg}),tc("—",{bg}),tc("Sem dados",{align:"l",bg}),tc("—",{bg}),tc("—",{bg}),tc("—",{bg}),tc("—",{bg})]);
 
 function rowAtP(r,i){const bg=rowBg(i),cc=r.target!=="—"?"C00000":null;
-  return tr([tc(r.lecom,{sz:"800",bg}),tc(r.squad,{sz:"800",bg}),tc(r.nome,{sz:"800",align:"l",bg}),tc(r.fase,{sz:"800",bg}),tc(r.target,{sz:"800",color:cc,bg}),tc(r.np,{sz:"800",bg})]);}
+  return tr([tc(r.lecom,{sz:"800",bg}),tc(r.squad,{sz:"800",bg}),tc(trunc(r.nome),{sz:"800",align:"l",bg}),tc(r.fase,{sz:"800",bg}),tc(r.target,{sz:"800",color:cc,bg}),tc(r.np,{sz:"800",bg})]);}
 function rowAtM(r,i){const bg=rowBg(i);
-  return tr([tc(r.lecom,{sz:"800",bg}),tc(r.squad,{sz:"800",bg}),tc(r.nome,{sz:"800",align:"l",bg}),tc(r.status,{sz:"800",bg}),tc(r.target,{sz:"800",color:"C00000",bg}),tc(r.np,{sz:"800",bg})]);}
+  return tr([tc(r.lecom,{sz:"800",bg}),tc(r.squad,{sz:"800",bg}),tc(trunc(r.nome),{sz:"800",align:"l",bg}),tc(r.status,{sz:"800",bg}),tc(r.target,{sz:"800",color:"C00000",bg}),tc(r.np,{sz:"800",bg})]);}
 function rowPrxP(r,i){const bg=rowBg(i);
-  return tr([tc(r.lecom,{sz:"800",bg}),tc(r.squad,{sz:"800",bg}),tc(r.nome,{sz:"800",align:"l",bg}),tc(r.fase,{sz:"800",bg}),tc(r.target,{sz:"800",color:"ED7D31",bg}),tc(r.np,{sz:"800",bg})]);}
+  return tr([tc(r.lecom,{sz:"800",bg}),tc(r.squad,{sz:"800",bg}),tc(trunc(r.nome),{sz:"800",align:"l",bg}),tc(r.fase,{sz:"800",bg}),tc(r.target,{sz:"800",color:"ED7D31",bg}),tc(r.np,{sz:"800",bg})]);}
 function rowPrxM(r,i){const bg=rowBg(i);
-  return tr([tc(r.lecom,{sz:"800",bg}),tc(r.squad,{sz:"800",bg}),tc(r.nome,{sz:"800",align:"l",bg}),tc(r.status,{sz:"800",bg}),tc(r.target,{sz:"800",color:"ED7D31",bg}),tc(r.np,{sz:"800",bg})]);}
+  return tr([tc(r.lecom,{sz:"800",bg}),tc(r.squad,{sz:"800",bg}),tc(trunc(r.nome),{sz:"800",align:"l",bg}),tc(r.status,{sz:"800",bg}),tc(r.target,{sz:"800",color:"ED7D31",bg}),tc(r.np,{sz:"800",bg})]);}
 function rowProjBL(r,i){
   const bg=rowBg(i),fc=r.enc?"00B050":null;
   const sc=r.status.toLowerCase().startsWith("atras")?"C00000":r.status.toLowerCase().startsWith("em risco")?"ED7D31":null;
-  return tr([tc(r.lecom,{sz:"800",bg}),tc(r.squad,{sz:"800",bg}),tc(r.nome,{sz:"800",align:"l",bg}),tc(r.fase,{sz:"800",color:fc,bold:r.enc,bg}),tc(r.status.slice(0,55),{sz:"800",color:sc,bold:!!sc,bg}),tc(r.target,{sz:"800",bg}),tc(r.np,{sz:"800",bg})]);}
+  return tr([tc(r.lecom,{sz:"800",bg}),tc(r.squad,{sz:"800",bg}),tc(trunc(r.nome),{sz:"800",align:"l",bg}),tc(r.fase,{sz:"800",color:fc,bold:r.enc,bg}),tc(r.status.slice(0,55),{sz:"800",color:sc,bold:!!sc,bg}),tc(r.target,{sz:"800",bg}),tc(r.np,{sz:"800",bg})]);}
 function rowMelBL(r,i){
   const bg=rowBg(i);
-  return tr([tc(r.lecom,{sz:"800",bg}),tc(r.squad,{sz:"800",bg}),tc(r.nome,{sz:"800",align:"l",bg}),tc(r.status,{sz:"800",color:r.fin?"00B050":null,bold:r.fin,bg}),tc(r.target,{sz:"800",bg}),tc(r.np,{sz:"800",bg})]);}
+  return tr([tc(r.lecom,{sz:"800",bg}),tc(r.squad,{sz:"800",bg}),tc(trunc(r.nome),{sz:"800",align:"l",bg}),tc(r.status,{sz:"800",color:r.fin?"00B050":null,bold:r.fin,bg}),tc(r.target,{sz:"800",bg}),tc(r.np,{sz:"800",bg})]);}
 
 /* ── XML TABLE OPS ─────────────────────────────────────────────────────────── */
+/* ── GEOMETRIA DO SLIDE 2 (medida diretamente no template, em EMU) ──────────
+   Box "ENTREGAS EM ATRASO"  : Shape 91  y=2015316  cy=2206306
+   Box "ENTREGAS PRÓXIMAS"   : Shape 201 y=4319656  cy=2202999
+   Capacidade medida: 6 linhas de dados na box normal, 12 na esticada.
+   ────────────────────────────────────────────────────────────────────────── */
+const BOX_AT_Y      = 2015316;
+const BOX_PX_Y      = 4319656;
+const BOX_PX_CY     = 2202999;
+const BOX_STRETCH_CY= (BOX_PX_Y + BOX_PX_CY) - BOX_AT_Y;  // 4507339
+const BOX_DELTA_UP  = BOX_PX_Y - BOX_AT_Y;                // 2304340
+
+const CAP_NORMAL  = 6;   // linhas de dados na box de tamanho original
+const CAP_STRETCH = 12;  // linhas de dados na box esticada
+
+const SH_AT_BOX="Shape 91",  SH_AT_BAR="Shape 93",  SH_AT_TXT="Text 94",  TB_AT="Tabela 44";
+const SH_PX_BOX="Shape 201", SH_PX_BAR="Shape 203", SH_PX_TXT="Text 204", TB_PX="Tabela 45";
+
+function findBlock(xml,tag,name){
+  const re=new RegExp(`<p:${tag}>(?:(?!</p:${tag}>)[\\s\\S])*?name="${name}"(?:(?!</p:${tag}>)[\\s\\S])*?</p:${tag}>`);
+  const m=xml.match(re);
+  return m?{start:m.index,end:m.index+m[0].length,text:m[0]}:null;
+}
+function removeShape(xml,tag,name){
+  const b=findBlock(xml,tag,name);
+  return b?xml.slice(0,b.start)+xml.slice(b.end):xml;
+}
+function setShapeCy(xml,tag,name,cy){
+  const b=findBlock(xml,tag,name); if(!b) return xml;
+  const t=b.text.replace(/(<a:ext cx="\d+" cy=")\d+(")/,`$1${cy}$2`);
+  return xml.slice(0,b.start)+t+xml.slice(b.end);
+}
+function shiftShapeY(xml,tag,name,dy){
+  const b=findBlock(xml,tag,name); if(!b) return xml;
+  const t=b.text.replace(/(<a:off x="-?\d+" y=")(-?\d+)(")/,(_,a,y,c)=>`${a}${parseInt(y,10)+dy}${c}`);
+  return xml.slice(0,b.start)+t+xml.slice(b.end);
+}
+/* Estica a box de Atraso até a base da box de Próximas e remove Próximas. */
+function stretchAtraso(xml){
+  xml=setShapeCy(xml,"sp",SH_AT_BOX,BOX_STRETCH_CY);
+  xml=removeShape(xml,"sp",SH_PX_BOX);
+  xml=removeShape(xml,"sp",SH_PX_BAR);
+  xml=removeShape(xml,"sp",SH_PX_TXT);
+  xml=removeShape(xml,"graphicFrame",TB_PX);
+  return xml;
+}
+/* Remove a box de Atraso e sobe Próximas para o slot de cima, esticada. */
+function prxToTop(xml){
+  xml=removeShape(xml,"sp",SH_AT_BOX);
+  xml=removeShape(xml,"sp",SH_AT_BAR);
+  xml=removeShape(xml,"sp",SH_AT_TXT);
+  xml=removeShape(xml,"graphicFrame",TB_AT);
+  for(const [tag,nm] of [["sp",SH_PX_BOX],["sp",SH_PX_BAR],["sp",SH_PX_TXT],["graphicFrame",TB_PX]])
+    xml=shiftShapeY(xml,tag,nm,-BOX_DELTA_UP);
+  xml=setShapeCy(xml,"sp",SH_PX_BOX,BOX_STRETCH_CY);
+  return xml;
+}
+const setTitleAt =(xml,t)=>xml.replace("<a:t>ENTREGAS EM ATRASO</a:t>",`<a:t>${esc(t)}</a:t>`);
+const setTitlePx =(xml,t)=>xml.replace("<a:t>ENTREGAS PRÓXIMAS</a:t>",`<a:t>${esc(t)}</a:t>`);
+
 function rebuildTable(xml,idx,rowsXml){
   const pos=[]; let p=0;
   while(true){const f=xml.indexOf("<a:tbl>",p);if(f===-1)break;pos.push(f);p=f+1;}
@@ -313,14 +381,69 @@ async function generatePptx(templateBuf,data){
     const end=pXml.indexOf("/>",i)+2;
     return pXml.slice(0,end)+`\n    <p:sldId id="${newId}" r:id="${newRid}"/>`+pXml.slice(end);
   }
+  /* Índices livres para novas partes de gráfico */
+  const existCharts=Object.keys(zip.files).filter(f=>/^ppt\/charts\/chart\d+\.xml$/.test(f)).map(f=>parseInt(f.match(/\d+/)[0]));
+  let nextChartN=(existCharts.length?Math.max(...existCharts):0)+1;
+  let nextEmbedN=0;
+
+  /* Duplica chartN.xml + style + colors + planilha embutida.
+     Necessário porque uma parte de gráfico não pode ser referenciada
+     por dois slides (o PowerPoint acusa "conteúdo com problema"). */
+  async function cloneChart(srcChartPath){
+    const srcN=parseInt(srcChartPath.match(/chart(\d+)\.xml$/)[1]);
+    const dstN=nextChartN++;
+    zip.file(`ppt/charts/chart${dstN}.xml`, await rd(`ppt/charts/chart${srcN}.xml`));
+
+    let cRels=await rd(`ppt/charts/_rels/chart${srcN}.xml.rels`);
+    // style + colors
+    for(const kind of ["style","colors"]){
+      if(zip.files[`ppt/charts/${kind}${srcN}.xml`]){
+        zip.file(`ppt/charts/${kind}${dstN}.xml`, await rd(`ppt/charts/${kind}${srcN}.xml`));
+        cRels=cRels.replace(new RegExp(`Target="${kind}${srcN}\\.xml"`),`Target="${kind}${dstN}.xml"`);
+      }
+    }
+    // planilha embutida
+    const emb=cRels.match(/Target="\.\.\/embeddings\/([^"]+)"/);
+    if(emb){
+      const srcEmb=`ppt/embeddings/${emb[1]}`;
+      if(zip.files[srcEmb]){
+        const dstEmb=`_ras_clone_${nextEmbedN++}_${emb[1]}`;
+        zip.file(`ppt/embeddings/${dstEmb}`, await zip.file(srcEmb).async("arraybuffer"));
+        cRels=cRels.replace(emb[0],`Target="../embeddings/${dstEmb}"`);
+      }
+    }
+    zip.file(`ppt/charts/_rels/chart${dstN}.xml.rels`,cRels);
+    return dstN;
+  }
+
   async function addSlide(srcNum,{num,rid,id},afterRid){
     const srcXml=await rd(`ppt/slides/slide${srcNum}.xml`);
     zip.file(`ppt/slides/slide${num}.xml`,srcXml);
-    const srcRels=await rd(`ppt/slides/_rels/slide${srcNum}.xml.rels`);
-    zip.file(`ppt/slides/_rels/slide${num}.xml.rels`,srcRels);
+
+    let rels=await rd(`ppt/slides/_rels/slide${srcNum}.xml.rels`);
+    // notesSlide aponta de volta para o slide original → descartar no clone
+    rels=rels.replace(/<Relationship[^>]*Type="[^"]*\/notesSlide"[^>]*\/>/g,"");
+
+    // deep clone de cada gráfico referenciado
+    const chartRels=[...rels.matchAll(/<Relationship Id="([^"]+)" Type="[^"]*\/chart" Target="([^"]+)"\/>/g)];
+    const newParts=[];
+    for(const m of chartRels){
+      const dstN=await cloneChart(m[2]);
+      rels=rels.replace(m[0],`<Relationship Id="${m[1]}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart" Target="../charts/chart${dstN}.xml"/>`);
+      newParts.push(dstN);
+    }
+    zip.file(`ppt/slides/_rels/slide${num}.xml.rels`,rels);
+
     let ct=await rd("[Content_Types].xml");
-    ct=ct.replace("</Types>",`<Override PartName="/ppt/slides/slide${num}.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/></Types>`);
+    let ov=`<Override PartName="/ppt/slides/slide${num}.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/>`;
+    for(const n of newParts){
+      ov+=`<Override PartName="/ppt/charts/chart${n}.xml" ContentType="application/vnd.openxmlformats-officedocument.drawingml.chart+xml"/>`;
+      if(zip.files[`ppt/charts/style${n}.xml`])  ov+=`<Override PartName="/ppt/charts/style${n}.xml" ContentType="application/vnd.ms-office.chartstyle+xml"/>`;
+      if(zip.files[`ppt/charts/colors${n}.xml`]) ov+=`<Override PartName="/ppt/charts/colors${n}.xml" ContentType="application/vnd.ms-office.chartcolorstyle+xml"/>`;
+    }
+    ct=ct.replace("</Types>",ov+"</Types>");
     zip.file("[Content_Types].xml",ct);
+
     presRels=presRels.replace("</Relationships>",`<Relationship Id="${rid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide${num}.xml"/></Relationships>`);
     presXml=insertAfterRid(presXml,afterRid,id,rid);
     return num;
@@ -329,6 +452,23 @@ async function generatePptx(templateBuf,data){
   let s1=await rd("ppt/slides/slide1.xml");
   s1=s1.replace("<a:t>Marketing \u2013 Projetos Corporativos</a:t>","<a:t>TI - Growth \u2013 Projetos e Melhorias</a:t>");
   zip.file("ppt/slides/slide1.xml",s1);
+
+  /* Os gráficos precisam ser atualizados ANTES do slide 2, porque os slides
+     de continuação clonam as partes de gráfico já com os dados preenchidos. */
+  let c1=await rd("ppt/charts/chart1.xml");
+  c1=updBar(c1,data.fases_p,data.fases_p.map(([l])=>FASES_P_COL[l]||"7F7F7F"));
+  zip.file("ppt/charts/chart1.xml",c1);
+  let c2=await rd("ppt/charts/chart2.xml");
+  c2=updSquad(c2,data.squad_p);
+  zip.file("ppt/charts/chart2.xml",c2);
+  let c3=await rd("ppt/charts/chart3.xml");
+  const fasesMDisplay=data.fases_m.map(([l,v])=>[String(l).replace(/^\s*\d{1,2}\.\s*/,"").trim(),v]);
+  const fasesMColors=data.fases_m.map(([l])=>FASES_M_COL[l]||"9E9E9E");
+  c3=updBar(c3,fasesMDisplay,fasesMColors);
+  zip.file("ppt/charts/chart3.xml",c3);
+  let c4=await rd("ppt/charts/chart4.xml");
+  c4=updSquad(c4,data.squad_m);
+  zip.file("ppt/charts/chart4.xml",c4);
 
   let s2=await rd("ppt/slides/slide2.xml");
   const repls=[
@@ -349,84 +489,104 @@ async function generatePptx(templateBuf,data){
   s2=s2.replace("<a:t>14%</a:t>",`<a:t>${data.pct_p_str}%</a:t>`);
   s2=s2.replace("<a:t>14%</a:t>",`<a:t>${data.pct_m_str}%</a:t>`);
 
-  const atRows=[
-    ...data.atraso_proj.map((r,i)=>rowAtP(r,i)),
-    ...data.atraso_mel.map((r,i)=>rowAtM(r,data.atraso_proj.length+i))
-  ].join("\n")||emptyRow6();
-  s2=rebuildTable(s2,0,atRows);
+  /* ── PAGINAÇÃO DO SLIDE 2 (greedy) ───────────────────────────────────────
+     Atraso ≤ 6  → box normal, Próximas logo abaixo.
+     Atraso > 6  → box de Atraso esticada (12 linhas), Próximas removida e
+                   empurrada para o próximo slide. Repete até sobrar ≤ 6.
+     Próximas > 6 → mesma lógica, em slides próprios (box sobe para o topo).
+     ─────────────────────────────────────────────────────────────────────── */
+  const atItems=[
+    ...data.atraso_proj.map(r=>({r,f:rowAtP})),
+    ...data.atraso_mel.map(r=>({r,f:rowAtM})),
+  ];
+  const pxItems=[
+    ...data.prx_proj.map(r=>({r,f:rowPrxP})),
+    ...data.prx_mel.map(r=>({r,f:rowPrxM})),
+  ];
+  const renderRows=items=>items.length?items.map((it,i)=>it.f(it.r,i)).join("\n"):emptyRow6();
 
-  const prxRows=[
-    ...data.prx_proj.map((r,i)=>rowPrxP(r,i)),
-    ...data.prx_mel.map((r,i)=>rowPrxM(r,data.prx_proj.length+i))
-  ].join("\n")||emptyRow6();
-  s2=rebuildTable(s2,1,prxRows);
-  zip.file("ppt/slides/slide2.xml",s2);
+  function greedyChunks(items){
+    const out=[];
+    if(items.length<=CAP_NORMAL){ out.push({items,stretched:false}); return out; }
+    let i=0;
+    while(items.length-i>CAP_NORMAL){ out.push({items:items.slice(i,i+CAP_STRETCH),stretched:true}); i+=CAP_STRETCH; }
+    if(items.length-i>0) out.push({items:items.slice(i),stretched:false});
+    return out;
+  }
 
-  let s3=await rd("ppt/slides/slide3.xml");
-  s3=rebuildBL(s3,data.bl_fin.slice(0,20).map((r,i)=>rowProjBL(r,i)).join("\n"));
-  zip.file("ppt/slides/slide3.xml",s3);
+  const atChunks=greedyChunks(atItems);
+  const lastAtNormal=!atChunks[atChunks.length-1].stretched;
 
-  let lastFinRid=ridFin;
-  if(data.bl_fin.length>20){
-    const ids2=newIds();
-    const num=await addSlide(3,ids2,lastFinRid);
-    lastFinRid=ids2.rid;
-    let ns=await rd(`ppt/slides/slide${num}.xml`);
-    ns=rebuildBL(ns,data.bl_fin.slice(20,40).map((r,i)=>rowProjBL(r,i)).join("\n"));
-    zip.file(`ppt/slides/slide${num}.xml`,ns);
-    if(data.bl_fin.length>40){
-      const ids3=newIds();
-      const num2=await addSlide(3,ids3,lastFinRid);
-      lastFinRid=ids3.rid;
-      let ns2=await rd(`ppt/slides/slide${num2}.xml`);
-      ns2=rebuildBL(ns2,data.bl_fin.slice(40,60).map((r,i)=>rowProjBL(r,i)).join("\n"));
-      zip.file(`ppt/slides/slide${num2}.xml`,ns2);
+  // Próximas: cabe no último slide de Atraso? o resto vira slide próprio.
+  let pxInLastAt=[], pxAlone=[];
+  if(lastAtNormal){
+    pxInLastAt=pxItems.slice(0,CAP_NORMAL);
+    const rest=pxItems.slice(CAP_NORMAL);
+    for(let i=0;i<rest.length;i+=CAP_STRETCH) pxAlone.push(rest.slice(i,i+CAP_STRETCH));
+  }else{
+    if(pxItems.length===0) pxAlone.push([]);
+    for(let i=0;i<pxItems.length;i+=CAP_STRETCH) pxAlone.push(pxItems.slice(i,i+CAP_STRETCH));
+  }
+
+  const s2base=s2;
+  zip.file("ppt/slides/slide2.xml",s2base);   // base para os clones
+
+  let lastDashRid=ridDash;
+  const targets=[{num:2}];
+  const totalExtra=(atChunks.length-1)+pxAlone.length;
+  for(let i=0;i<totalExtra;i++){
+    const nid=newIds();
+    const num=await addSlide(2,nid,lastDashRid);
+    lastDashRid=nid.rid;
+    targets.push({num});
+  }
+
+  let t=0;
+  // slides de Atraso
+  for(let k=0;k<atChunks.length;k++){
+    const ch=atChunks[k];
+    let xml=s2base;
+    if(k>0) xml=setTitleAt(xml,"ENTREGAS EM ATRASO (cont.)");
+    xml=rebuildTable(xml,0,renderRows(ch.items));
+    if(ch.stretched){
+      xml=stretchAtraso(xml);
+    }else{
+      xml=rebuildTable(xml,1,renderRows(pxInLastAt));
+    }
+    zip.file(`ppt/slides/slide${targets[t++].num}.xml`,xml);
+  }
+  // slides só de Próximas
+  for(let k=0;k<pxAlone.length;k++){
+    let xml=s2base;
+    const first=lastAtNormal?false:(k===0);
+    if(!first) xml=setTitlePx(xml,"ENTREGAS PRÓXIMAS (cont.)");
+    xml=prxToTop(xml);                       // remove Atraso, sobe Próximas
+    xml=rebuildTable(xml,0,renderRows(pxAlone[k]));
+    zip.file(`ppt/slides/slide${targets[t++].num}.xml`,xml);
+  }
+
+  /* ── BACKLOGS (slides 3, 4 e 5) ──────────────────────────────────────────
+     Paginação sem teto: antes o slide 4 cortava em 20 sem continuação e os
+     slides 3/5 paravam em 60 — em ambos os casos o excedente sumia calado. */
+  const BL_PER_SLIDE=20;
+  async function paginateBL(srcNum,startRid,items,rowFn,emptyXml){
+    const pages=items.length?Math.ceil(items.length/BL_PER_SLIDE):1;
+    let lastRid=startRid;
+    for(let p=0;p<pages;p++){
+      let num=srcNum;
+      if(p>0){ const nid=newIds(); num=await addSlide(srcNum,nid,lastRid); lastRid=nid.rid; }
+      let xml=await rd(`ppt/slides/slide${num}.xml`);
+      const slice=items.slice(p*BL_PER_SLIDE,(p+1)*BL_PER_SLIDE);
+      xml=rebuildBL(xml,slice.length?slice.map((r,i)=>rowFn(r,i)).join("\n"):emptyXml);
+      zip.file(`ppt/slides/slide${num}.xml`,xml);
     }
   }
 
-  let s4=await rd("ppt/slides/slide4.xml");
-  const eaXml=data.bl_ea.length>0
-    ?data.bl_ea.slice(0,20).map((r,i)=>rowProjBL(r,i)).join("\n")
-    :tr([tc("—",{sz:"800",bg:"FFFFFF"}),tc("—",{sz:"800",bg:"FFFFFF"}),tc("Nenhum projeto de Especificação/Andamento",{sz:"800",align:"l",bg:"FFFFFF"}),tc("—",{sz:"800",bg:"FFFFFF"}),tc("—",{sz:"800",bg:"FFFFFF"}),tc("—",{sz:"800",bg:"FFFFFF"}),tc("—",{sz:"800",bg:"FFFFFF"})]);
-  s4=rebuildBL(s4,eaXml);
-  zip.file("ppt/slides/slide4.xml",s4);
+  const emptyEA=tr([tc("—",{sz:"800",bg:"FFFFFF"}),tc("—",{sz:"800",bg:"FFFFFF"}),tc("Nenhum projeto de Especificação/Andamento",{sz:"800",align:"l",bg:"FFFFFF"}),tc("—",{sz:"800",bg:"FFFFFF"}),tc("—",{sz:"800",bg:"FFFFFF"}),tc("—",{sz:"800",bg:"FFFFFF"}),tc("—",{sz:"800",bg:"FFFFFF"})]);
 
-  let s5=await rd("ppt/slides/slide5.xml");
-  s5=rebuildBL(s5,data.bl_mel.slice(0,20).map((r,i)=>rowMelBL(r,i)).join("\n"));
-  zip.file("ppt/slides/slide5.xml",s5);
-
-  let lastMelRid=ridMel;
-  if(data.bl_mel.length>20){
-    const ids2=newIds();
-    const num=await addSlide(5,ids2,lastMelRid);
-    lastMelRid=ids2.rid;
-    let ns=await rd(`ppt/slides/slide${num}.xml`);
-    ns=rebuildBL(ns,data.bl_mel.slice(20,40).map((r,i)=>rowMelBL(r,i)).join("\n"));
-    zip.file(`ppt/slides/slide${num}.xml`,ns);
-    if(data.bl_mel.length>40){
-      const ids3=newIds();
-      const num2=await addSlide(5,ids3,lastMelRid);
-      lastMelRid=ids3.rid;
-      let ns2=await rd(`ppt/slides/slide${num2}.xml`);
-      ns2=rebuildBL(ns2,data.bl_mel.slice(40,60).map((r,i)=>rowMelBL(r,i)).join("\n"));
-      zip.file(`ppt/slides/slide${num2}.xml`,ns2);
-    }
-  }
-
-  let c1=await rd("ppt/charts/chart1.xml");
-  c1=updBar(c1,data.fases_p,data.fases_p.map(([l])=>FASES_P_COL[l]||"7F7F7F"));
-  zip.file("ppt/charts/chart1.xml",c1);
-  let c2=await rd("ppt/charts/chart2.xml");
-  c2=updSquad(c2,data.squad_p);
-  zip.file("ppt/charts/chart2.xml",c2);
-  let c3=await rd("ppt/charts/chart3.xml");
-  const fasesMDisplay=data.fases_m.map(([l,v])=>[String(l).replace(/^\s*\d{1,2}\.\s*/,"").trim(),v]);
-  const fasesMColors=data.fases_m.map(([l])=>FASES_M_COL[l]||"9E9E9E");
-  c3=updBar(c3,fasesMDisplay,fasesMColors);
-  zip.file("ppt/charts/chart3.xml",c3);
-  let c4=await rd("ppt/charts/chart4.xml");
-  c4=updSquad(c4,data.squad_m);
-  zip.file("ppt/charts/chart4.xml",c4);
+  await paginateBL(3,ridFin,data.bl_fin,rowProjBL,emptyRow7());
+  await paginateBL(4,ridEA, data.bl_ea, rowProjBL,emptyEA);
+  await paginateBL(5,ridMel,data.bl_mel,rowMelBL, emptyRow6());
 
   zip.file("ppt/presentation.xml",presXml);
   zip.file("ppt/_rels/presentation.xml.rels",presRels);
@@ -695,11 +855,17 @@ export default function ReportRasScreen({ onVoltar }){
       }
     })();
 
-    // Inject Inter font
+    // Inject Inter font + spinner keyframe (uma vez, no mount do componente)
     const l=document.createElement("link");
     l.rel="stylesheet";
     l.href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap";
     document.head.appendChild(l);
+    if(!document.getElementById("ras-spin-css")){
+      const st=document.createElement("style");
+      st.id="ras-spin-css";
+      st.textContent="@keyframes ras-spin{to{transform:rotate(360deg)}}";
+      document.head.appendChild(st);
+    }
 
     return ()=>{ alive=false; };
   },[]);
@@ -1123,24 +1289,10 @@ export default function ReportRasScreen({ onVoltar }){
 /* ── SUB-COMPONENTS ─────────────────────────────────────────────────────────── */
 /* ── SPINNER ─────────────────────────────────────────────────────────────────── */
 function Spinner({color="#003d8f",size=16}){
-  useEffect(()=>{
-    if(document.getElementById("ras-spin-css")) return;
-    const st=document.createElement("style");
-    st.id="ras-spin-css";
-    st.textContent=`@keyframes ras-spin{to{transform:rotate(360deg)}}`;
-    document.head.appendChild(st);
-  },[]);
-  return(
-    <span style={{
-      display:"inline-block",
-      width:size,height:size,
-      border:`2px solid ${color}40`,
-      borderTopColor:color,
-      borderRadius:"50%",
-      animation:"ras-spin 0.7s linear infinite",
-      flexShrink:0,
-    }}/>
-  );
+  return <Loader2 size={size} color={color} style={{
+    animation:"ras-spin 0.7s linear infinite",
+    flexShrink:0,
+  }}/>;
 }
 
 function XlsxCard({label,loaded,fileName,status,onChange}){
