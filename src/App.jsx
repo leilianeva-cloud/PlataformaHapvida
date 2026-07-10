@@ -274,12 +274,32 @@ function ImportScreen({ portfolioRows, onImport, existingProjects: allProjects, 
     if (filters.compromisso && String(r[COL.COMPROMISSO]||'').trim() !== filters.compromisso) return false;
     return true;
   }), [validRows, filters]);
-  const rKey      = (r, i) => `${r[COL.ID]||''}:${i}`;
+  // Chave ESTÁVEL — nunca derivada da posição na planilha (índice de `filtered`).
+  //   Com Lecom            → lecom:<lecom>  (determinístico, imune a reordenação/reimport)
+  //   Sem Lecom / PENDENTE → pend:<impressão digital> de campos estáveis
+  //                          (nome | área exec | SM | início) — também religa ao Lecom depois.
+  const _norm = (s) => String(s ?? '').trim().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ');
+  const _fp = (r) => {
+    const base = [_norm(r[COL.NOME]), _norm(r[COL.AREA_EXEC]), _norm(r[COL.SM]), String(r[COL.DT_INICIO] ?? '')].join('|');
+    let h = 2166136261; // FNV-1a 32-bit
+    for (let i = 0; i < base.length; i++) { h ^= base.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return (h >>> 0).toString(36);
+  };
+  const rKey = (r) => {
+    const id = String(r[COL.ID] ?? '').trim();
+    return (id && id.toUpperCase() !== 'PENDENTE') ? `lecom:${id}` : `pend:${_fp(r)}`;
+  };
   const manualKey = (m) => `manual:${m.id}`;
 
   // lista combinada: portfólio filtrado + projetos manuais, com filtro de tipo
   const allSelectable = useMemo(() => {
-    const portfolio = filtered.map((r,i) => ({ type:'portfolio', key:rKey(r,i), nome:String(r[COL.NOME]||'').trim(), id:r[COL.ID]||'', trimestre:String(r[COL.TRIMESTRE]||''), compromisso:String(r[COL.COMPROMISSO]||''), row:r }));
+    const portfolio = filtered.map((r) => ({ type:'portfolio', key:rKey(r), nome:String(r[COL.NOME]||'').trim(), id:r[COL.ID]||'', trimestre:String(r[COL.TRIMESTRE]||''), compromisso:String(r[COL.COMPROMISSO]||''), row:r }));
+    // Linhas sem Lecom (PENDENTE) com impressão digital idêntica: o sistema não
+    // consegue distingui-las. Marca para avisar em vez de mesclar em silêncio.
+    const _c = {};
+    for (const p of portfolio) _c[p.key] = (_c[p.key]||0) + 1;
+    for (const p of portfolio) p.dup = _c[p.key] > 1;
     const manuais   = manualProjects.map(m => ({ type:'manual', key:manualKey(m), nome:m.nome, id:m.id, trimestre:'—', compromisso:'Manual', manual:m }));
     if (filters.tipo === 'importados') return portfolio;
     if (filters.tipo === 'manuais')    return manuais;
@@ -298,7 +318,12 @@ function ImportScreen({ portfolioRows, onImport, existingProjects: allProjects, 
     setSelected(sel => { const ns = new Set(sel); ns.delete(manualKey(m)); return ns; });
   };
 
-  const toggleAll = () => { if (selected.size===visibleSelectable.length) setSelected(new Set()); else setSelected(new Set(visibleSelectable.map(x=>x.key))); };
+  const toggleAll = () => {
+    if (selected.size === visibleSelectable.length) { setSelected(new Set()); return; }
+    if (visibleSelectable.length > 50 &&
+        !window.confirm(`Selecionar TODOS os ${visibleSelectable.length} projetos?\n\nCada um vira um registro de report. Se a intenção era selecionar poucos, filtre ou use a busca antes de marcar todos.`)) return;
+    setSelected(new Set(visibleSelectable.map(x=>x.key)));
+  };
   const toggle    = (k) => setSelected(s=>{ const ns=new Set(s); ns.has(k)?ns.delete(k):ns.add(k); return ns; });
 
   // helpers para Atualizar Report
@@ -329,7 +354,7 @@ function ImportScreen({ portfolioRows, onImport, existingProjects: allProjects, 
           projeto:{ ...defaultProjeto(), nome:x.manual.nome, smPmo:x.manual.smPmo||'', resumoLecom:x.manual.resumoLecom||'', areaCliente:x.manual.areaCliente||'', areaExec:x.manual.areaExec||'' },
           raias: existing[id]?.raias||[] };
       }
-      const id = rKey(x.row, filtered.indexOf(x.row));
+      const id = x.key;
       return { id, nFuturos:existing[id]?.nFuturos??1, nPassados:existing[id]?.nPassados??0,
         projeto:makeProjetoFromRow(x.row), raias:existing[id]?.raias||[] };
     });
@@ -355,7 +380,7 @@ function ImportScreen({ portfolioRows, onImport, existingProjects: allProjects, 
           projeto:{ ...defaultProjeto(), nome:x.manual.nome, smPmo:x.manual.smPmo||'', resumoLecom:x.manual.resumoLecom||'', areaCliente:x.manual.areaCliente||'', areaExec:x.manual.areaExec||'' },
           raias: existing[id]?.raias||[] };
       }
-      const id = rKey(x.row, filtered.indexOf(x.row));
+      const id = x.key;
       return { id, nFuturos:existing[id]?.nFuturos??1, nPassados:existing[id]?.nPassados??0,
         projeto:makeProjetoFromRow(x.row), raias:existing[id]?.raias||[] };
     });
@@ -666,6 +691,7 @@ function ImportScreen({ portfolioRows, onImport, existingProjects: allProjects, 
                           <span style={{ fontSize:11, color:"#64748b", whiteSpace:"nowrap" }}>{x.compromisso}</span>
                           {x.type==='manual'&&<span style={{ fontSize:10, background:"#F5F0FF", color:"#7030A0", borderRadius:6, padding:"2px 6px", fontWeight:700 }}>MANUAL</span>}
                           {isSaved&&<span style={{ fontSize:10, background:"#d1fae5", color:"#065f46", borderRadius:6, padding:"2px 6px", fontWeight:700 }}>SALVO</span>}
+                          {x.dup&&<span title="Sem Lecom e com nome/área/SM/início idênticos a outra linha — o sistema não consegue separá-las. Diferencie na origem." style={{ fontSize:10, background:"#FEF3C7", color:"#92400E", borderRadius:6, padding:"2px 6px", fontWeight:700 }}>⚠ AMBÍGUO</span>}
                           {x.type==='manual'
                             ? <button onClick={e=>{ e.stopPropagation(); handleDeleteManual(x.manual); }}
                                 title="Excluir projeto manual"
@@ -1301,6 +1327,7 @@ function AppContent({ initialScreen, onVoltar }) {
           .select('*')
           .eq('user_id', user.id)
           .order('updated_at', { ascending: false })
+          .range(0, 99999) // PostgREST trunca em 1000 por padrão — explicitamos o teto
         console.log('[LOAD] Projetos encontrados:', data?.length, 'erro:', error)
         if (error) alert(`Erro ao carregar projetos: ${error.message}`)
         if (data?.length) {
