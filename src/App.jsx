@@ -665,13 +665,18 @@ function ImportScreen({ portfolioRows, onImport, existingProjects: allProjects, 
                                 style={{ background:"none", border:"none", cursor:"pointer", color:"#EF4444", display:"flex", padding:2 }}>
                                 <Trash2 size={15} />
                               </button>
-                            : (selected.has(x.key)
-                                ? <button onClick={e=>{ e.stopPropagation(); setSelected(s=>{ const n=new Set(s); n.delete(x.key); return n; }); }}
-                                    title="Tirar da seleção — não apaga nada em Atualizar Report nem o Gantt"
-                                    style={{ background:"none", border:"none", cursor:"pointer", color:"#EF4444", display:"flex", padding:2 }}>
-                                    <Trash2 size={15} />
-                                  </button>
-                                : <span style={{ width:19 }} />)}
+                            : <button
+                                onClick={e=>{ e.stopPropagation();
+                                  if(!selected.has(x.key)) return;
+                                  if(window.confirm(`Tirar "${x.nome}" do lote de seleção?\n\nEle continua no Portfólio. Se já houver Gantt salvo, é preservado — este botão não apaga registro nem cronograma.`)){
+                                    setSelected(s=>{ const n=new Set(s); n.delete(x.key); return n; });
+                                  }
+                                }}
+                                disabled={!selected.has(x.key)}
+                                title={selected.has(x.key) ? "Tirar do lote (com aviso) — não apaga registro nem Gantt" : "Marque o projeto para poder tirá-lo do lote"}
+                                style={{ background:"none", border:"none", cursor:selected.has(x.key)?"pointer":"default", color:selected.has(x.key)?"#EF4444":"#CBD5E1", display:"flex", padding:2 }}>
+                                <Trash2 size={15} />
+                              </button>}
                         </div>
                       );
                     })}
@@ -743,9 +748,10 @@ function ImportScreen({ portfolioRows, onImport, existingProjects: allProjects, 
                     {p.projeto?.smPmo&&<span style={{ fontSize:11, color:"#64748b", whiteSpace:"nowrap" }}>{p.projeto.smPmo}</span>}
                     <span style={{ fontSize:11, color:"#64748b", whiteSpace:"nowrap" }}>{p.raias?.length||0} raia{p.raias?.length!==1?'s':''}</span>
                     {p.id?.startsWith('manual:')&&<span style={{ fontSize:10, background:"#F5F0FF", color:"#7030A0", borderRadius:6, padding:"2px 6px", fontWeight:700 }}>MANUAL</span>}
-                    <button onClick={e=>{ e.stopPropagation(); handleDelete(p.id, p.projeto?.nome||'projeto'); }}
-                      title="Remover da fila (mantém o Gantt salvo)"
-                      style={{ background:"none", border:"none", cursor:"pointer", color:"#EF4444", display:"flex", padding:2 }}>
+                    <button onClick={e=>{ e.stopPropagation(); if(atualizarSelected.has(p.id)) handleDelete(p.id, p.projeto?.nome||'projeto'); }}
+                      disabled={!atualizarSelected.has(p.id)}
+                      title={atualizarSelected.has(p.id) ? "Remover da fila (mantém o Gantt salvo)" : "Marque o projeto para poder removê-lo da fila"}
+                      style={{ background:"none", border:"none", cursor:atualizarSelected.has(p.id)?"pointer":"default", color:atualizarSelected.has(p.id)?"#EF4444":"#CBD5E1", display:"flex", padding:2 }}>
                       <Trash2 size={15} />
                     </button>
                   </div>
