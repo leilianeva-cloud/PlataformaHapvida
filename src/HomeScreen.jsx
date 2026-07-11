@@ -173,7 +173,7 @@ export default function HomeScreen({ onAcessarPortfolio, onAcessarStatus, onAces
               <h2>Portfólio</h2>
               <h3>Visão geral</h3>
               <p>Acompanhe o portfólio de iniciativas, status dos projetos e indicadores estratégicos.</p>
-              <button className="hm-card-btn" disabled style={{ opacity:.45, cursor:'not-allowed', background:'#94a3b8' }}>Em breve</button>
+              <button className="hm-card-btn" onClick={onAcessarPortfolio}>Acessar →</button>
             </div>
 
             {/* Card Atualizar Status */}

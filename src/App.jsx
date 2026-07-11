@@ -2,10 +2,12 @@ import React, { useState, useMemo, useRef, useEffect } from "react";
 import * as XLSX from 'xlsx';
 import { Plus, Trash2, ChevronDown, ChevronUp, ChevronRight, Save, FileDown, ChevronLeft, Upload, FolderOpen, Search, Edit2, Download, Package, ClipboardList, Zap, LogOut, User, Shield, Filter } from "lucide-react";
 import { useAuth } from './AuthContext';
-import { supabase, logAudit, logSession } from './supabaseClient';
+import { supabase, logAudit, logSession, loadSharedPortfolio } from './supabaseClient';
 import LoginScreen from './LoginScreen';
 import ChangePasswordModal from './ChangePasswordModal';
 import HomeScreen from './HomeScreen';
+import PortfolioScreen from './PortfolioScreen';
+import { COL, isValid, rKey } from './portfolioUtils';
 import ReportRasScreen from './ReportRasScreen';
 import KanbanScreen from './KanbanScreen';
 import AdminScreen from './AdminScreen';
@@ -161,9 +163,7 @@ function dateToFrac(date, cells) {
 }
 
 // ---------- Componente principal ----------
-const COL = { ID:0, NOME:2, DESC:3, AREA_EXEC:7, LIDER_EXEC:8, DIR_EXEC:9, SM:12,
-  AREA_CLI:14, LIDER_CLI:15, DIR_CLI:16, STATUS:20, DT_INICIO:21,
-  TRIMESTRE:57, COMPROMISSO:58, DESPRI:59 };
+// COL, isValid, rKey vêm de ./portfolioUtils (fonte única, compartilhada com o Portfólio).
 
 function fmtDateISO(val) {
   if (!val) return '';
@@ -205,7 +205,7 @@ const defaultProjeto = () => {
 // =====================================================================
 //  TELA 1 — ImportScreen (dashboard principal)
 // =====================================================================
-function ImportScreen({ portfolioRows, onImport, existingProjects: allProjects, manualProjects, setManualProjects, removerDaFila, onStart, onContinue, onGenerate, importedAt, onVoltar }) {
+function ImportScreen({ portfolioRows, onImport, existingProjects: allProjects, manualProjects, setManualProjects, removerDaFila, onStart, onContinue, onGenerate, importedAt, onVoltar, initialSelected }) {
   // Só projetos na fila aparecem nas sessões Atualizar Report e Gerar Report.
   const existingProjects = allProjects.filter(p => p.naFila !== false);
   const fileRef = useRef(null);
@@ -213,7 +213,15 @@ function ImportScreen({ portfolioRows, onImport, existingProjects: allProjects, 
   const [dragging, setDragging] = useState(false);
   const [expanded, setExpanded] = useState(null); // 'selecionar' | 'manual' | 'gerar' | 'atualizar'
   const [filters, setFilters] = useState({ sm:'', trimestre:'', compromisso:'', tipo:'todos' }); // tipo: 'todos'|'importados'|'manuais'
-  const [selected, setSelected] = useState(new Set());
+  const [selected, setSelected] = useState(() => new Set(initialSelected || []));
+
+  // Projetos enviados do sistema Portfólio: já chegam pré-selecionados na sessão "Selecionar Projetos".
+  useEffect(() => {
+    if (initialSelected && initialSelected.length) {
+      setSelected(new Set(initialSelected));
+      setExpanded('selecionar');
+    }
+  }, [initialSelected]);
   // projetos manuais (fora do portfólio)
   // const [manualProjects, setManualProjects] = useState([]);
   const [manualForm, setManualForm] = useState({ nome:'', smPmo:'', resumoLecom:'', areaCliente:'', areaExec:'' });
@@ -257,13 +265,6 @@ function ImportScreen({ portfolioRows, onImport, existingProjects: allProjects, 
     if (f && (f.name.endsWith('.xlsx') || f.name.endsWith('.xls'))) processFile(f);
   };
 
-  const isValid = (r) => {
-    if (!r[COL.NOME]) return false;
-    const st = String(r[COL.STATUS]||'').toLowerCase();
-    if (st.includes('cancelado') || st.includes('suspenso')) return false;
-    if (r[COL.DESPRI] && String(r[COL.DESPRI]).trim() !== '') return false;
-    return true;
-  };
   const validRows  = useMemo(() => portfolioRows.filter(isValid), [portfolioRows]);
   const smOpts     = useMemo(() => [...new Set(validRows.map(r=>String(r[COL.SM]||'').trim()).filter(Boolean))].sort(), [validRows]);
   const trOpts     = useMemo(() => [...new Set(validRows.map(r=>String(r[COL.TRIMESTRE]||'').trim()).filter(Boolean))].sort(), [validRows]);
@@ -274,22 +275,7 @@ function ImportScreen({ portfolioRows, onImport, existingProjects: allProjects, 
     if (filters.compromisso && String(r[COL.COMPROMISSO]||'').trim() !== filters.compromisso) return false;
     return true;
   }), [validRows, filters]);
-  // Chave ESTÁVEL — nunca derivada da posição na planilha (índice de `filtered`).
-  //   Com Lecom            → lecom:<lecom>  (determinístico, imune a reordenação/reimport)
-  //   Sem Lecom / PENDENTE → pend:<impressão digital> de campos estáveis
-  //                          (nome | área exec | SM | início) — também religa ao Lecom depois.
-  const _norm = (s) => String(s ?? '').trim().toLowerCase()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ');
-  const _fp = (r) => {
-    const base = [_norm(r[COL.NOME]), _norm(r[COL.AREA_EXEC]), _norm(r[COL.SM]), String(r[COL.DT_INICIO] ?? '')].join('|');
-    let h = 2166136261; // FNV-1a 32-bit
-    for (let i = 0; i < base.length; i++) { h ^= base.charCodeAt(i); h = Math.imul(h, 16777619); }
-    return (h >>> 0).toString(36);
-  };
-  const rKey = (r) => {
-    const id = String(r[COL.ID] ?? '').trim();
-    return (id && id.toUpperCase() !== 'PENDENTE') ? `lecom:${id}` : `pend:${_fp(r)}`;
-  };
+  // rKey vem de ./portfolioUtils (mesma chave em Status e Portfólio — anti-drift).
   const manualKey = (m) => `manual:${m.id}`;
 
   // lista combinada: portfólio filtrado + projetos manuais, com filtro de tipo
@@ -497,46 +483,7 @@ function ImportScreen({ portfolioRows, onImport, existingProjects: allProjects, 
         {/* ── Row: Box 1 + Box 2 lado a lado ── */}
         <div style={{ display:"flex", gap:12, marginBottom:12, alignItems:"stretch" }}>
 
-          {/* Box 1: Importar Portfólio */}
-          <div style={{ flex:"0 0 420px", background:"#fff", borderRadius:14, padding:"20px 24px", boxShadow:"0 1px 4px rgba(0,0,0,.08)" }}>
-          <div style={{ display:"flex", alignItems:"center", gap:9, borderBottom:"1px solid #E2E8F0", paddingBottom:13, marginBottom:16 }}>
-            <Upload size={16} color="#2F5597" />
-            <h2 style={{ fontFamily:"'Inter',sans-serif", fontSize:15, fontWeight:700, color:"#1E293B", margin:0 }}>Importar Portfólio</h2>
-          </div>
-          <input ref={fileRef} type="file" accept=".xlsx,.xls" onChange={handleFile} style={{ display:"none" }} />
-          {!hasPortfolio ? (
-            <div onClick={()=>fileRef.current?.click()}
-              onDragOver={e=>{e.preventDefault();setDragging(true);}}
-              onDragLeave={()=>setDragging(false)} onDrop={onDrop}
-              style={{ border:`2px dashed ${dragging?"#2F5597":"#CBD5E1"}`, borderRadius:12,
-                background:dragging?"#EFF6FF":"#F8FAFC", padding:"34px 20px",
-                display:"flex", flexDirection:"column", alignItems:"center", gap:7,
-                cursor:"pointer", transition:"all .18s" }}>
-              <div style={{ width:50, height:50, borderRadius:"50%", background:"#fff", boxShadow:"0 2px 8px rgba(0,0,0,.10)", display:"flex", alignItems:"center", justifyContent:"center", marginBottom:2 }}>
-                <ExcelIcon size={27} />
-              </div>
-              <div style={{ fontSize:14, fontWeight:700, color:"#1E293B" }}>{loading?"Carregando…":"Arraste seu arquivo aqui"}</div>
-              <div style={{ fontSize:12, color:"#64748B", textAlign:"center" }}>ou clique para selecionar um arquivo Excel (.xlsx, .xls)</div>
-              <button className="btn" style={{ marginTop:3, background:"#2F5597", color:"#fff", fontSize:13, padding:"8px 20px", pointerEvents:"none" }}>
-                <Upload size={14} />Selecionar Arquivo
-              </button>
-            </div>
-          ) : (
-            <div style={{ display:"flex", alignItems:"center", gap:12, background:"#F0FDF4", border:"1px solid #86EFAC", borderRadius:10, padding:"11px 16px" }}>
-              <div style={{ width:36, height:36, borderRadius:8, background:"#16A34A", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                <ExcelIcon size={20} op={0.3} />
-              </div>
-              <div style={{ flex:1 }}>
-                <div style={{ fontSize:12.5, fontWeight:700, color:"#15803D" }}>✓ Portfólio carregado</div>
-                <div style={{ fontSize:11.5, color:"#16A34A", marginTop:1 }}>{portfolioRows.length} linhas importadas</div>
-              </div>
-              <button onClick={e=>{e.stopPropagation();fileRef.current?.click();}} className="btn"
-                style={{ background:"#fff", color:"#15803D", border:"1px solid #86EFAC", fontSize:12, padding:"5px 12px" }}>
-                Trocar arquivo
-              </button>
-            </div>
-          )}
-          </div>
+          {/* Box 1 (Importar) migrou para o sistema Portfólio — só admin importa lá, e o portfólio é compartilhado pelo time. */}
 
           {/* Box 2: Portfólio Ativo */}
           <div style={{ flex:1, background:hasPortfolio?"#fff":"#F8FAFC", borderRadius:14, padding:"20px 24px",
@@ -1251,6 +1198,17 @@ function AppGateway() {
 
   if (destino === 'ras') return <ReportRasScreen onVoltar={voltarHome} />
   if (destino === 'kanban') return <KanbanScreen onBack={voltarHome} />
+  if (destino === 'portfolio') return (
+    <PortfolioScreen
+      onVoltar={voltarHome}
+      onEnviarParaStatus={(keys) => {
+        // Guarda as chaves escolhidas e navega para o Status → "Selecionar Projetos".
+        sessionStorage.setItem('hap_portfolio_sel', JSON.stringify(keys))
+        sessionStorage.setItem('hap_screen', 'import')
+        navegarPara('status')
+      }}
+    />
+  )
   return <AppContent initialScreen={destino} onVoltar={voltarHome} />
 }
 
@@ -1354,15 +1312,12 @@ function AppContent({ initialScreen, onVoltar }) {
           setProjects(ps)
           // tela já controlada pelo sessionStorage — não redirecionar aqui
         }
-        const { data: port, error: portErr } = await supabase
-          .from('user_portfolio')
-          .select('*')
-          .eq('user_id', user.id)
-          .single()
-        console.log('[LOAD] Portfólio:', port?.rows_json?.length, 'erro:', portErr?.message)
-        if (port?.rows_json) {
-          setPortfolioRows(JSON.parse(port.rows_json))
-          setImportedAt(port.imported_at || '')
+        // Portfólio COMPARTILHADO (único do time, importado só por admin).
+        const sharedPort = await loadSharedPortfolio()
+        console.log('[LOAD] Portfólio compartilhado:', sharedPort?.rows?.length)
+        if (sharedPort?.rows) {
+          setPortfolioRows(sharedPort.rows)
+          setImportedAt(sharedPort.importedAt || '')
         }
         // Carrega lista de projetos manuais persistidos
         const { data: mp, error: mpErr } = await supabase
@@ -1472,12 +1427,22 @@ function AppContent({ initialScreen, onVoltar }) {
     return () => window.removeEventListener('hapvida:nav', handler)
   }, [])
 
+  // Projetos enviados do sistema Portfólio (uma vez, na entrada do Status).
+  const [portfolioSel] = useState(() => {
+    try {
+      const raw = sessionStorage.getItem('hap_portfolio_sel')
+      if (raw) { sessionStorage.removeItem('hap_portfolio_sel'); return JSON.parse(raw) }
+    } catch { /* ignore */ }
+    return null
+  })
+
   if (appScreen === 'admin')  return <AdminScreen onBack={() => setAppScreen('main')} />
   if (appScreen === 'audit')  return <AuditScreen onBack={() => setAppScreen('main')} />
 
   if (screen === 'import') {
     return <ImportScreen
       portfolioRows={portfolioRows}
+      initialSelected={portfolioSel}
       onImport={handlePortfolioImport}
       importedAt={importedAt}
       existingProjects={projects}

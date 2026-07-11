@@ -31,6 +31,56 @@ export async function logSession({ action, detail }) {
   })
 }
 
+// ── Portfólio compartilhado (linha única, id=1) ────────────────
+// Leitura: liberada a todos os autenticados (RLS).
+// Escrita: só admin (RLS barra o resto no servidor, além do gate na UI).
+
+/**
+ * Carrega o portfólio compartilhado do time.
+ * Retorna { rows, importedAt, importedByEmail } ou null se ainda não houver.
+ */
+export async function loadSharedPortfolio() {
+  const { data, error } = await supabase
+    .from('portfolio_shared')
+    .select('rows_json, imported_at, imported_by_email')
+    .eq('id', 1)
+    .maybeSingle()
+  if (error) { console.warn('[loadSharedPortfolio]', error.message); return null }
+  if (!data?.rows_json) return null
+  return {
+    rows:            JSON.parse(data.rows_json),
+    importedAt:      data.imported_at || '',
+    importedByEmail: data.imported_by_email || '',
+  }
+}
+
+/**
+ * Grava o portfólio compartilhado (só admin — a RLS recusa não-admin).
+ * `rows` são as linhas de dados já fatiadas (sem o cabeçalho).
+ * Retorna { ok, error }.
+ */
+export async function saveSharedPortfolio(rows) {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { ok: false, error: 'Sem usuário logado' }
+  const now = new Date()
+  const importedAtStr = `${String(now.getDate()).padStart(2,'0')}/${String(now.getMonth()+1).padStart(2,'0')}/${now.getFullYear()}`
+  const { error } = await supabase.from('portfolio_shared').upsert({
+    id:                1,
+    rows_json:         JSON.stringify(rows),
+    imported_by:       user.id,
+    imported_by_email: user.email,
+    imported_at:       importedAtStr,
+    updated_at:        now.toISOString(),
+  }, { onConflict: 'id' })
+  if (error) {
+    console.error('[saveSharedPortfolio]', error.message)
+    // Erro típico de RLS quando não-admin tenta importar:
+    return { ok: false, error: error.message }
+  }
+  await logSession({ action: 'IMPORT_PORTFOLIO', detail: { total_rows: rows.length, shared: true } })
+  return { ok: true, importedAt: importedAtStr }
+}
+
 // ── Template RAS (Storage) ─────────────────────────────────────
 // Caminho fixo: bucket "templates", arquivo "ras/report_ras_template.pptx"
 // Troca de template é feita direto no Supabase Dashboard pelo admin.
