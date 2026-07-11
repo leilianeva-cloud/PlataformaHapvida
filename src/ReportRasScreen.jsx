@@ -5,7 +5,7 @@ import {
   ChevronLeft, LogOut,
   BarChart2, Info, Download, Eye,
   Check, AlertCircle, Users, Clock,
-  Paperclip, Table2, Presentation,
+  Paperclip, Table2, Presentation, FolderOpen,
   RefreshCw, Building2, Wrench, AlertTriangle,
   TrendingUp, Loader2
 } from "lucide-react";
