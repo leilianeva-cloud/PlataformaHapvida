@@ -626,9 +626,14 @@ function ImportScreen({ portfolioRows, onImport, existingProjects: allProjects, 
                         {selected.size===visibleSelectable.length && selected.size>0?"Desmarcar todos":"Selecionar todos"}
                       </button>
                       <button className="btn" onClick={()=>setSelected(new Set())} disabled={selected.size===0}
-                        title="Tira todos da seleção. Não apaga nada em Atualizar Report nem o Gantt."
+                        title="Desfaz a seleção (inclusive o 'Selecionar todos'). Não apaga nada em Atualizar Report nem o Gantt."
+                        style={{ background:"#F1F5F9", color:"#334155", fontSize:12, opacity:selected.size===0?.45:1 }}>
+                        Limpar seleção
+                      </button>
+                      <button className="btn" onClick={()=>setSelected(new Set())} disabled={selected.size===0}
+                        title="Apaga do lote os projetos que você marcou. Não apaga nada em Atualizar Report nem o Gantt."
                         style={{ background:"#FEF2F2", color:"#B91C1C", border:"1px solid #FECACA", fontSize:12, opacity:selected.size===0?.45:1 }}>
-                        <Trash2 size={13} /> Limpar seleção
+                        <Trash2 size={13} /> Apagar do lote ({selected.size})
                       </button>
                       <button className="btn" onClick={handleSelecionarParaAtualizar} disabled={selected.size===0}
                         style={{ background:"#2F5597", color:"#fff", border:"none", opacity:selected.size===0?.45:1, fontSize:12 }}>
