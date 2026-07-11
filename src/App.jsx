@@ -625,6 +625,11 @@ function ImportScreen({ portfolioRows, onImport, existingProjects: allProjects, 
                       <button className="btn" onClick={toggleAll} style={{ background:"#F1F5F9", color:"#334155", fontSize:12 }}>
                         {selected.size===visibleSelectable.length && selected.size>0?"Desmarcar todos":"Selecionar todos"}
                       </button>
+                      <button className="btn" onClick={()=>setSelected(new Set())} disabled={selected.size===0}
+                        title="Tira todos da seleção. Não apaga nada em Atualizar Report nem o Gantt."
+                        style={{ background:"#FEF2F2", color:"#B91C1C", border:"1px solid #FECACA", fontSize:12, opacity:selected.size===0?.45:1 }}>
+                        <Trash2 size={13} /> Limpar seleção
+                      </button>
                       <button className="btn" onClick={handleSelecionarParaAtualizar} disabled={selected.size===0}
                         style={{ background:"#2F5597", color:"#fff", border:"none", opacity:selected.size===0?.45:1, fontSize:12 }}>
                         ✔ Selecionar para atualizar ({selected.size})
@@ -655,7 +660,13 @@ function ImportScreen({ portfolioRows, onImport, existingProjects: allProjects, 
                                 style={{ background:"none", border:"none", cursor:"pointer", color:"#EF4444", display:"flex", padding:2 }}>
                                 <Trash2 size={15} />
                               </button>
-                            : <span style={{ width:19 }} />}
+                            : (selected.has(x.key)
+                                ? <button onClick={e=>{ e.stopPropagation(); setSelected(s=>{ const n=new Set(s); n.delete(x.key); return n; }); }}
+                                    title="Tirar da seleção — não apaga nada em Atualizar Report nem o Gantt"
+                                    style={{ background:"none", border:"none", cursor:"pointer", color:"#EF4444", display:"flex", padding:2 }}>
+                                    <Trash2 size={15} />
+                                  </button>
+                                : <span style={{ width:19 }} />)}
                         </div>
                       );
                     })}
