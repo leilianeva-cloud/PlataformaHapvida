@@ -299,7 +299,11 @@ function ImportScreen({ portfolioRows, onImport, existingProjects: allProjects, 
     // consegue distingui-las. Marca para avisar em vez de mesclar em silêncio.
     const _c = {};
     for (const p of portfolio) _c[p.key] = (_c[p.key]||0) + 1;
-    for (const p of portfolio) p.dup = _c[p.key] > 1;
+    // "Ambíguo" só quando NÃO há Lecom (pend:) e a impressão digital colide — aí o
+    // sistema pode estar fundindo projetos distintos e não consegue separá-los.
+    // Duas linhas com o MESMO Lecom são o MESMO projeto (ex.: priorizado em 2
+    // trimestres): colapsam em um registro — comportamento correto, sem alarme.
+    for (const p of portfolio) p.dup = _c[p.key] > 1 && p.key.startsWith('pend:');
     const manuais   = manualProjects.map(m => ({ type:'manual', key:manualKey(m), nome:m.nome, id:m.id, trimestre:'—', compromisso:'Manual', manual:m }));
     if (filters.tipo === 'importados') return portfolio;
     if (filters.tipo === 'manuais')    return manuais;
@@ -347,7 +351,7 @@ function ImportScreen({ portfolioRows, onImport, existingProjects: allProjects, 
     const selItems = allSelectable.filter(x=>selected.has(x.key));
     if (!selItems.length) return;
     const existing = Object.fromEntries(allProjects.map(p=>[p.id,p]));
-    const novos = selItems.map(x => {
+    const novosRaw = selItems.map(x => {
       if (x.type === 'manual') {
         const id = x.key;
         return { id, nFuturos:existing[id]?.nFuturos??1, nPassados:existing[id]?.nPassados??0,
@@ -358,6 +362,9 @@ function ImportScreen({ portfolioRows, onImport, existingProjects: allProjects, 
       return { id, nFuturos:existing[id]?.nFuturos??1, nPassados:existing[id]?.nPassados??0,
         projeto:makeProjetoFromRow(x.row), raias:existing[id]?.raias||[] };
     });
+    // Colapsa chaves repetidas (linhas PENDENTE ambíguas): indistinguíveis viram UM registro.
+    // Sem isso, o upsert recebe a mesma PK duas vezes e o Postgres recusa (erro 21000).
+    const novos = [...new Map(novosRaw.map(p=>[p.id,p])).values()];
     const novosIds = new Set(novos.map(p=>p.id));
     const mantidos = allProjects.filter(p=>!novosIds.has(p.id));
     onStart([...mantidos, ...novos], false, null, novos.map(p=>p.id)); // false = não navegar
@@ -373,7 +380,7 @@ function ImportScreen({ portfolioRows, onImport, existingProjects: allProjects, 
     const selItems = allSelectable.filter(x=>selected.has(x.key));
     if (!selItems.length) return;
     const existing = Object.fromEntries(allProjects.map(p=>[p.id,p]));
-    const novos = selItems.map(x => {
+    const novosRaw = selItems.map(x => {
       if (x.type === 'manual') {
         const id = x.key;
         return { id, nFuturos:existing[id]?.nFuturos??1, nPassados:existing[id]?.nPassados??0,
@@ -384,6 +391,9 @@ function ImportScreen({ portfolioRows, onImport, existingProjects: allProjects, 
       return { id, nFuturos:existing[id]?.nFuturos??1, nPassados:existing[id]?.nPassados??0,
         projeto:makeProjetoFromRow(x.row), raias:existing[id]?.raias||[] };
     });
+    // Colapsa chaves repetidas (linhas PENDENTE ambíguas): indistinguíveis viram UM registro.
+    // Sem isso, o upsert recebe a mesma PK duas vezes e o Postgres recusa (erro 21000).
+    const novos = [...new Map(novosRaw.map(p=>[p.id,p])).values()];
     const novosIds = new Set(novos.map(p=>p.id));
     const mantidos = allProjects.filter(p=>!novosIds.has(p.id));
     const merged = [...mantidos, ...novos];
