@@ -323,6 +323,14 @@ function ImportScreen({ portfolioRows, onImport, existingProjects: allProjects, 
     if (!atualizarSelected.size) return;
     onContinue([...atualizarSelected]);
   };
+  // Remove da fila TODOS os projetos marcados (versão em massa da lixeira do item).
+  // Mesma ideia da "Apagar do lote" em Selecionar Projetos — aqui a ação é remover da fila.
+  const handleApagarDoLoteAtualizar = () => {
+    if (!atualizarSelected.size) return;
+    if (!window.confirm(`Remover ${atualizarSelected.size} projeto${atualizarSelected.size!==1?'s':''} da fila de atualização?\n\nO Gantt e os dados ficam salvos. Para trazer de volta, selecione novamente em "Selecionar Projetos" ou "Incluir Projeto Manual".`)) return;
+    atualizarSelected.forEach(id => removerDaFila(id));
+    setAtualizarSelected(new Set());
+  };
 
   // salvar projeto manual
   const saveManual = () => {
@@ -730,6 +738,11 @@ function ImportScreen({ portfolioRows, onImport, existingProjects: allProjects, 
                     style={{ padding:"6px 10px", borderRadius:6, border:"1px solid #CBD5E1", fontSize:12, width:180 }} />
                   <button className="btn" onClick={toggleAtualizarAll} style={{ background:"#F1F5F9", color:"#334155", fontSize:12 }}>
                     {atualizarSelected.size===existingProjects.length?"Desmarcar todos":"Selecionar todos"}
+                  </button>
+                  <button className="btn" onClick={handleApagarDoLoteAtualizar} disabled={atualizarSelected.size===0}
+                    title="Remove da fila os projetos marcados. O Gantt e os dados ficam salvos."
+                    style={{ background:"#FEF2F2", color:"#B91C1C", border:"1px solid #FECACA", fontSize:12, opacity:atualizarSelected.size===0?.45:1 }}>
+                    <Trash2 size={13} /> Apagar do lote ({atualizarSelected.size})
                   </button>
                   <button className="btn" onClick={handleAtualizarDoPainel} disabled={atualizarSelected.size===0}
                     style={{ background:"#F47B20", color:"#fff", opacity:atualizarSelected.size===0?.45:1, fontSize:12 }}>
