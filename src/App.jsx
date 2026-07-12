@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import * as XLSX from 'xlsx';
-import { Plus, Trash2, ChevronDown, ChevronUp, ChevronRight, Save, FileDown, ChevronLeft, Upload, FolderOpen, Search, Edit2, Download, Package, ClipboardList, Zap, LogOut, User, Shield, Filter } from "lucide-react";
+import { Plus, Trash2, ChevronDown, ChevronUp, ChevronRight, Save, FileDown, ChevronLeft, Upload, FolderOpen, Search, Edit2, Download, Package, ClipboardList, Zap } from "lucide-react";
 import { useAuth } from './AuthContext';
 import { supabase, logAudit, logSession, loadSharedPortfolio } from './supabaseClient';
 import LoginScreen from './LoginScreen';
@@ -461,7 +461,6 @@ function ImportScreen({ portfolioRows, onImport, existingProjects: allProjects, 
               {existingProjects.length} projeto{existingProjects.length!==1?'s':''} salvos
             </div>
           )}
-          <UserBar />
         </div>
       </header>
 
@@ -981,7 +980,6 @@ function ReportScreen({ projects, setProjects, currentIdx, setCurrentIdx, active
           <button className="hm-hbtn hm-ppt" onClick={gerarPptx} disabled={gerando} style={{ opacity: gerando ? .65 : 1 }}>
             <FileDown size={15} />{gerando ? 'Gerando…' : `Gerar PPTX (${visibleProjects.length} slide${visibleProjects.length>1?'s':''})`}
           </button>
-          <UserBar />
         </div>
       </header>
 
@@ -1214,10 +1212,14 @@ function AppGateway() {
       onAcessarStatus={() => navegarPara('status')}
       onAcessarRas={() => navegarPara('ras')}
       onAcessarKanban={() => navegarPara('kanban')}
+      onAcessarGestao={() => navegarPara('admin')}
+      onAcessarAuditoria={() => navegarPara('audit')}
     />
   )
   
 
+  if (destino === 'admin')  return <AdminScreen onBack={voltarHome} />
+  if (destino === 'audit')  return <AuditScreen onBack={voltarHome} />
   if (destino === 'ras') return <ReportRasScreen onVoltar={voltarHome} />
   if (destino === 'kanban') return <KanbanScreen onBack={voltarHome} />
   if (destino === 'portfolio') return (
@@ -1232,47 +1234,6 @@ function AppGateway() {
     />
   )
   return <AppContent initialScreen={destino} onVoltar={voltarHome} />
-}
-
-// ── Barra de usuário (header) ────────────────────────────────────────
-function UserBar() {
-  const { profile, signOut, isAdmin } = useAuth();
-  const [open, setOpen] = useState(false);
-  // appScreen é controlado pelo AppContent — usamos evento customizado
-  function goTo(screen) {
-    setOpen(false);
-    window.dispatchEvent(new CustomEvent('hapvida:nav', { detail: screen }));
-  }
-  return (
-    <div style={{ position:'relative' }}>
-      <button onClick={() => setOpen(o => !o)}
-        style={{ display:'flex', alignItems:'center', gap:7, background:'rgba(255,255,255,0.15)', border:'1px solid rgba(255,255,255,0.3)', borderRadius:8, padding:'5px 12px', cursor:'pointer', color:'#fff', fontSize:13, fontWeight:600 }}>
-        <User size={14} />
-        {profile?.name || profile?.email || 'Usuário'}
-        <ChevronDown size={13} />
-      </button>
-      {open && (
-        <div style={{ position:'absolute', right:0, top:'calc(100% + 6px)', background:'#fff', borderRadius:10, boxShadow:'0 8px 24px rgba(0,0,0,.15)', padding:8, minWidth:200, zIndex:100 }}>
-          <div style={{ padding:'6px 12px', fontSize:12, color:'#94a3b8', borderBottom:'1px solid #f1f5f9', marginBottom:4 }}>{profile?.email}</div>
-          {isAdmin && <>
-            <button onClick={() => goTo('admin')}
-              style={{ display:'flex', alignItems:'center', gap:8, width:'100%', background:'none', border:'none', padding:'8px 12px', cursor:'pointer', color:'#334155', fontSize:13, borderRadius:6 }}>
-              <Shield size={14} color="#7030A0" /> Gestão de Usuários
-            </button>
-            <button onClick={() => goTo('audit')}
-              style={{ display:'flex', alignItems:'center', gap:8, width:'100%', background:'none', border:'none', padding:'8px 12px', cursor:'pointer', color:'#334155', fontSize:13, borderRadius:6 }}>
-              <Filter size={14} color="#2F5597" /> Auditoria
-            </button>
-            <div style={{ borderTop:'1px solid #f1f5f9', margin:'4px 0' }} />
-          </>}
-          <button onClick={() => { setOpen(false); signOut(); }}
-            style={{ display:'flex', alignItems:'center', gap:8, width:'100%', background:'none', border:'none', padding:'8px 12px', cursor:'pointer', color:'#DC2626', fontSize:13, borderRadius:6 }}>
-            <LogOut size={14} /> Sair
-          </button>
-        </div>
-      )}
-    </div>
-  );
 }
 
 // ── App principal (conteúdo real) ────────────────────────────────────
@@ -1304,7 +1265,6 @@ function AppContent({ initialScreen, onVoltar }) {
   const [loaded, setLoaded] = useState(false)
   const [saved, setSaved] = useState(false)
   const [gerando, setGerando] = useState(false)
-  const [appScreen, setAppScreen] = useState('main') // 'main' | 'admin' | 'audit'
 
   // ── Entrega 3: carregar dados do Supabase ──────────────────────
   useEffect(() => {
@@ -1442,13 +1402,6 @@ function AppContent({ initialScreen, onVoltar }) {
     } catch (e) { console.error('Erro ao salvar portfólio:', e) }
   }
 
-  // Escutar navegação do UserBar
-  useEffect(() => {
-    const handler = (e) => setAppScreen(e.detail)
-    window.addEventListener('hapvida:nav', handler)
-    return () => window.removeEventListener('hapvida:nav', handler)
-  }, [])
-
   // Projetos enviados do sistema Portfólio (uma vez, na entrada do Status).
   const [portfolioSel] = useState(() => {
     try {
@@ -1457,9 +1410,6 @@ function AppContent({ initialScreen, onVoltar }) {
     } catch { /* ignore */ }
     return null
   })
-
-  if (appScreen === 'admin')  return <AdminScreen onBack={() => setAppScreen('main')} />
-  if (appScreen === 'audit')  return <AuditScreen onBack={() => setAppScreen('main')} />
 
   if (screen === 'import') {
     return <ImportScreen

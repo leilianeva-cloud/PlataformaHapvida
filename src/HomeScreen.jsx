@@ -1,8 +1,10 @@
-import { FolderOpen, BarChart2, CalendarCheck, Info, LogOut, ClipboardList } from 'lucide-react'
+import { useState } from 'react'
+import { FolderOpen, BarChart2, CalendarCheck, Info, LogOut, ClipboardList, Shield, Filter, ChevronDown } from 'lucide-react'
 import { useAuth } from './AuthContext'
 
-export default function HomeScreen({ onAcessarPortfolio, onAcessarStatus, onAcessarRas, onAcessarKanban }) {
-  const { profile, signOut } = useAuth()
+export default function HomeScreen({ onAcessarPortfolio, onAcessarStatus, onAcessarRas, onAcessarKanban, onAcessarGestao, onAcessarAuditoria }) {
+  const { profile, signOut, isAdmin } = useAuth()
+  const [menuOpen, setMenuOpen] = useState(false)
 
   const iniciais = (profile?.name || profile?.email || 'US')
     .split(' ').slice(0, 2).map(p => p[0]).join('').toUpperCase().slice(0, 2)
@@ -51,7 +53,19 @@ export default function HomeScreen({ onAcessarPortfolio, onAcessarStatus, onAces
         .hm-separator { height: 40px; width: 1px; background: rgba(255,255,255,.25); }
         .hm-system-name { font-size: 18px; font-weight: 600; opacity: .9; }
         .hm-system-name span { color: #FF7900; }
-        .hm-user { display: flex; align-items: center; gap: 14px; }
+
+        /* ── Menu de conta (dropdown) ── */
+        .hm-user { position: relative; }
+        .hm-user-trigger {
+          display: flex; align-items: center; gap: 14px;
+          background: rgba(255,255,255,.06);
+          border: 1px solid rgba(255,255,255,.15);
+          border-radius: 14px; padding: 8px 16px 8px 8px;
+          cursor: pointer; color: white;
+          font-family: 'Inter', sans-serif;
+          transition: background .2s;
+        }
+        .hm-user-trigger:hover { background: rgba(255,255,255,.14); }
         .hm-avatar {
           width: 48px; height: 48px; border-radius: 50%;
           border: 2px solid rgba(255,255,255,.6);
@@ -59,19 +73,34 @@ export default function HomeScreen({ onAcessarPortfolio, onAcessarStatus, onAces
           font-weight: 700; font-size: 16px;
           background: rgba(255,255,255,.12); flex-shrink: 0;
         }
+        .hm-user-info { text-align: left; }
         .hm-user-name { font-weight: 600; font-size: 15px; }
         .hm-user-email { font-size: 13px; opacity: .7; margin-top: 2px; }
-        .hm-logout-btn {
-          margin-left: 8px;
-          background: rgba(255,255,255,.1);
-          border: 1px solid rgba(255,255,255,.2);
-          color: white; border-radius: 8px;
-          padding: 7px 14px; font-size: 13px; font-weight: 600;
-          cursor: pointer; transition: background .2s;
-          display: flex; align-items: center; gap: 6px;
-          font-family: 'Inter', sans-serif;
+        .hm-chevron { opacity: .8; transition: transform .2s; }
+        .hm-chevron.open { transform: rotate(180deg); }
+
+        .hm-menu-overlay { position: fixed; inset: 0; z-index: 40; }
+        .hm-menu {
+          position: absolute; right: 0; top: calc(100% + 8px);
+          background: #fff; color: #334155;
+          border-radius: 12px; box-shadow: 0 12px 32px rgba(0,0,0,.22);
+          padding: 8px; min-width: 220px; z-index: 50;
         }
-        .hm-logout-btn:hover { background: rgba(255,255,255,.2); }
+        .hm-menu-head {
+          padding: 6px 12px 10px; font-size: 12px; color: #94a3b8;
+          border-bottom: 1px solid #f1f5f9; margin-bottom: 6px;
+        }
+        .hm-menu-item {
+          display: flex; align-items: center; gap: 10px; width: 100%;
+          background: none; border: none; padding: 9px 12px; cursor: pointer;
+          color: #334155; font-size: 14px; font-weight: 500; border-radius: 8px;
+          font-family: 'Inter', sans-serif; text-align: left;
+        }
+        .hm-menu-item:hover { background: #F1F5F9; }
+        .hm-menu-item.danger { color: #DC2626; }
+        .hm-menu-item.danger:hover { background: #FEF2F2; }
+        .hm-menu-sep { border-top: 1px solid #f1f5f9; margin: 6px 0; }
+
         .hm-container {
           position: relative; z-index: 2;
           max-width: 1100px; margin: 60px auto;
@@ -146,15 +175,40 @@ export default function HomeScreen({ onAcessarPortfolio, onAcessarStatus, onAces
             <div className="hm-separator" />
             <div className="hm-system-name">Plataforma | <span>Governança TI</span></div>
           </div>
+
+          {/* Menu de conta */}
           <div className="hm-user">
-            <div className="hm-avatar">{iniciais}</div>
-            <div>
-              <div className="hm-user-name">{profile?.name || 'Usuário'}</div>
-              <div className="hm-user-email">{profile?.email}</div>
-            </div>
-            <button className="hm-logout-btn" onClick={signOut}>
-              <LogOut size={14} /> Sair
+            <button className="hm-user-trigger" onClick={() => setMenuOpen(o => !o)}>
+              <div className="hm-avatar">{iniciais}</div>
+              <div className="hm-user-info">
+                <div className="hm-user-name">{profile?.name || 'Usuário'}</div>
+                <div className="hm-user-email">{profile?.email}</div>
+              </div>
+              <ChevronDown size={18} className={`hm-chevron${menuOpen ? ' open' : ''}`} />
             </button>
+
+            {menuOpen && (
+              <>
+                <div className="hm-menu-overlay" onClick={() => setMenuOpen(false)} />
+                <div className="hm-menu">
+                  <div className="hm-menu-head">{profile?.email}</div>
+                  {isAdmin && (
+                    <>
+                      <button className="hm-menu-item" onClick={() => { setMenuOpen(false); onAcessarGestao?.() }}>
+                        <Shield size={15} color="#7030A0" /> Gestão de Usuários
+                      </button>
+                      <button className="hm-menu-item" onClick={() => { setMenuOpen(false); onAcessarAuditoria?.() }}>
+                        <Filter size={15} color="#2F5597" /> Auditoria
+                      </button>
+                      <div className="hm-menu-sep" />
+                    </>
+                  )}
+                  <button className="hm-menu-item danger" onClick={() => { setMenuOpen(false); signOut() }}>
+                    <LogOut size={15} /> Sair
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </header>
 
