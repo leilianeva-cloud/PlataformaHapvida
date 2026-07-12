@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
 import { supabase, logAudit } from './supabaseClient'
 import { useAuth } from './AuthContext'
-import { Plus, Trash2, Edit2, RefreshCw, X, Check, Shield, User, ChevronLeft } from 'lucide-react'
+import { Plus, Trash2, Edit2, RefreshCw, X, Check, Shield, User, ChevronLeft, Clock, Copy } from 'lucide-react'
+
+const DOMINIO = '@hapvida.com.br'
 
 // ── Gera senha aleatória ──────────────────────────────────────────
 function gerarSenha(len = 10) {
@@ -9,49 +11,99 @@ function gerarSenha(len = 10) {
   return Array.from({ length: len }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
 }
 
+// ── Chamada à serverless de admin (service_role no backend) ───────
+// Anexa o token da sessão para o backend confirmar que quem chama é admin.
+async function callAdminApi(action, payload = {}) {
+  const { data: { session } } = await supabase.auth.getSession()
+  const token = session?.access_token
+  const resp = await fetch('/api/admin-usuarios', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ action, ...payload }),
+  })
+  let json = {}
+  try { json = await resp.json() } catch (_) {}
+  if (!resp.ok) throw new Error(json.error || 'Erro na operação.')
+  return json
+}
+
+function emailDoDominio(email) {
+  return email.trim().toLowerCase().endsWith(DOMINIO)
+}
+
+// ── Bloco reutilizável: mostra credenciais para copiar ────────────
+function CredenciaisBox({ email, senha }) {
+  const [copiado, setCopiado] = useState(false)
+  function copiar() {
+    const txt = `E-mail: ${email}\nSenha: ${senha}`
+    navigator.clipboard?.writeText(txt).then(() => {
+      setCopiado(true)
+      setTimeout(() => setCopiado(false), 2000)
+    })
+  }
+  return (
+    <div style={{ background:'#F0FDF4', border:'1px solid #BBF7D0', borderRadius:10, padding:16, marginBottom:16 }}>
+      <div style={{ fontWeight:700, color:'#166534', marginBottom:6 }}>✓ Pronto!</div>
+      <div style={{ fontSize:13, color:'#334155', marginBottom:8 }}>Repasse estas credenciais ao usuário:</div>
+      <div style={{ background:'#fff', border:'1px solid #CBD5E1', borderRadius:8, padding:'10px 14px', fontFamily:'monospace', fontSize:14 }}>
+        <div><strong>Email:</strong> {email}</div>
+        <div><strong>Senha:</strong> {senha}</div>
+      </div>
+      <button onClick={copiar} style={{ ...btnSecondary, flex:'none', marginTop:10, display:'inline-flex', alignItems:'center', gap:6, padding:'6px 12px' }}>
+        <Copy size={13} /> {copiado ? 'Copiado!' : 'Copiar'}
+      </button>
+      <div style={{ fontSize:12, color:'#64748b', marginTop:8 }}>Não há envio por e-mail — combine o repasse por um canal seguro.</div>
+    </div>
+  )
+}
+
 // ── Modal: criar/editar usuário ───────────────────────────────────
 function UserModal({ user: editUser, onClose, onSave }) {
   const [name, setName]       = useState(editUser?.name || '')
   const [email, setEmail]     = useState(editUser?.email || '')
   const [isAdmin, setIsAdmin] = useState(editUser?.is_admin || false)
-  const [senhaGerada, setSenhaGerada] = useState('')
+  const [password, setPassword] = useState('')
+  const [criado, setCriado]   = useState(null)   // { email, senha } após criar
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState('')
   const isEdit = !!editUser
 
   async function handleSave() {
     setError('')
-    if (!name.trim())  { setError('Nome obrigatório.'); return }
-    if (!isEdit && !email.trim()) { setError('Email obrigatório.'); return }
-    setLoading(true)
-    try {
-      if (isEdit) {
-        // Atualizar perfil existente
+    if (!name.trim()) { setError('Nome obrigatório.'); return }
+
+    if (isEdit) {
+      // Editar perfil existente (nome e permissão) — não mexe em senha aqui.
+      setLoading(true)
+      try {
         const { error: e } = await supabase.from('profiles')
           .update({ name, is_admin: isAdmin, updated_at: new Date().toISOString() })
           .eq('id', editUser.id)
         if (e) throw e
         await logAudit({ action: 'UPDATE_USER', entity: 'user', entityId: editUser.id, detail: { name, is_admin: isAdmin } })
-      } else {
-        // Criar via Supabase Admin API (service_role) — aqui usamos signUp
-        const senha = gerarSenha()
-        setSenhaGerada(senha)
-        const { data, error: e } = await supabase.auth.signUp({ email, password: senha, options: { data: { name } } })
-        if (e) throw e
-        // Marcar must_change_password e is_admin
-        if (data?.user) {
-          await supabase.from('profiles').update({
-            name, is_admin: isAdmin, must_change_password: true
-          }).eq('id', data.user.id)
-          await logAudit({ action: 'CREATE_USER', entity: 'user', entityId: data.user.id, detail: { email, name, is_admin: isAdmin } })
-        }
-        setLoading(false)
-        return // manter modal aberto para mostrar senha
+        onSave()
+        onClose()
+      } catch (err) {
+        setError(err.message || 'Erro ao salvar.')
       }
-      onSave()
-      onClose()
+      setLoading(false)
+      return
+    }
+
+    // Criar novo usuário (via serverless — já liberado, com senha definida).
+    if (!email.trim())       { setError('Email obrigatório.'); return }
+    if (!emailDoDominio(email)) { setError(`O e-mail precisa terminar em ${DOMINIO}.`); return }
+    if (!password || password.length < 6) { setError('A senha deve ter ao menos 6 caracteres.'); return }
+
+    setLoading(true)
+    try {
+      await callAdminApi('criar', { name, email, password, isAdmin })
+      setCriado({ email, senha: password })   // mantém modal aberto mostrando credenciais
     } catch (err) {
-      setError(err.message || 'Erro ao salvar.')
+      setError(err.message || 'Erro ao criar usuário.')
     }
     setLoading(false)
   }
@@ -64,17 +116,9 @@ function UserModal({ user: editUser, onClose, onSave }) {
           <button onClick={onClose} style={iconBtn}><X size={18} /></button>
         </div>
 
-        {senhaGerada ? (
+        {criado ? (
           <div>
-            <div style={{ background:'#F0FDF4', border:'1px solid #BBF7D0', borderRadius:10, padding:16, marginBottom:16 }}>
-              <div style={{ fontWeight:700, color:'#166534', marginBottom:6 }}>✓ Usuário criado com sucesso!</div>
-              <div style={{ fontSize:13, color:'#334155', marginBottom:8 }}>Compartilhe as credenciais com o usuário:</div>
-              <div style={{ background:'#fff', border:'1px solid #CBD5E1', borderRadius:8, padding:'10px 14px', fontFamily:'monospace', fontSize:14 }}>
-                <div><strong>Email:</strong> {email}</div>
-                <div><strong>Senha temporária:</strong> {senhaGerada}</div>
-              </div>
-              <div style={{ fontSize:12, color:'#64748b', marginTop:8 }}>O usuário deverá trocar a senha no primeiro acesso.</div>
-            </div>
+            <CredenciaisBox email={criado.email} senha={criado.senha} />
             <button onClick={() => { onSave(); onClose(); }} style={btnPrimary}>Fechar</button>
           </div>
         ) : (
@@ -84,10 +128,19 @@ function UserModal({ user: editUser, onClose, onSave }) {
               <input style={inp} value={name} onChange={e=>setName(e.target.value)} placeholder="Nome completo" />
             </div>
             {!isEdit && (
-              <div>
-                <label style={lbl}>Email</label>
-                <input style={inp} type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="email@hapvida.com.br" />
-              </div>
+              <>
+                <div>
+                  <label style={lbl}>Email</label>
+                  <input style={inp} type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder={`nome${DOMINIO}`} />
+                </div>
+                <div>
+                  <label style={lbl}>Senha</label>
+                  <div style={{ display:'flex', gap:8 }}>
+                    <input style={{ ...inp, flex:1 }} type="text" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Mínimo de 6 caracteres" />
+                    <button type="button" onClick={()=>setPassword(gerarSenha())} style={{ ...btnSecondary, flex:'none', padding:'0 14px', whiteSpace:'nowrap' }}>Gerar</button>
+                  </div>
+                </div>
+              </>
             )}
             <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:14, color:'#334155' }}>
               <input type="checkbox" checked={isAdmin} onChange={e=>setIsAdmin(e.target.checked)} />
@@ -107,24 +160,21 @@ function UserModal({ user: editUser, onClose, onSave }) {
   )
 }
 
-// ── Modal: resetar senha ──────────────────────────────────────────
+// ── Modal: resetar senha (define nova na hora, sem e-mail) ─────────
 function ResetPasswordModal({ user: targetUser, onClose, onDone }) {
-  const [senhaGerada, setSenhaGerada] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const [password, setPassword] = useState('')
+  const [feito, setFeito]       = useState(false)
+  const [loading, setLoading]   = useState(false)
+  const [error, setError]       = useState('')
 
   async function handleReset() {
-    setLoading(true)
     setError('')
+    if (!password || password.length < 6) { setError('A senha deve ter ao menos 6 caracteres.'); return }
+    setLoading(true)
     try {
-      // Enviar email de reset via Supabase
-      const { error: e } = await supabase.auth.resetPasswordForEmail(targetUser.email, {
-        redirectTo: window.location.origin
-      })
-      if (e) throw e
+      await callAdminApi('resetar-senha', { id: targetUser.id, password })
       await logAudit({ action: 'RESET_PASSWORD', entity: 'user', entityId: targetUser.id, detail: { email: targetUser.email } })
-      await supabase.from('profiles').update({ must_change_password: true }).eq('id', targetUser.id)
-      setSenhaGerada('email_enviado')
+      setFeito(true)
     } catch (err) {
       setError(err.message || 'Erro ao resetar senha.')
     }
@@ -135,27 +185,29 @@ function ResetPasswordModal({ user: targetUser, onClose, onDone }) {
     <div style={overlay}>
       <div style={modal}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
-          <div style={modalTitle}>Resetar senha</div>
+          <div style={modalTitle}>Redefinir senha</div>
           <button onClick={onClose} style={iconBtn}><X size={18} /></button>
         </div>
-        {senhaGerada === 'email_enviado' ? (
+        {feito ? (
           <div>
-            <div style={{ background:'#F0FDF4', border:'1px solid #BBF7D0', borderRadius:10, padding:16, marginBottom:16 }}>
-              <div style={{ fontWeight:700, color:'#166534', marginBottom:6 }}>✓ Email de reset enviado!</div>
-              <div style={{ fontSize:13, color:'#334155' }}>O usuário <strong>{targetUser.email}</strong> receberá um email para criar uma nova senha.</div>
-            </div>
+            <CredenciaisBox email={targetUser.email} senha={password} />
             <button onClick={() => { onDone(); onClose(); }} style={btnPrimary}>Fechar</button>
           </div>
         ) : (
           <div>
-            <div style={{ fontSize:14, color:'#334155', marginBottom:20 }}>
-              Será enviado um email de redefinição de senha para <strong>{targetUser.email}</strong>.
+            <div style={{ fontSize:14, color:'#334155', marginBottom:16 }}>
+              Definir uma nova senha para <strong>{targetUser.email}</strong>.
+            </div>
+            <label style={lbl}>Nova senha</label>
+            <div style={{ display:'flex', gap:8, marginBottom:16 }}>
+              <input style={{ ...inp, flex:1 }} type="text" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Mínimo de 6 caracteres" />
+              <button type="button" onClick={()=>setPassword(gerarSenha())} style={{ ...btnSecondary, flex:'none', padding:'0 14px', whiteSpace:'nowrap' }}>Gerar</button>
             </div>
             {error && <div style={{ color:'#DC2626', fontSize:13, marginBottom:12 }}>{error}</div>}
             <div style={{ display:'flex', gap:8 }}>
               <button onClick={onClose} style={btnSecondary}>Cancelar</button>
               <button onClick={handleReset} disabled={loading} style={btnPrimary}>
-                {loading ? 'Enviando…' : 'Enviar email de reset'}
+                {loading ? 'Salvando…' : 'Redefinir senha'}
               </button>
             </div>
           </div>
@@ -173,6 +225,8 @@ export default function AdminScreen({ onBack }) {
   const [modalUser, setModalUser]   = useState(null)   // null=fechado, false=novo, obj=editar
   const [resetUser, setResetUser]   = useState(null)
   const [search, setSearch]         = useState('')
+  const [busyId, setBusyId]         = useState(null)   // id em processamento na fila
+  const [erroFila, setErroFila]     = useState('')
 
   async function loadUsers() {
     setLoading(true)
@@ -183,6 +237,28 @@ export default function AdminScreen({ onBack }) {
 
   useEffect(() => { loadUsers() }, [])
 
+  const pendentes = users.filter(u => u.approval_status === 'pending')
+  const ativos    = users.filter(u => u.approval_status !== 'pending')
+
+  async function aprovar(user) {
+    setErroFila(''); setBusyId(user.id)
+    try {
+      await callAdminApi('aprovar', { id: user.id })
+      await loadUsers()
+    } catch (err) { setErroFila(err.message) }
+    setBusyId(null)
+  }
+
+  async function recusar(user) {
+    if (!confirm(`Recusar e apagar a solicitação de ${user.name || user.email}?`)) return
+    setErroFila(''); setBusyId(user.id)
+    try {
+      await callAdminApi('recusar', { id: user.id })
+      await loadUsers()
+    } catch (err) { setErroFila(err.message) }
+    setBusyId(null)
+  }
+
   async function toggleActive(user) {
     const novo = !user.is_active
     await supabase.from('profiles').update({ is_active: novo }).eq('id', user.id)
@@ -192,12 +268,16 @@ export default function AdminScreen({ onBack }) {
 
   async function deleteUser(user) {
     if (!confirm(`Excluir ${user.name}? Esta ação não pode ser desfeita.`)) return
-    await supabase.from('profiles').delete().eq('id', user.id)
-    await logAudit({ action:'DELETE_USER', entity:'user', entityId:user.id, detail:{ email:user.email } })
-    loadUsers()
+    try {
+      await callAdminApi('excluir', { id: user.id })
+      await logAudit({ action:'DELETE_USER', entity:'user', entityId:user.id, detail:{ email:user.email } })
+      loadUsers()
+    } catch (err) {
+      alert(err.message || 'Erro ao excluir usuário.')
+    }
   }
 
-  const filtered = users.filter(u =>
+  const filtered = ativos.filter(u =>
     u.name?.toLowerCase().includes(search.toLowerCase()) ||
     u.email?.toLowerCase().includes(search.toLowerCase())
   )
@@ -215,6 +295,35 @@ export default function AdminScreen({ onBack }) {
       </div>
 
       <div style={{ maxWidth:900, margin:'32px auto', padding:'0 20px' }}>
+
+        {/* ── Solicitações pendentes ── */}
+        {pendentes.length > 0 && (
+          <div style={{ background:'#FFFBEB', border:'1px solid #FDE68A', borderRadius:12, padding:'18px 20px', marginBottom:24 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:14, color:'#92400E', fontWeight:700, fontSize:15 }}>
+              <Clock size={17} /> Solicitações pendentes ({pendentes.length})
+            </div>
+            {erroFila && <div style={{ color:'#DC2626', fontSize:13, marginBottom:10 }}>{erroFila}</div>}
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {pendentes.map(u => (
+                <div key={u.id} style={{ display:'flex', alignItems:'center', gap:12, background:'#fff', border:'1px solid #FEF3C7', borderRadius:10, padding:'12px 14px' }}>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontWeight:600, color:'#1e293b', fontSize:14 }}>{u.name || '—'}</div>
+                    <div style={{ fontSize:13, color:'#64748b' }}>{u.email}</div>
+                  </div>
+                  <button disabled={busyId===u.id} onClick={()=>aprovar(u)}
+                    style={{ display:'flex', alignItems:'center', gap:6, background:'#16A34A', color:'#fff', border:'none', borderRadius:8, padding:'8px 14px', fontWeight:700, cursor:'pointer', fontSize:13, opacity: busyId===u.id?0.6:1 }}>
+                    <Check size={14} /> Aprovar
+                  </button>
+                  <button disabled={busyId===u.id} onClick={()=>recusar(u)}
+                    style={{ display:'flex', alignItems:'center', gap:6, background:'#fff', color:'#DC2626', border:'1px solid #FCA5A5', borderRadius:8, padding:'8px 14px', fontWeight:700, cursor:'pointer', fontSize:13, opacity: busyId===u.id?0.6:1 }}>
+                    <X size={14} /> Recusar
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Barra de ações */}
         <div style={{ display:'flex', gap:12, marginBottom:20, alignItems:'center' }}>
           <input
@@ -271,7 +380,7 @@ export default function AdminScreen({ onBack }) {
                       <button title={u.is_active?'Desativar':'Ativar'} onClick={() => toggleActive(u)} style={{ ...actionBtn, color: u.is_active?'#DC2626':'#166534' }}>
                         {u.is_active ? <X size={14}/> : <Check size={14}/>}
                       </button>
-                      <button title="Resetar senha" onClick={() => setResetUser(u)} style={actionBtn}><RefreshCw size={14} /></button>
+                      <button title="Redefinir senha" onClick={() => setResetUser(u)} style={actionBtn}><RefreshCw size={14} /></button>
                       {u.id !== myProfile?.id && (
                         <button title="Excluir" onClick={() => deleteUser(u)} style={{ ...actionBtn, color:'#DC2626' }}><Trash2 size={14} /></button>
                       )}
@@ -284,7 +393,8 @@ export default function AdminScreen({ onBack }) {
         </div>
 
         <div style={{ marginTop:12, fontSize:12, color:'#94a3b8' }}>
-          {filtered.length} usuário{filtered.length!==1?'s':''} · {users.filter(u=>u.is_active).length} ativo{users.filter(u=>u.is_active).length!==1?'s':''}
+          {filtered.length} usuário{filtered.length!==1?'s':''} · {ativos.filter(u=>u.is_active).length} ativo{ativos.filter(u=>u.is_active).length!==1?'s':''}
+          {pendentes.length > 0 && ` · ${pendentes.length} pendente${pendentes.length!==1?'s':''}`}
         </div>
       </div>
 

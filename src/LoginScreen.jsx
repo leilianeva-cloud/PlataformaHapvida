@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useAuth } from './AuthContext'
+import SolicitarAcessoScreen from './SolicitarAcessoScreen'
 
 export default function LoginScreen() {
   const { signIn } = useAuth()
@@ -8,6 +9,7 @@ export default function LoginScreen() {
   const [remember, setRemember] = useState(false)
   const [error, setError]       = useState('')
   const [loading, setLoading]   = useState(false)
+  const [view, setView]         = useState('login')   // 'login' | 'signup'
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -16,16 +18,23 @@ export default function LoginScreen() {
     try {
       await signIn(email, password)
     } catch (err) {
+      const code = err.code || err.message
       setError(
-        err.message === 'Invalid login credentials'
+        code === 'PENDING_APPROVAL'
+          ? 'Seu cadastro está aguardando aprovação de um administrador.'
+          : code === 'INACTIVE'
+          ? 'Seu acesso está suspenso. Fale com um administrador.'
+          : err.message === 'Invalid login credentials'
           ? 'E-mail ou senha incorretos.'
-          : err.message === 'Email not confirmed'
-          ? 'Confirme seu e-mail antes de entrar.'
           : 'Erro ao entrar. Tente novamente.'
       )
     } finally {
       setLoading(false)
     }
+  }
+
+  if (view === 'signup') {
+    return <SolicitarAcessoScreen onBack={() => setView('login')} />
   }
 
   return (
@@ -154,13 +163,17 @@ export default function LoginScreen() {
         }
         .hap-btn:hover:not(:disabled) { background: #FF7900; }
         .hap-btn:disabled { opacity: .7; cursor: not-allowed; }
-        .hap-sso {
-          margin-top: 36px;
+        .hap-signup {
+          margin-top: 28px;
           text-align: center;
-          color: #0057B8;
-          font-weight: 600;
           font-size: 14px;
+          color: #475569;
         }
+        .hap-signup button {
+          background: none; border: none; cursor: pointer;
+          color: #0057B8; font-weight: 700; font-size: 14px; font-family:'Inter',sans-serif;
+        }
+        .hap-signup button:hover { text-decoration: underline; }
         .hap-footer {
           position: fixed;
           bottom: 30px;
@@ -255,7 +268,13 @@ export default function LoginScreen() {
                 </button>
               </form>
 
-             
+              <div className="hap-signup">
+                Ainda não tem acesso?{' '}
+                <button type="button" onClick={() => { setError(''); setView('signup') }}>
+                  Solicitar acesso
+                </button>
+              </div>
+
             </div>
           </section>
 
