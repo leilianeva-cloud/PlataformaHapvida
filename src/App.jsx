@@ -205,7 +205,7 @@ const defaultProjeto = () => {
 // =====================================================================
 //  TELA 1 — ImportScreen (dashboard principal)
 // =====================================================================
-function ImportScreen({ portfolioRows, onImport, existingProjects: allProjects, manualProjects, setManualProjects, removerDaFila, onStart, onContinue, onGenerate, importedAt, onVoltar, initialSelected }) {
+function ImportScreen({ portfolioRows, onImport, existingProjects: allProjects, manualProjects, setManualProjects, removerDaFila, removerDoLote, removerDoBanco, onStart, onContinue, onGenerate, importedAt, onVoltar }) {
   // Só projetos na fila aparecem nas sessões Atualizar Report e Gerar Report.
   const existingProjects = allProjects.filter(p => p.naFila !== false);
   const fileRef = useRef(null);
@@ -213,15 +213,7 @@ function ImportScreen({ portfolioRows, onImport, existingProjects: allProjects, 
   const [dragging, setDragging] = useState(false);
   const [expanded, setExpanded] = useState(null); // 'selecionar' | 'manual' | 'gerar' | 'atualizar'
   const [filters, setFilters] = useState({ sm:'', trimestre:'', compromisso:'', tipo:'todos' }); // tipo: 'todos'|'importados'|'manuais'
-  const [selected, setSelected] = useState(() => new Set(initialSelected || []));
-
-  // Projetos enviados do sistema Portfólio: já chegam pré-selecionados na sessão "Selecionar Projetos".
-  useEffect(() => {
-    if (initialSelected && initialSelected.length) {
-      setSelected(new Set(initialSelected));
-      setExpanded('selecionar');
-    }
-  }, [initialSelected]);
+  const [selected, setSelected] = useState(new Set());
   // projetos manuais (fora do portfólio)
   // const [manualProjects, setManualProjects] = useState([]);
   const [manualForm, setManualForm] = useState({ nome:'', smPmo:'', resumoLecom:'', areaCliente:'', areaExec:'' });
@@ -265,48 +257,32 @@ function ImportScreen({ portfolioRows, onImport, existingProjects: allProjects, 
     if (f && (f.name.endsWith('.xlsx') || f.name.endsWith('.xls'))) processFile(f);
   };
 
-  const validRows  = useMemo(() => portfolioRows.filter(isValid), [portfolioRows]);
-  const smOpts     = useMemo(() => [...new Set(validRows.map(r=>String(r[COL.SM]||'').trim()).filter(Boolean))].sort(), [validRows]);
-  const trOpts     = useMemo(() => [...new Set(validRows.map(r=>String(r[COL.TRIMESTRE]||'').trim()).filter(Boolean))].sort(), [validRows]);
-  const coOpts     = useMemo(() => [...new Set(validRows.map(r=>String(r[COL.COMPROMISSO]||'').trim()).filter(Boolean))].sort(), [validRows]);
-  const filtered   = useMemo(() => validRows.filter(r => {
-    if (filters.sm && String(r[COL.SM]||'').trim() !== filters.sm) return false;
-    if (filters.trimestre && String(r[COL.TRIMESTRE]||'').trim() !== filters.trimestre) return false;
-    if (filters.compromisso && String(r[COL.COMPROMISSO]||'').trim() !== filters.compromisso) return false;
-    return true;
-  }), [validRows, filters]);
+  // O LOTE de Selecionar Projetos = projetos trazidos do Portfólio (registros com noLote)
+  // + projetos manuais. NÃO é mais o portfólio inteiro.
+  const loteImportados = useMemo(
+    () => allProjects.filter(p => p.noLote !== false && !String(p.id).startsWith('manual:')),
+    [allProjects]);
+  const smOpts = useMemo(() => [...new Set(loteImportados.map(p=>String(p.projeto?.smPmo||'').trim()).filter(Boolean))].sort(), [loteImportados]);
   // rKey vem de ./portfolioUtils (mesma chave em Status e Portfólio — anti-drift).
   const manualKey = (m) => `manual:${m.id}`;
 
-  // lista combinada: portfólio filtrado + projetos manuais, com filtro de tipo
+  // lista combinada: lote importado + projetos manuais, com filtro de tipo
   const allSelectable = useMemo(() => {
-    const portfolio = filtered.map((r) => ({ type:'portfolio', key:rKey(r), nome:String(r[COL.NOME]||'').trim(), id:r[COL.ID]||'', trimestre:String(r[COL.TRIMESTRE]||''), compromisso:String(r[COL.COMPROMISSO]||''), row:r }));
-    // Linhas sem Lecom (PENDENTE) com impressão digital idêntica: o sistema não
-    // consegue distingui-las. Marca para avisar em vez de mesclar em silêncio.
-    const _c = {};
-    for (const p of portfolio) _c[p.key] = (_c[p.key]||0) + 1;
-    // "Ambíguo" só quando NÃO há Lecom (pend:) e a impressão digital colide — aí o
-    // sistema pode estar fundindo projetos distintos e não consegue separá-los.
-    // Duas linhas com o MESMO Lecom são o MESMO projeto (ex.: priorizado em 2
-    // trimestres): colapsam em um registro — comportamento correto, sem alarme.
-    for (const p of portfolio) p.dup = _c[p.key] > 1 && p.key.startsWith('pend:');
-    const manuais   = manualProjects.map(m => ({ type:'manual', key:manualKey(m), nome:m.nome, id:m.id, trimestre:'—', compromisso:'Manual', manual:m }));
-    if (filters.tipo === 'importados') return portfolio;
+    const importados = loteImportados
+      .filter(p => !filters.sm || String(p.projeto?.smPmo||'').trim() === filters.sm)
+      .map(p => ({ type:'portfolio', key:p.id, nome:p.projeto?.nome||'(sem nome)', id:String(p.id||'').replace(/^lecom:|^pend:/,''), trimestre:'', compromisso:'', proj:p }));
+    const manuais = manualProjects.map(m => ({ type:'manual', key:manualKey(m), nome:m.nome, id:m.id, trimestre:'—', compromisso:'Manual', manual:m }));
+    if (filters.tipo === 'importados') return importados;
     if (filters.tipo === 'manuais')    return manuais;
-    return [...portfolio, ...manuais];
-  }, [filtered, manualProjects, filters.tipo]);
+    return [...importados, ...manuais];
+  }, [loteImportados, manualProjects, filters.tipo, filters.sm]);
 
   // Lista visível de Selecionar Projetos, com filtro por nome
   const visibleSelectable = useMemo(() =>
     allSelectable.filter(x => !filtroSelecionar || (x.nome||'').toLowerCase().includes(filtroSelecionar.toLowerCase())),
   [allSelectable, filtroSelecionar]);
 
-  // Remove um manual da lista de origem. O registro em report_projects (e o Gantt) permanecem.
-  const handleDeleteManual = (m) => {
-    if (!window.confirm(`Excluir "${m.nome}" da lista de projetos manuais?\n\nSe ele já foi para Atualizar Report, continua lá com o Gantt salvo — mas não poderá ser re-selecionado por aqui.`)) return;
-    removeManual(m.id);
-    setSelected(sel => { const ns = new Set(sel); ns.delete(manualKey(m)); return ns; });
-  };
+
 
   const toggleAll = () => {
     if (selected.size === visibleSelectable.length) { setSelected(new Set()); return; }
@@ -315,6 +291,34 @@ function ImportScreen({ portfolioRows, onImport, existingProjects: allProjects, 
     setSelected(new Set(visibleSelectable.map(x=>x.key)));
   };
   const toggle    = (k) => setSelected(s=>{ const ns=new Set(s); ns.has(k)?ns.delete(k):ns.add(k); return ns; });
+
+  // "Apagar os selecionados" em Selecionar Projetos — INDEPENDENTE da fila.
+  //   Importado (veio do Portfólio) → sai do lote, Gantt preservado (resgata no Portfólio).
+  //   Manual → apagado do banco de vez (destrutivo).
+  const handleApagarDoLoteSelecionar = () => {
+    const selItems = allSelectable.filter(x=>selected.has(x.key));
+    if (!selItems.length) return;
+    const manuaisSel = selItems.filter(x=>x.type==='manual');
+    const importSel  = selItems.filter(x=>x.type!=='manual');
+    const msg = manuaisSel.length
+      ? `Apagar ${selItems.length} projeto${selItems.length!==1?'s':''} do lote?\n\n• ${importSel.length} importado(s): saem do lote, mas o Gantt fica salvo (resgate no Portfólio).\n• ${manuaisSel.length} manual(is): SERÃO APAGADOS DO BANCO PERMANENTEMENTE, com o Gantt. Sem volta.`
+      : `Apagar ${selItems.length} importado(s) do lote?\n\nEles saem do lote, mas o Gantt fica salvo. Para trazer de volta, reenvie pelo Portfólio.`;
+    if (!window.confirm(msg)) return;
+    importSel.forEach(x => removerDoLote(x.key));   // soft: noLote=false, Gantt preservado
+    manuaisSel.forEach(x => { removeManual(x.manual.id); removerDoBanco(x.key); }); // hard
+    setSelected(new Set());
+  };
+  // apaga um item específico do lote (usado pela lixeira por linha)
+  const apagarItemDoLote = (x) => {
+    if (x.type === 'manual') {
+      if (!window.confirm(`Apagar "${x.nome}" (manual) do banco?\n\nIsso é PERMANENTE — apaga o projeto e o Gantt. Sem volta.`)) return;
+      removeManual(x.manual.id); removerDoBanco(x.key);
+    } else {
+      if (!window.confirm(`Tirar "${x.nome}" do lote?\n\nEle sai daqui, mas o Gantt fica salvo. Reenvie pelo Portfólio para trazer de volta.`)) return;
+      removerDoLote(x.key);
+    }
+    setSelected(sel => { const ns=new Set(sel); ns.delete(x.key); return ns; });
+  };
 
   // helpers para Atualizar Report
   const toggleAtualizar    = (id) => setAtualizarSelected(s=>{ const ns=new Set(s); ns.has(id)?ns.delete(id):ns.add(id); return ns; });
@@ -340,25 +344,30 @@ function ImportScreen({ portfolioRows, onImport, existingProjects: allProjects, 
   };
   const removeManual = (id) => setManualProjects(ms => ms.filter(m=>m.id!==id));
 
-  // "Selecionar para atualizar": salva projetos sem navegar
-  const handleSelecionarParaAtualizar = () => {
+  // Constrói/atualiza registros a partir dos itens do lote marcados.
+  // Importados: o registro já existe no lote → só entra na fila (naFila=true), Gantt preservado.
+  // Manuais: garante o registro (cria se ainda não existe), preservando Gantt.
+  const construirNovos = () => {
     const selItems = allSelectable.filter(x=>selected.has(x.key));
-    if (!selItems.length) return;
     const existing = Object.fromEntries(allProjects.map(p=>[p.id,p]));
-    const novosRaw = selItems.map(x => {
-      if (x.type === 'manual') {
-        const id = x.key;
-        return { id, nFuturos:existing[id]?.nFuturos??1, nPassados:existing[id]?.nPassados??0,
-          projeto:{ ...defaultProjeto(), nome:x.manual.nome, smPmo:x.manual.smPmo||'', resumoLecom:x.manual.resumoLecom||'', areaCliente:x.manual.areaCliente||'', areaExec:x.manual.areaExec||'' },
-          raias: existing[id]?.raias||[] };
-      }
+    const raw = selItems.map(x => {
       const id = x.key;
-      return { id, nFuturos:existing[id]?.nFuturos??1, nPassados:existing[id]?.nPassados??0,
-        projeto:makeProjetoFromRow(x.row), raias:existing[id]?.raias||[] };
+      const ex = existing[id];
+      if (x.type === 'manual') {
+        return { id, noLote:true, nFuturos:ex?.nFuturos??1, nPassados:ex?.nPassados??0,
+          projeto: ex?.projeto || { ...defaultProjeto(), nome:x.manual.nome, smPmo:x.manual.smPmo||'', resumoLecom:x.manual.resumoLecom||'', areaCliente:x.manual.areaCliente||'', areaExec:x.manual.areaExec||'' },
+          raias: ex?.raias||[], pacotes: ex?.pacotes||[] };
+      }
+      return { id, noLote:true, nFuturos:ex?.nFuturos??1, nPassados:ex?.nPassados??0,
+        projeto: ex?.projeto || {}, raias: ex?.raias||[], pacotes: ex?.pacotes||[] };
     });
-    // Colapsa chaves repetidas (linhas PENDENTE ambíguas): indistinguíveis viram UM registro.
-    // Sem isso, o upsert recebe a mesma PK duas vezes e o Postgres recusa (erro 21000).
-    const novos = [...new Map(novosRaw.map(p=>[p.id,p])).values()];
+    return [...new Map(raw.map(p=>[p.id,p])).values()];
+  };
+
+  // "Selecionar para atualizar": coloca na fila sem navegar
+  const handleSelecionarParaAtualizar = () => {
+    const novos = construirNovos();
+    if (!novos.length) return;
     const novosIds = new Set(novos.map(p=>p.id));
     const mantidos = allProjects.filter(p=>!novosIds.has(p.id));
     onStart([...mantidos, ...novos], false, null, novos.map(p=>p.id)); // false = não navegar
@@ -366,33 +375,13 @@ function ImportScreen({ portfolioRows, onImport, existingProjects: allProjects, 
 
 
   
-  // "Atualizar agora": salva e navega para tela 2 mostrando apenas os selecionados
+  // "Atualizar agora": coloca na fila e navega para a tela 2
   const handleAtualizarAgora = () => {
-
-
-    
-    const selItems = allSelectable.filter(x=>selected.has(x.key));
-    if (!selItems.length) return;
-    const existing = Object.fromEntries(allProjects.map(p=>[p.id,p]));
-    const novosRaw = selItems.map(x => {
-      if (x.type === 'manual') {
-        const id = x.key;
-        return { id, nFuturos:existing[id]?.nFuturos??1, nPassados:existing[id]?.nPassados??0,
-          projeto:{ ...defaultProjeto(), nome:x.manual.nome, smPmo:x.manual.smPmo||'', resumoLecom:x.manual.resumoLecom||'', areaCliente:x.manual.areaCliente||'', areaExec:x.manual.areaExec||'' },
-          raias: existing[id]?.raias||[] };
-      }
-      const id = x.key;
-      return { id, nFuturos:existing[id]?.nFuturos??1, nPassados:existing[id]?.nPassados??0,
-        projeto:makeProjetoFromRow(x.row), raias:existing[id]?.raias||[] };
-    });
-    // Colapsa chaves repetidas (linhas PENDENTE ambíguas): indistinguíveis viram UM registro.
-    // Sem isso, o upsert recebe a mesma PK duas vezes e o Postgres recusa (erro 21000).
-    const novos = [...new Map(novosRaw.map(p=>[p.id,p])).values()];
+    const novos = construirNovos();
+    if (!novos.length) return;
     const novosIds = new Set(novos.map(p=>p.id));
     const mantidos = allProjects.filter(p=>!novosIds.has(p.id));
     const merged = [...mantidos, ...novos];
-    // Uma única chamada: salva merged, ativa novos ids e navega para o primeiro selecionado.
-    // Evita race condition entre setProjects (assíncrono) e findIndex sobre state antigo.
     onStart(merged, true, novos.map(p=>p.id), novos.map(p=>p.id));
   };
 
@@ -408,6 +397,7 @@ function ImportScreen({ portfolioRows, onImport, existingProjects: allProjects, 
 
   const hasPortfolio = portfolioRows.length > 0;
   const hasProjects  = existingProjects.length > 0;
+  const loteCount = loteImportados.length + manualProjects.length;
 
   // ---- ícone Excel mini ----
   const ExcelIcon = ({size=28, op=1}) => (
@@ -488,41 +478,31 @@ function ImportScreen({ portfolioRows, onImport, existingProjects: allProjects, 
 
       <div style={{ padding:"22px 28px", maxWidth:1060, margin:"0 auto" }}>
 
-        {/* ── Row: Box 1 + Box 2 lado a lado ── */}
+        {/* ── Resumo do lote ── */}
         <div style={{ display:"flex", gap:12, marginBottom:12, alignItems:"stretch" }}>
-
-          {/* Box 1 (Importar) migrou para o sistema Portfólio — só admin importa lá, e o portfólio é compartilhado pelo time. */}
-
-          {/* Box 2: Portfólio Ativo */}
-          <div style={{ flex:1, background:hasPortfolio?"#fff":"#F8FAFC", borderRadius:14, padding:"20px 24px",
-            border:hasPortfolio?"1px solid #E2E8F0":"1px dashed #CBD5E1",
-            boxShadow:hasPortfolio?"0 1px 4px rgba(0,0,0,.07)":"none",
-            display:"flex", flexDirection:"column", justifyContent:"center", gap:16 }}>
+          <div style={{ flex:1, background:"#fff", borderRadius:14, padding:"20px 24px", border:"1px solid #E2E8F0", boxShadow:"0 1px 4px rgba(0,0,0,.07)", display:"flex", flexDirection:"column", justifyContent:"center", gap:16 }}>
           <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-            <div style={{ width:40, height:40, borderRadius:10, background:hasPortfolio?"#EFF6FF":"#F1F5F9", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-              {hasPortfolio ? <ClipboardList size={20} color="#2F5597"/> : <FolderOpen size={20} color="#94A3B8"/>}
+            <div style={{ width:40, height:40, borderRadius:10, background:"#EFF6FF", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+              <ClipboardList size={20} color="#2F5597"/>
             </div>
             <div>
-              <div style={{ fontSize:10.5, fontWeight:600, color:"#94A3B8", textTransform:"uppercase", letterSpacing:".05em", marginBottom:1 }}>Portfólio Ativo</div>
-              <div style={{ fontSize:14, fontWeight:700, color:hasPortfolio?"#1E293B":"#94A3B8" }}>
-                {hasPortfolio?`${validRows.length} projeto${validRows.length!==1?'s':''} prontos para seleção`:"Nenhum portfólio importado"}
+              <div style={{ fontSize:10.5, fontWeight:600, color:"#94A3B8", textTransform:"uppercase", letterSpacing:".05em", marginBottom:1 }}>Meu lote de trabalho</div>
+              <div style={{ fontSize:14, fontWeight:700, color:"#1E293B" }}>
+                {loteCount} projeto{loteCount!==1?'s':''} no lote
               </div>
             </div>
           </div>
-          {hasPortfolio && (
-            <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-              {[
-                { label:"Disponíveis para report", value:validRows.length, unit:"projetos", color:"#2F5597" },
-                ...(importedAt?[{ label:"Importado em", value:importedAt, unit:"", color:"#64748B" }]:[]),
-                ...(hasProjects?[{ label:"No report atual", value:existingProjects.length, unit:"projetos", color:"#F47B20" }]:[]),
-              ].map((s,i)=>(
-                <div key={s.label} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"8px 12px", background:"#F8FAFC", borderRadius:8, border:"1px solid #F1F5F9" }}>
-                  <span style={{ fontSize:12, color:"#64748B" }}>{s.label}</span>
-                  <span style={{ fontSize:14, fontWeight:800, color:s.color }}>{s.value}{s.unit&&<span style={{ fontSize:11, fontWeight:500, color:"#94A3B8", marginLeft:4 }}>{s.unit}</span>}</span>
-                </div>
-              ))}
-            </div>
-          )}
+          <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+            {[
+              { label:"No lote (Selecionar Projetos)", value:loteCount, unit:"projetos", color:"#2F5597" },
+              { label:"No report (Atualizar Report)", value:existingProjects.length, unit:"projetos", color:"#F47B20" },
+            ].map((s)=>(
+              <div key={s.label} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"8px 12px", background:"#F8FAFC", borderRadius:8, border:"1px solid #F1F5F9" }}>
+                <span style={{ fontSize:12, color:"#64748B" }}>{s.label}</span>
+                <span style={{ fontSize:14, fontWeight:800, color:s.color }}>{s.value}<span style={{ fontSize:11, fontWeight:500, color:"#94A3B8", marginLeft:4 }}>{s.unit}</span></span>
+              </div>
+            ))}
+          </div>
           </div>
 
         </div>{/* fim row */}
@@ -608,8 +588,8 @@ function ImportScreen({ portfolioRows, onImport, existingProjects: allProjects, 
                     <option value="manuais">Manuais</option>
                   </select>
                 </div>
-                {/* filtros de portfólio só aparecem quando relevante */}
-                {filters.tipo !== 'manuais' && hasPortfolio && [['SM/PMO','sm',smOpts],['Trimestre','trimestre',trOpts],['Compromisso','compromisso',coOpts]].map(([lbl,key,opts])=>(
+                {/* filtro SM do lote (trimestre/compromisso ficam no Portfólio) */}
+                {filters.tipo !== 'manuais' && smOpts.length > 0 && [['SM/PMO','sm',smOpts]].map(([lbl,key,opts])=>(
                   <div key={key} style={{ flex:1, minWidth:140 }}>
                     <div className="lbl">{lbl}</div>
                     <select className="inp" value={filters[key]} onChange={e=>{setFilters(f=>({...f,[key]:e.target.value}));setSelected(new Set());}}>
@@ -638,10 +618,10 @@ function ImportScreen({ portfolioRows, onImport, existingProjects: allProjects, 
                         style={{ background:"#F1F5F9", color:"#334155", fontSize:12, opacity:selected.size===0?.45:1 }}>
                         Limpar seleção
                       </button>
-                      <button className="btn" onClick={()=>setSelected(new Set())} disabled={selected.size===0}
-                        title="Apaga do lote os projetos que você marcou. Não apaga nada em Atualizar Report nem o Gantt."
+                      <button className="btn" onClick={handleApagarDoLoteSelecionar} disabled={selected.size===0}
+                        title="Importados saem do lote (Gantt salvo, resgata no Portfólio). Manuais são apagados do banco. Não mexe em Atualizar Report."
                         style={{ background:"#FEF2F2", color:"#B91C1C", border:"1px solid #FECACA", fontSize:12, opacity:selected.size===0?.45:1 }}>
-                        <Trash2 size={13} /> Apagar do lote ({selected.size})
+                        <Trash2 size={13} /> Apagar os selecionados ({selected.size})
                       </button>
                       <button className="btn" onClick={handleSelecionarParaAtualizar} disabled={selected.size===0}
                         style={{ background:"#2F5597", color:"#fff", border:"none", opacity:selected.size===0?.45:1, fontSize:12 }}>
@@ -665,26 +645,16 @@ function ImportScreen({ portfolioRows, onImport, existingProjects: allProjects, 
                           <span style={{ fontSize:11, color:"#64748b", whiteSpace:"nowrap" }}>{x.trimestre}</span>
                           <span style={{ fontSize:11, color:"#64748b", whiteSpace:"nowrap" }}>{x.compromisso}</span>
                           {x.type==='manual'&&<span style={{ fontSize:10, background:"#F5F0FF", color:"#7030A0", borderRadius:6, padding:"2px 6px", fontWeight:700 }}>MANUAL</span>}
-                          {isSaved&&<span style={{ fontSize:10, background:"#d1fae5", color:"#065f46", borderRadius:6, padding:"2px 6px", fontWeight:700 }}>SALVO</span>}
-                          {x.dup&&<span title="Sem Lecom e com nome/área/SM/início idênticos a outra linha — o sistema não consegue separá-las. Diferencie na origem." style={{ fontSize:10, background:"#FEF3C7", color:"#92400E", borderRadius:6, padding:"2px 6px", fontWeight:700 }}>⚠ AMBÍGUO</span>}
-                          {x.type==='manual'
-                            ? <button onClick={e=>{ e.stopPropagation(); handleDeleteManual(x.manual); }}
-                                title="Excluir projeto manual"
-                                style={{ background:"none", border:"none", cursor:"pointer", color:"#EF4444", display:"flex", padding:2 }}>
-                                <Trash2 size={15} />
-                              </button>
-                            : <button
-                                onClick={e=>{ e.stopPropagation();
-                                  if(!selected.has(x.key)) return;
-                                  if(window.confirm(`Tirar "${x.nome}" do lote de seleção?\n\nEle continua no Portfólio. Se já houver Gantt salvo, é preservado — este botão não apaga registro nem cronograma.`)){
-                                    setSelected(s=>{ const n=new Set(s); n.delete(x.key); return n; });
-                                  }
-                                }}
-                                disabled={!selected.has(x.key)}
-                                title={selected.has(x.key) ? "Tirar do lote (com aviso) — não apaga registro nem Gantt" : "Marque o projeto para poder tirá-lo do lote"}
-                                style={{ background:"none", border:"none", cursor:selected.has(x.key)?"pointer":"default", color:selected.has(x.key)?"#EF4444":"#CBD5E1", display:"flex", padding:2 }}>
-                                <Trash2 size={15} />
-                              </button>}
+                          {isSaved&&<span title="Este projeto está na sessão Atualizar Report" style={{ fontSize:10, background:"#d1fae5", color:"#065f46", borderRadius:6, padding:"2px 6px", fontWeight:700 }}>REPORT</span>}
+                          <button
+                            onClick={e=>{ e.stopPropagation(); if(selected.has(x.key)) apagarItemDoLote(x); }}
+                            disabled={!selected.has(x.key)}
+                            title={selected.has(x.key)
+                              ? (x.type==='manual' ? "Apagar manual do banco (permanente)" : "Tirar do lote — Gantt salvo, resgata no Portfólio")
+                              : "Marque o projeto para poder apagá-lo do lote"}
+                            style={{ background:"none", border:"none", cursor:selected.has(x.key)?"pointer":"default", color:selected.has(x.key)?"#EF4444":"#CBD5E1", display:"flex", padding:2 }}>
+                            <Trash2 size={15} />
+                          </button>
                         </div>
                       );
                     })}
@@ -1236,9 +1206,9 @@ function AppGateway() {
   if (destino === 'portfolio') return (
     <PortfolioScreen
       onVoltar={voltarHome}
-      onEnviarParaStatus={(keys) => {
-        // Guarda as chaves escolhidas e navega para o Status → "Selecionar Projetos".
-        sessionStorage.setItem('hap_portfolio_sel', JSON.stringify(keys))
+      onEnviarParaStatus={(rows) => {
+        // Guarda as LINHAS escolhidas; o Status cria os registros no lote.
+        sessionStorage.setItem('hap_portfolio_rows', JSON.stringify(rows))
         sessionStorage.setItem('hap_screen', 'import')
         navegarPara('status')
       }}
@@ -1312,6 +1282,19 @@ function AppContent({ initialScreen, onVoltar }) {
     setProjects(prev => prev.map(p => p.id === projectId ? { ...p, naFila: false } : p));
     logAudit('UPDATE_PROJECT', 'project', projectId, { acao: 'removido_da_fila' });
   };
+  // Remove do LOTE (Selecionar Projetos) sem apagar: noLote=false, Gantt preservado.
+  const removerDoLote = (projectId) => {
+    setProjects(prev => prev.map(p => p.id === projectId ? { ...p, noLote: false } : p));
+    logAudit('UPDATE_PROJECT', 'project', projectId, { acao: 'removido_do_lote' });
+  };
+  // Apaga o registro do banco de vez (usado só para manuais em Selecionar Projetos).
+  const removerDoBanco = async (projectId) => {
+    setProjects(prev => prev.filter(p => p.id !== projectId));
+    try {
+      await supabase.from('report_projects').delete().eq('user_id', user.id).eq('project_id', projectId);
+      logAudit('DELETE_PROJECT', 'project', projectId, { acao: 'apagado_do_banco' });
+    } catch (e) { console.error('[removerDoBanco]', e); }
+  };
   
   const [activeProjectIds, setActiveProjectIds] = useState(null)
   const [loaded, setLoaded] = useState(false)
@@ -1340,6 +1323,7 @@ function AppContent({ initialScreen, onVoltar }) {
             nPassados: row.n_passados ?? 0,
             usaPacotes: !!row.usa_pacotes,
             naFila:    row.na_fila ?? true,
+            noLote:    row.no_lote ?? true,
             projeto:   row.projeto_json   ? JSON.parse(row.projeto_json)  : {},
             raias:     row.raias_json     ? JSON.parse(row.raias_json)    : [],
             pacotes:   row.pacotes_json   ? JSON.parse(row.pacotes_json)  : [],
@@ -1383,6 +1367,7 @@ function AppContent({ initialScreen, onVoltar }) {
         n_passados:    Number(p.nPassados ?? 0),
         usa_pacotes:   !!p.usaPacotes,
         na_fila:       p.naFila !== false,
+        no_lote:       p.noLote !== false,
         projeto_json:  JSON.stringify(p.projeto  || {}),
         raias_json:    JSON.stringify(p.raias    || []),
         pacotes_json:  JSON.stringify(p.pacotes  || []),
@@ -1462,14 +1447,36 @@ function AppContent({ initialScreen, onVoltar }) {
     return () => window.removeEventListener('hapvida:nav', handler)
   }, [])
 
-  // Projetos enviados do sistema Portfólio (uma vez, na entrada do Status).
-  const [portfolioSel] = useState(() => {
+  // Linhas enviadas do Portfólio → viram registros no LOTE (uma vez, na entrada).
+  const [portfolioRowsToLote] = useState(() => {
     try {
-      const raw = sessionStorage.getItem('hap_portfolio_sel')
-      if (raw) { sessionStorage.removeItem('hap_portfolio_sel'); return JSON.parse(raw) }
+      const raw = sessionStorage.getItem('hap_portfolio_rows')
+      if (raw) { sessionStorage.removeItem('hap_portfolio_rows'); return JSON.parse(raw) }
     } catch { /* ignore */ }
     return null
   })
+  useEffect(() => {
+    if (!loaded || !portfolioRowsToLote?.length) return
+    setProjects(prev => {
+      const map = Object.fromEntries(prev.map(p => [p.id, p]))
+      for (const row of portfolioRowsToLote) {
+        const id = rKey(row)
+        const ex = map[id]
+        map[id] = {
+          id,
+          nFuturos:  ex?.nFuturos  ?? 1,
+          nPassados: ex?.nPassados ?? 0,
+          usaPacotes: ex?.usaPacotes ?? false,
+          naFila:    ex?.naFila ?? false,   // entra no LOTE, não na fila automaticamente
+          noLote:    true,
+          projeto:   ex?.projeto || makeProjetoFromRow(row),
+          raias:     ex?.raias ?? [],
+          pacotes:   ex?.pacotes ?? [],
+        }
+      }
+      return Object.values(map)
+    })
+  }, [loaded, portfolioRowsToLote])
 
   if (appScreen === 'admin')  return <AdminScreen onBack={() => setAppScreen('main')} />
   if (appScreen === 'audit')  return <AuditScreen onBack={() => setAppScreen('main')} />
@@ -1477,13 +1484,14 @@ function AppContent({ initialScreen, onVoltar }) {
   if (screen === 'import') {
     return <ImportScreen
       portfolioRows={portfolioRows}
-      initialSelected={portfolioSel}
       onImport={handlePortfolioImport}
       importedAt={importedAt}
       existingProjects={projects}
       manualProjects={manualProjects}
       setManualProjects={setManualProjects}
       removerDaFila={removerDaFila}
+      removerDoLote={removerDoLote}
+      removerDoBanco={removerDoBanco}
       onStart={(merged, navegar=true, activateIds=null, novosIds=null) => {
         const existMap = Object.fromEntries(projects.map(p=>[p.id, p]));
         // Só os projetos recém-selecionados na fonte entram (ou voltam) para a fila.
@@ -1494,6 +1502,7 @@ function AppContent({ initialScreen, onVoltar }) {
           nPassados: existMap[p.id]?.nPassados ?? p.nPassados ?? 0,
           ...p,
           naFila: entrandoNaFila.has(p.id) ? true : (existMap[p.id]?.naFila ?? p.naFila ?? true),
+          noLote: p.noLote ?? existMap[p.id]?.noLote ?? true,
           raias: existMap[p.id]?.raias ?? p.raias ?? [],
         }));
         setProjects(finalProjects);
