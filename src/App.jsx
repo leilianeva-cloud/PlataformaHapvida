@@ -459,7 +459,6 @@ function ImportScreen({ portfolioRows, onImport, existingProjects: allProjects, 
               {existingProjects.length} projeto{existingProjects.length!==1?'s':''} salvos
             </div>
           )}
-          <UserBar />
         </div>
       </header>
 
@@ -964,7 +963,6 @@ function ReportScreen({ projects, setProjects, currentIdx, setCurrentIdx, active
           <button className="hm-hbtn hm-ppt" onClick={gerarPptx} disabled={gerando} style={{ opacity: gerando ? .65 : 1 }}>
             <FileDown size={15} />{gerando ? 'Gerando…' : `Gerar PPTX (${visibleProjects.length} slide${visibleProjects.length>1?'s':''})`}
           </button>
-          <UserBar />
         </div>
       </header>
 
@@ -1197,10 +1195,14 @@ function AppGateway() {
       onAcessarStatus={() => navegarPara('status')}
       onAcessarRas={() => navegarPara('ras')}
       onAcessarKanban={() => navegarPara('kanban')}
+      onAcessarGestao={() => navegarPara('admin')}
+      onAcessarAuditoria={() => navegarPara('audit')}
     />
   )
   
 
+  if (destino === 'admin')  return <AdminScreen onBack={voltarHome} />
+  if (destino === 'audit')  return <AuditScreen onBack={voltarHome} />
   if (destino === 'ras') return <ReportRasScreen onVoltar={voltarHome} />
   if (destino === 'kanban') return <KanbanScreen onBack={voltarHome} />
   if (destino === 'portfolio') return (
@@ -1300,7 +1302,7 @@ function AppContent({ initialScreen, onVoltar }) {
   const [loaded, setLoaded] = useState(false)
   const [saved, setSaved] = useState(false)
   const [gerando, setGerando] = useState(false)
-  const [appScreen, setAppScreen] = useState('main') // 'main' | 'admin' | 'audit'
+  
 
   // ── Entrega 3: carregar dados do Supabase ──────────────────────
   useEffect(() => {
@@ -1440,12 +1442,7 @@ function AppContent({ initialScreen, onVoltar }) {
     } catch (e) { console.error('Erro ao salvar portfólio:', e) }
   }
 
-  // Escutar navegação do UserBar
-  useEffect(() => {
-    const handler = (e) => setAppScreen(e.detail)
-    window.addEventListener('hapvida:nav', handler)
-    return () => window.removeEventListener('hapvida:nav', handler)
-  }, [])
+  
 
   // Linhas enviadas do Portfólio → viram registros no LOTE (uma vez, na entrada).
   const [portfolioRowsToLote] = useState(() => {
@@ -1478,8 +1475,7 @@ function AppContent({ initialScreen, onVoltar }) {
     })
   }, [loaded, portfolioRowsToLote])
 
-  if (appScreen === 'admin')  return <AdminScreen onBack={() => setAppScreen('main')} />
-  if (appScreen === 'audit')  return <AuditScreen onBack={() => setAppScreen('main')} />
+  
 
   if (screen === 'import') {
     return <ImportScreen
