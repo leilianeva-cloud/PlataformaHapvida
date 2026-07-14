@@ -105,8 +105,10 @@ export default function PortfolioScreen({ onVoltar, onEnviarParaStatus }) {
 
   const enviar = () => {
     if (!sel.size) return
-    // Envia as chaves selecionadas para o Status → sessão "Selecionar Projetos".
-    onEnviarParaStatus([...sel])
+    // Envia as LINHAS (arrays crus do Excel) correspondentes às chaves selecionadas.
+    // O Status espera linhas — rKey/makeProjetoFromRow indexam por número de coluna.
+    const linhas = validRows.filter(r => sel.has(rKey(r)))
+    onEnviarParaStatus(linhas)
   }
 
   const dias = diasDesde(importedAt)
