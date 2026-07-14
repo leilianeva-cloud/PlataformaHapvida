@@ -338,8 +338,8 @@ export default function AdminScreen({ onBack }) {
         </div>
 
         {/* Tabela */}
-        <div style={{ background:'#fff', borderRadius:12, boxShadow:'0 1px 3px rgba(0,0,0,.08)', overflow:'hidden' }}>
-          <table style={{ width:'100%', borderCollapse:'collapse' }}>
+        <div style={{ background:'#fff', borderRadius:12, boxShadow:'0 1px 3px rgba(0,0,0,.08)', overflowX:'auto' }}>
+          <table style={{ width:'100%', borderCollapse:'collapse', minWidth:760 }}>
             <thead>
               <tr style={{ background:'#F8FAFC' }}>
                 {['Nome','Email','Perfil','Status','Ações'].map(h => (
@@ -375,7 +375,7 @@ export default function AdminScreen({ onBack }) {
                     </span>
                   </td>
                   <td style={{ padding:'12px 16px' }}>
-                    <div style={{ display:'flex', gap:6 }}>
+                    <div style={{ display:'flex', gap:6, whiteSpace:'nowrap' }}>
                       <button title="Editar" onClick={() => setModalUser(u)} style={actionBtn}><Edit2 size={14} /></button>
                       <button title={u.is_active?'Desativar':'Ativar'} onClick={() => toggleActive(u)} style={{ ...actionBtn, color: u.is_active?'#DC2626':'#166534' }}>
                         {u.is_active ? <X size={14}/> : <Check size={14}/>}
