@@ -1,10 +1,18 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { FolderOpen, BarChart2, CalendarCheck, Info, LogOut, ClipboardList, Shield, Filter, ChevronDown } from 'lucide-react'
 import { useAuth } from './AuthContext'
 
 export default function HomeScreen({ onAcessarPortfolio, onAcessarStatus, onAcessarRas, onAcessarKanban, onAcessarGestao, onAcessarAuditoria }) {
   const { profile, signOut, isAdmin } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
+
+  // Fecha o menu ao clicar fora dele
+  useEffect(() => {
+    if (!menuOpen) return
+    const fechar = (e) => { if (!e.target.closest('.hm-user')) setMenuOpen(false) }
+    document.addEventListener('mousedown', fechar)
+    return () => document.removeEventListener('mousedown', fechar)
+  }, [menuOpen])
 
   const iniciais = (profile?.name || profile?.email || 'US')
     .split(' ').slice(0, 2).map(p => p[0]).join('').toUpperCase().slice(0, 2)
@@ -39,7 +47,7 @@ export default function HomeScreen({ onAcessarPortfolio, onAcessarStatus, onAces
           align-items: center;
           justify-content: space-between;
           position: relative;
-          z-index: 2;
+          z-index: 20;
           border-bottom: 1px solid rgba(255,255,255,.08);
         }
         .hm-brand {
@@ -55,7 +63,7 @@ export default function HomeScreen({ onAcessarPortfolio, onAcessarStatus, onAces
         .hm-system-name span { color: #FF7900; }
 
         /* ── Menu de conta (dropdown) ── */
-        .hm-user { position: relative; }
+        .hm-user { position: relative; z-index: 30; }
         .hm-user-trigger {
           display: flex; align-items: center; gap: 14px;
           background: rgba(255,255,255,.06);
@@ -84,7 +92,7 @@ export default function HomeScreen({ onAcessarPortfolio, onAcessarStatus, onAces
           position: absolute; right: 0; top: calc(100% + 8px);
           background: #fff; color: #334155;
           border-radius: 12px; box-shadow: 0 12px 32px rgba(0,0,0,.22);
-          padding: 8px; min-width: 220px; z-index: 50;
+          padding: 8px; min-width: 220px; z-index: 1000;
         }
         .hm-menu-head {
           padding: 6px 12px 10px; font-size: 12px; color: #94a3b8;
@@ -95,7 +103,9 @@ export default function HomeScreen({ onAcessarPortfolio, onAcessarStatus, onAces
           background: none; border: none; padding: 9px 12px; cursor: pointer;
           color: #334155; font-size: 14px; font-weight: 500; border-radius: 8px;
           font-family: 'Inter', sans-serif; text-align: left;
+          line-height: 1.4; white-space: nowrap;
         }
+        .hm-menu-item svg { flex-shrink: 0; }
         .hm-menu-item:hover { background: #F1F5F9; }
         .hm-menu-item.danger { color: #DC2626; }
         .hm-menu-item.danger:hover { background: #FEF2F2; }
@@ -188,9 +198,7 @@ export default function HomeScreen({ onAcessarPortfolio, onAcessarStatus, onAces
             </button>
 
             {menuOpen && (
-              <>
-                <div className="hm-menu-overlay" onClick={() => setMenuOpen(false)} />
-                <div className="hm-menu">
+              <div className="hm-menu">
                   <div className="hm-menu-head">{profile?.email}</div>
                   {isAdmin && (
                     <>
@@ -207,7 +215,6 @@ export default function HomeScreen({ onAcessarPortfolio, onAcessarStatus, onAces
                     <LogOut size={15} /> Sair
                   </button>
                 </div>
-              </>
             )}
           </div>
         </header>
