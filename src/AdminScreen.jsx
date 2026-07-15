@@ -294,7 +294,7 @@ export default function AdminScreen({ onBack }) {
         <span style={{ fontWeight:700, fontSize:16 }}>Gestão de Usuários</span>
       </div>
 
-      <div style={{ maxWidth:900, margin:'32px auto', padding:'0 20px' }}>
+      <div style={{ maxWidth:1050, margin:'32px auto', padding:'0 20px' }}>
 
         {/* ── Solicitações pendentes ── */}
         {pendentes.length > 0 && (
