@@ -9,6 +9,7 @@ import HomeScreen from './HomeScreen';
 import PortfolioScreen from './PortfolioScreen';
 import { COL, isValid, rKey } from './portfolioUtils';
 import ReportRasScreen from './ReportRasScreen';
+import ReportIncidentesScreen from './ReportIncidentesScreen';
 import KanbanScreen from './KanbanScreen';
 import AdminScreen from './AdminScreen';
 import AuditScreen from './AuditScreen';
@@ -1194,6 +1195,7 @@ function AppGateway() {
       onAcessarPortfolio={() => navegarPara('portfolio')}
       onAcessarStatus={() => navegarPara('status')}
       onAcessarRas={() => navegarPara('ras')}
+      onAcessarIncidentes={() => navegarPara('incidentes')}
       onAcessarKanban={() => navegarPara('kanban')}
       onAcessarGestao={() => navegarPara('admin')}
       onAcessarAuditoria={() => navegarPara('audit')}
@@ -1204,6 +1206,7 @@ function AppGateway() {
   if (destino === 'admin')  return <AdminScreen onBack={voltarHome} />
   if (destino === 'audit')  return <AuditScreen onBack={voltarHome} />
   if (destino === 'ras') return <ReportRasScreen onVoltar={voltarHome} />
+  if (destino === 'incidentes') return <ReportIncidentesScreen onVoltar={voltarHome} />
   if (destino === 'kanban') return <KanbanScreen onBack={voltarHome} />
   if (destino === 'portfolio') return (
     <PortfolioScreen
