@@ -124,3 +124,49 @@ export async function getRasTemplateInfo() {
     size:      file.metadata?.size || null,
   }
 }
+
+// ── Template Incidentes (Storage) ──────────────────────────────
+// Caminho fixo: bucket "templates", arquivo "incidentes/report_incidentes_template.pptx"
+// Troca de template é feita direto no Supabase Dashboard pelo admin (mesmo padrão da RAS).
+const INCIDENTES_TEMPLATE_BUCKET = 'templates'
+const INCIDENTES_TEMPLATE_DIR    = 'incidentes'
+const INCIDENTES_TEMPLATE_FILE   = 'report_incidentes_template.pptx'
+const INCIDENTES_TEMPLATE_PATH   = `${INCIDENTES_TEMPLATE_DIR}/${INCIDENTES_TEMPLATE_FILE}`
+
+/**
+ * Baixa o template de Incidentes como ArrayBuffer (pronto para JSZip).
+ * Retorna null se o arquivo não existir no Storage.
+ */
+export async function loadIncidentesTemplate() {
+  const { data, error } = await supabase
+    .storage
+    .from(INCIDENTES_TEMPLATE_BUCKET)
+    .download(INCIDENTES_TEMPLATE_PATH)
+  if (error) {
+    console.warn('[loadIncidentesTemplate] Erro:', error.message)
+    return null
+  }
+  return await data.arrayBuffer()
+}
+
+/**
+ * Retorna metadados do template de Incidentes (nome, updated_at, tamanho).
+ * Usa list() para pegar atributos do objeto. Retorna null se não existir.
+ */
+export async function getIncidentesTemplateInfo() {
+  const { data, error } = await supabase
+    .storage
+    .from(INCIDENTES_TEMPLATE_BUCKET)
+    .list(INCIDENTES_TEMPLATE_DIR, { limit: 100, search: INCIDENTES_TEMPLATE_FILE })
+  if (error || !data || data.length === 0) {
+    console.warn('[getIncidentesTemplateInfo] Não encontrado:', error?.message)
+    return null
+  }
+  const file = data.find(f => f.name === INCIDENTES_TEMPLATE_FILE)
+  if (!file) return null
+  return {
+    name:      file.name,
+    updatedAt: file.updated_at || file.created_at || null,
+    size:      file.metadata?.size || null,
+  }
+}

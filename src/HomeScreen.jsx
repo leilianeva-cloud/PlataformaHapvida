@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
-import { FolderOpen, BarChart2, CalendarCheck, Info, LogOut, ClipboardList, Shield, Filter, ChevronDown } from 'lucide-react'
+import { FolderOpen, BarChart2, CalendarCheck, Info, LogOut, ClipboardList, Shield, Filter, ChevronDown, AlertTriangle } from 'lucide-react'
 import { useAuth } from './AuthContext'
 
-export default function HomeScreen({ onAcessarPortfolio, onAcessarStatus, onAcessarRas, onAcessarKanban, onAcessarGestao, onAcessarAuditoria }) {
+export default function HomeScreen({ onAcessarPortfolio, onAcessarStatus, onAcessarRas, onAcessarIncidentes, onAcessarKanban, onAcessarGestao, onAcessarAuditoria }) {
   const { profile, signOut, isAdmin } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
 
@@ -257,6 +257,17 @@ export default function HomeScreen({ onAcessarPortfolio, onAcessarStatus, onAces
               <h3>Reunião de Acompanhamento Semanal</h3>
               <p>Gere o Status Report Executivo da RAS a partir do Portfólio e Melhorias da semana.</p>
               <button className="hm-card-btn" onClick={onAcessarRas}>Acessar →</button>
+            </div>
+
+            {/* Card Atualizar Incidentes */}
+            <div className="hm-card">
+              <div className="hm-card-icon">
+                <AlertTriangle size={40} />
+              </div>
+              <h2>Atualizar Incidentes</h2>
+              <h3>Report Semanal de Incidentes</h3>
+              <p>Gere o Dashboard Executivo de Incidentes a partir da base exportada do Azure.</p>
+              <button className="hm-card-btn" onClick={onAcessarIncidentes}>Acessar →</button>
             </div>
 
             {/* Card Tarefas & Reuniões */}
