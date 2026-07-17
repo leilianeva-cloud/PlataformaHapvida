@@ -37,11 +37,26 @@ function fmtDate(v){
   }
   return "—";
 }
-/* Trunca o nome do projeto para caber em UMA linha da coluna "Projeto".
-   Medido no template: coluna = 6,62cm @ 8pt → ~42 caracteres.
-   Sem isso, um nome longo quebra em 2-3 linhas e estoura a box. */
-const NOME_MAX = 42;
-function trunc(s, max = NOME_MAX){
+/* ── AUTOFIT DA COLUNA "PROJETO" ───────────────────────────────────────────
+   Antes: truncava num limite fixo de 42 chars — medido na box do slide 2 e
+   aplicado também no Backlog, que é bem mais largo e tinha folga sobrando.
+   Agora: medimos as colunas em EMU, cada coluna que não é "Projeto" encolhe
+   até o que realmente precisa (maior entre cabeçalho e maior dado da semana),
+   e TODA a sobra vai para "Projeto". Só então truncamos — no limite real da
+   coluna já alargada. Fonte continua 8pt; a largura total da tabela não muda.
+   Calibração (a medição antiga, agora usada como métrica):
+     (2.383.200 EMU − 182.880 de padding) / 42 chars = 52.388 EMU por char @ 8pt
+   ────────────────────────────────────────────────────────────────────────── */
+const EMU_CHAR8 = 52388;   // largura média de 1 caractere a 8pt
+const CELL_PAD  = 182880;  // lIns + rIns padrão da célula (0,1" cada)
+const HDR_K     = 1.25;    // cabeçalho é maior/negrito → margem de segurança
+const NOME_COL  = 2;       // "Projeto" é a 3ª coluna em TODAS as tabelas
+const NOME_MIN  = 42;      // piso: nunca sair pior que o comportamento atual
+
+const wNeed  = (t,k=1)=>Math.ceil(String(t??"").length*EMU_CHAR8*k)+CELL_PAD;
+const charsIn= w=>Math.max(0,Math.floor((w-CELL_PAD)/EMU_CHAR8));
+
+function trunc(s, max = NOME_MIN){
   const t = String(s ?? "");
   return t.length > max ? t.slice(0, max - 1).trimEnd() + "…" : t;
 }
@@ -216,21 +231,21 @@ function tr(cells,h="135560"){return `<a:tr h="${h}">${cells.join("")}</a:tr>`;}
 const emptyRow6=(bg="FFFFFF")=>tr([tc("—",{bg}),tc("—",{bg}),tc("Sem dados",{align:"l",bg}),tc("—",{bg}),tc("—",{bg}),tc("—",{bg})]);
 const emptyRow7=(bg="FFFFFF")=>tr([tc("—",{bg}),tc("—",{bg}),tc("Sem dados",{align:"l",bg}),tc("—",{bg}),tc("—",{bg}),tc("—",{bg}),tc("—",{bg})]);
 
-function rowAtP(r,i){const bg=rowBg(i),cc=r.target!=="—"?"C00000":null;
-  return tr([tc(r.lecom,{sz:"800",bg}),tc(r.squad,{sz:"800",bg}),tc(trunc(r.nome),{sz:"800",align:"l",bg}),tc(r.fase,{sz:"800",bg}),tc(r.target,{sz:"800",color:cc,bg}),tc(r.np,{sz:"800",bg})]);}
-function rowAtM(r,i){const bg=rowBg(i);
-  return tr([tc(r.lecom,{sz:"800",bg}),tc(r.squad,{sz:"800",bg}),tc(trunc(r.nome),{sz:"800",align:"l",bg}),tc(r.status,{sz:"800",bg}),tc(r.target,{sz:"800",color:"C00000",bg}),tc(r.np,{sz:"800",bg})]);}
-function rowPrxP(r,i){const bg=rowBg(i);
-  return tr([tc(r.lecom,{sz:"800",bg}),tc(r.squad,{sz:"800",bg}),tc(trunc(r.nome),{sz:"800",align:"l",bg}),tc(r.fase,{sz:"800",bg}),tc(r.target,{sz:"800",color:"ED7D31",bg}),tc(r.np,{sz:"800",bg})]);}
-function rowPrxM(r,i){const bg=rowBg(i);
-  return tr([tc(r.lecom,{sz:"800",bg}),tc(r.squad,{sz:"800",bg}),tc(trunc(r.nome),{sz:"800",align:"l",bg}),tc(r.status,{sz:"800",bg}),tc(r.target,{sz:"800",color:"ED7D31",bg}),tc(r.np,{sz:"800",bg})]);}
-function rowProjBL(r,i){
+function rowAtP(r,i,lim){const bg=rowBg(i),cc=r.target!=="—"?"C00000":null;
+  return tr([tc(r.lecom,{sz:"800",bg}),tc(r.squad,{sz:"800",bg}),tc(trunc(r.nome,lim),{sz:"800",align:"l",bg}),tc(r.fase,{sz:"800",bg}),tc(r.target,{sz:"800",color:cc,bg}),tc(r.np,{sz:"800",bg})]);}
+function rowAtM(r,i,lim){const bg=rowBg(i);
+  return tr([tc(r.lecom,{sz:"800",bg}),tc(r.squad,{sz:"800",bg}),tc(trunc(r.nome,lim),{sz:"800",align:"l",bg}),tc(r.status,{sz:"800",bg}),tc(r.target,{sz:"800",color:"C00000",bg}),tc(r.np,{sz:"800",bg})]);}
+function rowPrxP(r,i,lim){const bg=rowBg(i);
+  return tr([tc(r.lecom,{sz:"800",bg}),tc(r.squad,{sz:"800",bg}),tc(trunc(r.nome,lim),{sz:"800",align:"l",bg}),tc(r.fase,{sz:"800",bg}),tc(r.target,{sz:"800",color:"ED7D31",bg}),tc(r.np,{sz:"800",bg})]);}
+function rowPrxM(r,i,lim){const bg=rowBg(i);
+  return tr([tc(r.lecom,{sz:"800",bg}),tc(r.squad,{sz:"800",bg}),tc(trunc(r.nome,lim),{sz:"800",align:"l",bg}),tc(r.status,{sz:"800",bg}),tc(r.target,{sz:"800",color:"ED7D31",bg}),tc(r.np,{sz:"800",bg})]);}
+function rowProjBL(r,i,lim){
   const bg=rowBg(i),fc=r.enc?"00B050":null;
   const sc=r.status.toLowerCase().startsWith("atras")?"C00000":r.status.toLowerCase().startsWith("em risco")?"ED7D31":null;
-  return tr([tc(r.lecom,{sz:"800",bg}),tc(r.squad,{sz:"800",bg}),tc(trunc(r.nome),{sz:"800",align:"l",bg}),tc(r.fase,{sz:"800",color:fc,bold:r.enc,bg}),tc(r.status.slice(0,55),{sz:"800",color:sc,bold:!!sc,bg}),tc(r.target,{sz:"800",bg}),tc(r.np,{sz:"800",bg})]);}
-function rowMelBL(r,i){
+  return tr([tc(r.lecom,{sz:"800",bg}),tc(r.squad,{sz:"800",bg}),tc(trunc(r.nome,lim),{sz:"800",align:"l",bg}),tc(r.fase,{sz:"800",color:fc,bold:r.enc,bg}),tc(r.status.slice(0,55),{sz:"800",color:sc,bold:!!sc,bg}),tc(r.target,{sz:"800",bg}),tc(r.np,{sz:"800",bg})]);}
+function rowMelBL(r,i,lim){
   const bg=rowBg(i);
-  return tr([tc(r.lecom,{sz:"800",bg}),tc(r.squad,{sz:"800",bg}),tc(trunc(r.nome),{sz:"800",align:"l",bg}),tc(r.status,{sz:"800",color:r.fin?"00B050":null,bold:r.fin,bg}),tc(r.target,{sz:"800",bg}),tc(r.np,{sz:"800",bg})]);}
+  return tr([tc(r.lecom,{sz:"800",bg}),tc(r.squad,{sz:"800",bg}),tc(trunc(r.nome,lim),{sz:"800",align:"l",bg}),tc(r.status,{sz:"800",color:r.fin?"00B050":null,bold:r.fin,bg}),tc(r.target,{sz:"800",bg}),tc(r.np,{sz:"800",bg})]);}
 
 /* ── XML TABLE OPS ─────────────────────────────────────────────────────────── */
 /* ── GEOMETRIA DO SLIDE 2 (medida diretamente no template, em EMU) ──────────
@@ -291,6 +306,56 @@ function prxToTop(xml){
 }
 const setTitleAt =(xml,t)=>xml.replace("<a:t>ENTREGAS EM ATRASO</a:t>",`<a:t>${esc(t)}</a:t>`);
 const setTitlePx =(xml,t)=>xml.replace("<a:t>ENTREGAS PRÓXIMAS</a:t>",`<a:t>${esc(t)}</a:t>`);
+
+/* Extrai a matriz de textos das células a partir das linhas já renderizadas.
+   Cada <a:tc> tem exatamente um <a:t>, então a ordem bate com as colunas. */
+function cellMatrix(rowsXml){
+  return String(rowsXml||"").split("</a:tr>")
+    .filter(s=>s.indexOf("<a:tc>")!==-1)
+    .map(r=>[...r.matchAll(/<a:t>([^<]*)<\/a:t>/g)].map(m=>m[1]));
+}
+
+/* Redistribui os <a:gridCol> da tabela tblIdx: cada coluna que não é "Projeto"
+   encolhe até o que precisa (nunca alarga, nunca fica menor que o cabeçalho),
+   e a sobra inteira vai para "Projeto".
+   Retorna { xml, nomeMax } — nomeMax = chars que cabem na coluna resultante.
+   A soma das larguras é preservada, então o graphicFrame não precisa mudar. */
+function fitNomeCol(xml, tblIdx, probeRowsXml){
+  const pos=[]; let p=0;
+  while(true){const f=xml.indexOf("<a:tbl>",p);if(f===-1)break;pos.push(f);p=f+1;}
+  const tp=pos[tblIdx];
+  if(tp===undefined) return {xml,nomeMax:NOME_MIN};
+  const te=xml.indexOf("</a:tbl>",tp)+8;
+  const tbl=xml.slice(tp,te);
+
+  const gm=tbl.match(/<a:tblGrid>[\s\S]*?<\/a:tblGrid>/);
+  if(!gm) return {xml,nomeMax:NOME_MIN};
+  const cols=[...gm[0].matchAll(/<a:gridCol[^>]*\sw="(\d+)"/g)].map(m=>parseInt(m[1],10));
+  if(cols.length<=NOME_COL) return {xml,nomeMax:NOME_MIN};
+
+  // cabeçalho: 1ª linha, preservada do template
+  const hs=tbl.indexOf("<a:tr"), he=tbl.indexOf("</a:tr>",hs)+7;
+  const hdr=hs===-1?[]:[...tbl.slice(hs,he).matchAll(/<a:t>([^<]*)<\/a:t>/g)].map(m=>m[1]);
+  const matrix=cellMatrix(probeRowsXml);
+
+  const total=cols.reduce((a,b)=>a+b,0);
+  const out=cols.slice();
+  for(let c=0;c<cols.length;c++){
+    if(c===NOME_COL) continue;
+    let w=wNeed(hdr[c]||"",HDR_K);
+    for(const row of matrix) w=Math.max(w,wNeed(row[c]||""));
+    out[c]=Math.min(cols[c],Math.max(1,w));   // só encolhe; nunca alarga
+  }
+  const nomeW=total-out.reduce((a,b,i)=>i===NOME_COL?a:a+b,0);
+  if(nomeW<=cols[NOME_COL])                    // sem folga → não mexe
+    return {xml,nomeMax:Math.max(NOME_MIN,charsIn(cols[NOME_COL]))};
+  out[NOME_COL]=nomeW;
+
+  let i=0;
+  const newGrid=gm[0].replace(/(<a:gridCol[^>]*\sw=")(\d+)(")/g,(_,a,__,c)=>`${a}${out[i++]}${c}`);
+  const newTbl=tbl.replace(gm[0],newGrid);
+  return {xml:xml.slice(0,tp)+newTbl+xml.slice(te), nomeMax:Math.max(NOME_MIN,charsIn(nomeW))};
+}
 
 function rebuildTable(xml,idx,rowsXml){
   const pos=[]; let p=0;
@@ -503,7 +568,14 @@ async function generatePptx(templateBuf,data){
     ...data.prx_proj.map(r=>({r,f:rowPrxP})),
     ...data.prx_mel.map(r=>({r,f:rowPrxM})),
   ];
-  const renderRows=items=>items.length?items.map((it,i)=>it.f(it.r,i)).join("\n"):emptyRow6();
+  const renderRows=(items,lim)=>items.length?items.map((it,i)=>it.f(it.r,i,lim)).join("\n"):emptyRow6();
+  /* Duas passadas: a 1ª sem truncar serve só para MEDIR as outras colunas;
+     a 2ª renderiza de verdade com o limite da coluna "Projeto" já alargada. */
+  const fillTable=(xml,idx,items)=>{
+    if(!items.length) return rebuildTable(xml,idx,emptyRow6());
+    const fit=fitNomeCol(xml,idx,renderRows(items,9999));
+    return rebuildTable(fit.xml,idx,renderRows(items,fit.nomeMax));
+  };
 
   function greedyChunks(items){
     const out=[];
@@ -547,11 +619,11 @@ async function generatePptx(templateBuf,data){
     const ch=atChunks[k];
     let xml=s2base;
     if(k>0) xml=setTitleAt(xml,"ENTREGAS EM ATRASO (cont.)");
-    xml=rebuildTable(xml,0,renderRows(ch.items));
+    xml=fillTable(xml,0,ch.items);
     if(ch.stretched){
       xml=stretchAtraso(xml);
     }else{
-      xml=rebuildTable(xml,1,renderRows(pxInLastAt));
+      xml=fillTable(xml,1,pxInLastAt);
     }
     zip.file(`ppt/slides/slide${targets[t++].num}.xml`,xml);
   }
@@ -561,7 +633,7 @@ async function generatePptx(templateBuf,data){
     const first=lastAtNormal?false:(k===0);
     if(!first) xml=setTitlePx(xml,"ENTREGAS PRÓXIMAS (cont.)");
     xml=prxToTop(xml);                       // remove Atraso, sobe Próximas
-    xml=rebuildTable(xml,0,renderRows(pxAlone[k]));
+    xml=fillTable(xml,0,pxAlone[k]);
     zip.file(`ppt/slides/slide${targets[t++].num}.xml`,xml);
   }
 
@@ -577,7 +649,14 @@ async function generatePptx(templateBuf,data){
       if(p>0){ const nid=newIds(); num=await addSlide(srcNum,nid,lastRid); lastRid=nid.rid; }
       let xml=await rd(`ppt/slides/slide${num}.xml`);
       const slice=items.slice(p*BL_PER_SLIDE,(p+1)*BL_PER_SLIDE);
-      xml=rebuildBL(xml,slice.length?slice.map((r,i)=>rowFn(r,i)).join("\n"):emptyXml);
+      let rowsXml=emptyXml;
+      if(slice.length){
+        // mede com os nomes inteiros, depois renderiza com o limite real
+        const fit=fitNomeCol(xml,0,slice.map((r,i)=>rowFn(r,i,9999)).join("\n"));
+        xml=fit.xml;
+        rowsXml=slice.map((r,i)=>rowFn(r,i,fit.nomeMax)).join("\n");
+      }
+      xml=rebuildBL(xml,rowsXml);
       zip.file(`ppt/slides/slide${num}.xml`,xml);
     }
   }
