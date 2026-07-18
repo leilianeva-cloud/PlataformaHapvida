@@ -26,17 +26,70 @@ const FASE_CUSTOM = '__manual__';
 const FASE_CUSTOM_COR = '#64748B';
 const A_DEFINIR_COR = '#D9D9D9';
 
+// Paleta fechada das fases manuais. Todas escuras o bastante para texto branco
+// e distintas das cores de FASES — legenda com duas cores iguais mente.
+const PALETA_MANUAL = [
+  { nome: 'Ardósia',     hex: '#64748B' },
+  { nome: 'Grafite',     hex: '#334155' },
+  { nome: 'Teal',        hex: '#0F766E' },
+  { nome: 'Ciano',       hex: '#0E7490' },
+  { nome: 'Índigo',      hex: '#4338CA' },
+  { nome: 'Magenta',     hex: '#A21CAF' },
+  { nome: 'Rosa',        hex: '#BE123C' },
+  { nome: 'Marrom',      hex: '#7C2D12' },
+  { nome: 'Âmbar',       hex: '#B45309' },
+  { nome: 'Verde-musgo', hex: '#166534' },
+];
+
 // helper: resolve cor de uma fase (incluindo custom)
+// Fallback com 6 dígitos — o OOXML rejeita srgbClr de 3.
 function faseCor(f) {
-  if (!f) return '#999';
-  if (f.fase === FASE_CUSTOM) return FASE_CUSTOM_COR;
-  return FASES[f.fase] || '#999';
+  if (!f) return '#999999';
+  if (f.fase === FASE_CUSTOM) return f.cor || FASE_CUSTOM_COR;
+  return FASES[f.fase] || '#999999';
 }
 // helper: rótulo legível da fase
 function faseLabel(f) {
   if (!f) return '';
   if (f.fase === FASE_CUSTOM) return f.faseCustom || 'Manual';
   return f.fase || '';
+}
+
+// mapa nome da fase manual -> cor, no escopo do projeto
+function mapaCoresCustom(raias) {
+  const m = new Map();
+  (raias || []).forEach(r => (r.fases || []).forEach(f => {
+    const nome = (f.faseCustom || '').trim();
+    if (f.fase === FASE_CUSTOM && nome && f.cor && !m.has(nome)) m.set(nome, f.cor);
+  }));
+  return m;
+}
+
+// FONTE ÚNICA da legenda — preview e PPTX chamam esta função.
+// Regra: união das fases em uso no projeto, ordem canônica, manuais depois.
+// Demanda despriorizada não contribui fases (a barra é cinza, não usa a cor da fase).
+function legendaDoProjeto(raias) {
+  const usadas = new Map();
+  let temADefinir = false, temDespri = false;
+  (raias || []).forEach(r => {
+    if (r.despriorizado) { temDespri = true; return; }
+    (r.fases || []).forEach(f => {
+      if (f.aDefinir) { temADefinir = true; return; }
+      const label = faseLabel(f);
+      if (!label || (f.fase === FASE_CUSTOM && !(f.faseCustom || '').trim())) return;
+      if (!usadas.has(label)) usadas.set(label, faseCor(f));
+    });
+  });
+  const itens = [];
+  ORDEM_FASES.forEach(nome => {
+    if (usadas.has(nome)) { itens.push({ label: nome, cor: usadas.get(nome) }); usadas.delete(nome); }
+  });
+  [...usadas.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0], 'pt-BR'))
+    .forEach(([label, cor]) => itens.push({ label, cor }));
+  if (temADefinir) itens.push({ label: 'A definir', cor: A_DEFINIR_COR });
+  if (temDespri)   itens.push({ label: 'Despriorizado', cor: CINZA_DESPRI });
+  return itens;
 }
 
 // ── Helpers de pacote ──
@@ -851,6 +904,25 @@ function ReportScreen({ projects, setProjects, currentIdx, setCurrentIdx, active
 
   const upd = (id, patch) => setRaias(rs => rs.map(r => r.id === id ? { ...r, ...patch } : r));
   const updFase = (id, fi, patch) => setRaias(rs => rs.map(r => r.id === id ? { ...r, fases: r.fases.map((f, i) => i === fi ? { ...f, ...patch } : f) } : r));
+  // Fase manual: nome e cor andam juntos no ESCOPO DO PROJETO.
+  //   • trocar a cor → aplica a todas as fases manuais com o mesmo nome (legenda não duplica)
+  //   • digitar um nome já usado no projeto → herda a cor dele automaticamente
+  // Não renomeia em massa: renomear aqui só afeta esta fase.
+  const setFaseCustom = (raiaId, fi, patch) => setRaias(rs => {
+    const alvo = rs.find(x => x.id === raiaId)?.fases?.[fi];
+    if (!alvo) return rs;
+    const mapa = mapaCoresCustom(rs);
+    const nome = (patch.faseCustom !== undefined ? patch.faseCustom : (alvo.faseCustom || '')).trim();
+    const cor = patch.cor || (patch.faseCustom !== undefined && mapa.get(nome)) || alvo.cor || FASE_CUSTOM_COR;
+    return rs.map(rr => ({
+      ...rr,
+      fases: rr.fases.map((ff, ii) => {
+        if (rr.id === raiaId && ii === fi) return { ...ff, ...patch, cor };
+        if (patch.cor && nome && ff.fase === FASE_CUSTOM && (ff.faseCustom || '').trim() === nome) return { ...ff, cor: patch.cor };
+        return ff;
+      }),
+    }));
+  });
   const addRaia = () => {
     const id = Date.now();
     //setRaias(rs => [...rs, { id, lecom: '', nome: 'NOVA DEMANDA', despriorizado: false, faseAtivaIdx: 0, fases: [{ fase: ORDEM_FASES[0], inicio: '', fim: '', pct: 0 }] }]);
@@ -1100,7 +1172,7 @@ function ReportScreen({ projects, setProjects, currentIdx, setCurrentIdx, active
           {!usaPacotes && raias.map((r) => (
             <RaiaCard key={r.id} r={r} aberta={!!aberta[r.id]}
               toggle={() => setAberta((a) => ({ ...a, [r.id]: !a[r.id] }))}
-              upd={upd} updFase={updFase} addFase={addFase} delFase={delFase} moveFase={moveFase} delRaia={delRaia} />
+              upd={upd} updFase={updFase} setFaseCustom={setFaseCustom} addFase={addFase} delFase={delFase} moveFase={moveFase} delRaia={delRaia} />
           ))}
 
           {/* ── Modo pacotes ── */}
@@ -1131,7 +1203,7 @@ function ReportScreen({ projects, setProjects, currentIdx, setCurrentIdx, active
                   {pacRaias.map(r => (
                     <RaiaCard key={r.id} r={r} aberta={!!aberta[r.id]}
                       toggle={() => setAberta(a => ({...a, [r.id]: !a[r.id]}))}
-                      upd={upd} updFase={updFase} addFase={addFase} delFase={delFase} moveFase={moveFase} delRaia={delRaia} />
+                      upd={upd} updFase={updFase} setFaseCustom={setFaseCustom} addFase={addFase} delFase={delFase} moveFase={moveFase} delRaia={delRaia} />
                   ))}
                 </div>
               </div>
@@ -1574,10 +1646,10 @@ const GANTT_MAX_H = 440; // altura máxima antes de rolar
           {projeto.nome}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <div style={{ display: "flex", gap: 12, fontSize: 11 }}>
-            {Object.entries(FASES).map(([k, v]) => (
-              <span key={k} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                <span style={{ width: 9, height: 9, background: v, borderRadius: 2, display: "inline-block" }} />{k}
+          <div style={{ display: "flex", gap: 12, fontSize: 11, flexWrap: "wrap", maxWidth: 560, justifyContent: "flex-end" }}>
+            {legendaDoProjeto(raias).map((it) => (
+              <span key={it.label} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <span style={{ width: 9, height: 9, background: it.cor, borderRadius: 2, display: "inline-block", border: it.cor === A_DEFINIR_COR ? "1px solid #94a3b8" : "none" }} />{it.label}
               </span>
             ))}
           </div>
@@ -1885,7 +1957,7 @@ function BarRow({ r, cells, atualizadoEm, rowH = 32 }) {
 }
 
 // ---------- Card de raia (editor) ----------
-function RaiaCard({ r, aberta, toggle, upd, updFase, addFase, delFase, moveFase, delRaia }) {
+function RaiaCard({ r, aberta, toggle, upd, updFase, setFaseCustom, addFase, delFase, moveFase, delRaia }) {
   return (
     <div style={{ background: "#FAFBFC", borderRadius: 10, marginBottom: 10, border: r.despriorizado ? "1px solid #E2E8F0" : "1px solid #EEF2F7" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px" }}>
@@ -1955,12 +2027,26 @@ function RaiaCard({ r, aberta, toggle, upd, updFase, addFase, delFase, moveFase,
                 {/* Fase: select + campo manual */}
                 {/* Fase: select + campo manual */}
                 <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                  <select className="inp" style={{ fontSize: 12 }} value={f.fase} onChange={(e) => updFase(r.id, i, { fase: e.target.value, faseCustom: e.target.value === FASE_CUSTOM ? (f.faseCustom || '') : undefined })}>
+                  <select className="inp" style={{ fontSize: 12 }} value={f.fase} onChange={(e) => {
+                    const v = e.target.value;
+                    if (v === FASE_CUSTOM) updFase(r.id, i, { fase: v, faseCustom: f.faseCustom || '', cor: f.cor || FASE_CUSTOM_COR });
+                    else updFase(r.id, i, { fase: v, faseCustom: undefined, cor: undefined });
+                  }}>
                     {ORDEM_FASES.map((fa) => <option key={fa}>{fa}</option>)}
                     <option value={FASE_CUSTOM}>✏️ Incluir manual…</option>
                   </select>
                   {f.fase === FASE_CUSTOM && (
-                    <input className="inp" style={{ fontSize: 12 }} placeholder="Nome da fase…" value={f.faseCustom || ''} onChange={(e) => updFase(r.id, i, { faseCustom: e.target.value })} />
+                    <>
+                      <input className="inp" style={{ fontSize: 12 }} placeholder="Nome da fase…" value={f.faseCustom || ''}
+                        onChange={(e) => setFaseCustom(r.id, i, { faseCustom: e.target.value })} />
+                      <div style={{ display: "flex", gap: 3, flexWrap: "wrap", paddingTop: 1 }}>
+                        {PALETA_MANUAL.map((c) => (
+                          <button key={c.hex} type="button" title={c.nome} onClick={() => setFaseCustom(r.id, i, { cor: c.hex })}
+                            style={{ width: 15, height: 15, borderRadius: 4, background: c.hex, cursor: "pointer", padding: 0,
+                              border: (f.cor || FASE_CUSTOM_COR) === c.hex ? "2px solid #0f172a" : "1px solid #cbd5e1" }} />
+                        ))}
+                      </div>
+                    </>
                   )}
                 </div>
                 {/* Início */}
@@ -2214,7 +2300,9 @@ function gerarSlidesXmls({ projeto, raias, timeline, usaPacotes, pacotes }) {
       });
     });
   }
-  if (!units.length) return [gerarSlideXml({ projeto, raias, timeline, usaPacotes, pacotes })];
+  // Legenda é do PROJETO inteiro, não da página — senão cada slide mostra uma legenda.
+  const legenda = legendaDoProjeto(raias);
+  if (!units.length) return [gerarSlideXml({ projeto, raias, timeline, usaPacotes, pacotes, legenda })];
 
   // 2) Fatiar em páginas respeitando MAX_LINHAS e a altura útil
   const pages = [];
@@ -2237,14 +2325,14 @@ function gerarSlidesXmls({ projeto, raias, timeline, usaPacotes, pacotes }) {
   return pages.map(page => {
     const pageRaias = page.filter(u => u.kind === 'raia').map(u => u.r);
     if (!usaPacotes || !pacotes?.length) {
-      return gerarSlideXml({ projeto, raias: pageRaias, timeline, usaPacotes: false, pacotes: [] });
+      return gerarSlideXml({ projeto, raias: pageRaias, timeline, usaPacotes: false, pacotes: [], legenda });
     }
     const pagePacotes = page.filter(u => u.kind === 'pac').map(u => ({ ...u.pac, raiaIds: [] }));
     page.filter(u => u.kind === 'raia').forEach(u => {
       const p = pagePacotes.find(pp => pp.id === u.pacId);
       if (p) p.raiaIds.push(u.r.id);
     });
-    return gerarSlideXml({ projeto, raias: pageRaias, timeline, usaPacotes: true, pacotes: pagePacotes });
+    return gerarSlideXml({ projeto, raias: pageRaias, timeline, usaPacotes: true, pacotes: pagePacotes, legenda });
   });
 }
 
@@ -2282,7 +2370,7 @@ function gerarSlideContXml({ projeto, raias, timeline, slideNum, totalSlides }) 
   return fullXml;
 }
 
-function gerarSlideXml({ projeto, raias, timeline, usaPacotes, pacotes }) {
+function gerarSlideXml({ projeto, raias, timeline, usaPacotes, pacotes, legenda }) {
   const S = [];
   const HX = (c) => (c || "").replace("#", "");
   const cells = timeline.cells;
@@ -2315,11 +2403,15 @@ function gerarSlideXml({ projeto, raias, timeline, usaPacotes, pacotes }) {
 
   // cronograma + legenda
   S.push(shape({ x:0.1,y:2.0,w:3,h:0.26,text:"Cronograma de Execução",textOpt:{sz:1300,bold:true,color:"003B82"} }));
-  let lx=6.5;
-  Object.entries(FASES).forEach(([k,v])=>{
-    S.push(shape({ x:lx,y:2.07,w:0.11,h:0.11,fill:HX(v) }));
-    S.push(shape({ x:lx+0.14,y:2.0,w:1.25,h:0.22,text:k,textOpt:{sz:700,color:"334155",anchor:"ctr",wrap:"none"} }));
-    lx+=0.14+k.length*0.066+0.12;
+  // Legenda automática: só as fases em uso no projeto.
+  // Largura calculada para não estourar a borda direita do slide (X1).
+  const legItens = legenda || legendaDoProjeto(raias);
+  const legW = legItens.reduce((s,it)=> s + 0.14 + it.label.length*0.066 + 0.12, 0);
+  let lx = Math.max(3.4, Math.min(6.5, X1 - legW));
+  legItens.forEach(it=>{
+    S.push(shape({ x:lx,y:2.07,w:0.11,h:0.11,fill:HX(it.cor) }));
+    S.push(shape({ x:lx+0.14,y:2.0,w:Math.max(0.4,it.label.length*0.066+0.1),h:0.22,text:it.label,textOpt:{sz:700,color:"334155",anchor:"ctr",wrap:"none"} }));
+    lx += 0.14 + it.label.length*0.066 + 0.12;
   });
 
   // cabeçalho grade — cores exatas do template
@@ -2397,7 +2489,7 @@ function gerarSlideXml({ projeto, raias, timeline, usaPacotes, pacotes }) {
     const MIN_BAR=0.25;
     r.fases.forEach((f,fi)=>{
       const lane=asgn[fi]; const cy2=lTop+lane*(lBarH+lGap);
-      const rawCor = f.fase===FASE_CUSTOM ? '#64748B' : (FASES[f.fase]||"#999999");
+      const rawCor = faseCor(f); // respeita a cor escolhida na fase manual
       const cor=HX(rawCor); const corL=tintHex(cor);
       const frac=Math.max(0,Math.min(1,(Number(f.pct)||0)/100));
       if(f.aDefinir){
