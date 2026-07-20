@@ -19,7 +19,7 @@ const FASES = {
   Desenvolvimento:"#0070C0",
   "Homologação":  "#ED7D31",
   Entrega:        "#00B050",
-  "Op. Assistida":"#00B050",
+  "Op. Assistida":"#006100",
 };
 const ORDEM_FASES = Object.keys(FASES);
 const FASE_CUSTOM = '__manual__';
@@ -82,7 +82,7 @@ function legendaDoProjeto(raias) {
   });
   const itens = [];
   ORDEM_FASES.forEach(nome => {
-    if (usadas.has(nome)) { itens.push({ label: nome, cor: usadas.get(nome) }); usadas.delete(nome); }
+    if (usadas.has(nome)) { itens.push({ label: nome, cor: usadas.get(nome), estrela: nome === 'Entrega' }); usadas.delete(nome); }
   });
   [...usadas.entries()]
     .sort((a, b) => a[0].localeCompare(b[0], 'pt-BR'))
@@ -120,7 +120,7 @@ function calcPacoteInfo(pac, pacRaias) {
 }
 
 function statusCor(s) {
-  return s === 'Concluído' ? '#00B050' : s === 'Monitoramento e Controle' ? '#0891B2' : s === 'Op. Assistida' ? '#14B8A6' : s === 'Aguardando Publicação' ? '#F59E0B' : s === 'Em Andamento' ? '#0070C0' : s === 'Atrasado' ? '#C00000' : '#94A3B8';
+  return s === 'Concluído' ? '#00B050' : s === 'Monitoramento e Controle' ? '#0891B2' : s === 'Op. Assistida' ? '#006100' : s === 'Aguardando Publicação' ? '#F59E0B' : s === 'Em Andamento' ? '#0070C0' : s === 'Atrasado' ? '#C00000' : '#94A3B8';
 }
 
 const STATUS_GERAL = {
@@ -138,6 +138,17 @@ function tint(hex, amount = 0.78) {
   g = Math.round(g + (255 - g) * amount);
   b = Math.round(b + (255 - b) * amount);
   return `rgb(${r},${g},${b})`;
+}
+
+// Cor de fonte legível sobre um fundo qualquer.
+// Luminância relativa (WCAG): fundo escuro → branco, fundo claro → chumbo.
+// Sem lista de cores — fase nova/customizada entra sozinha na regra.
+function textoSobre(hex) {
+  const n = parseInt(String(hex).replace('#', ''), 16);
+  if (isNaN(n)) return '#1F2937';
+  const lin = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+  const L = 0.2126 * lin((n >> 16) & 255) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255);
+  return L < 0.45 ? '#FFFFFF' : '#1F2937';
 }
 
 const MESES = ["JAN","FEV","MAR","ABRIL","MAIO","JUNHO","JUL","AGO","SET","OUT","NOV","DEZ"];
@@ -1649,7 +1660,10 @@ const GANTT_MAX_H = 440; // altura máxima antes de rolar
           <div style={{ display: "flex", gap: 12, fontSize: 11, flexWrap: "wrap", maxWidth: 560, justifyContent: "flex-end" }}>
             {legendaDoProjeto(raias).map((it) => (
               <span key={it.label} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                <span style={{ width: 9, height: 9, background: it.cor, borderRadius: 2, display: "inline-block", border: it.cor === A_DEFINIR_COR ? "1px solid #94a3b8" : "none" }} />{it.label}
+                {it.estrela
+                  ? <span style={{ color: it.cor, fontSize: 12, lineHeight: 1, display: "inline-block" }}>★</span>
+                  : <span style={{ width: 9, height: 9, background: it.cor, borderRadius: 2, display: "inline-block", border: it.cor === A_DEFINIR_COR ? "1px solid #94a3b8" : "none" }} />}
+                {it.label}
               </span>
             ))}
           </div>
@@ -1711,7 +1725,7 @@ const GANTT_MAX_H = 440; // altura máxima antes de rolar
               const dtInicio = ddmm(r.fases[0]?.inicio || "");
               // altura dinâmica: cresce com o número de lanes
               const { numLanes } = r.despriorizado ? { numLanes: 1 } : assignLanes(r.fases);
-              const LANE_H = 12, LANE_GAP = 2, LANE_PAD = 8;
+              const LANE_H = 14, LANE_GAP = 2, LANE_PAD = 8;
               const rh = numLanes <= 1 ? ROW_H : Math.max(ROW_H, numLanes * LANE_H + (numLanes - 1) * LANE_GAP + LANE_PAD);
               return (
                 <div key={r.id} style={{ display: "flex", borderBottom: "1px solid #D9D9D9", minHeight: rh, alignItems: "stretch", background: "#F2F2F2" }}>
@@ -1764,8 +1778,8 @@ const GANTT_MAX_H = 440; // altura máxima antes de rolar
                       {f0pac != null && f1pac != null && (
                         <div style={{ position: "absolute", top: "50%", transform: "translateY(-50%)", left: `${f0pac*100}%`, width: `${Math.max((f1pac-f0pac)*100,2)}%`, height: 18, borderRadius: 9, overflow: "hidden", background: tint(sCor.replace('#','')) ? tint(sCor) : "#C7D7F0" }}>
                           <div style={{ position:"absolute", left:0, top:0, bottom:0, width:`${frac*100}%`, background: sCor, borderRadius:9 }} />
-                          <span style={{ position:"absolute", left:5, top:"50%", transform:"translateY(-50%)", fontSize:8.5, fontWeight:700, color: frac>0.15?"#fff":"#1e293b", zIndex:2, whiteSpace:"nowrap" }}>{info.pctMedia}%</span>
-                          <span style={{ position:"absolute", right:4, top:"50%", transform:"translateY(-50%)", fontSize:8, fontWeight:700, color: frac>0.9?"#fff":"#1e293b", zIndex:2, whiteSpace:"nowrap" }}>{ddmm(info.maxFim)}</span>
+                          <span style={{ position:"absolute", left:5, top:"50%", transform:"translateY(-50%)", fontSize:8.5, fontWeight:700, color: frac>0.12?textoSobre(sCor):"#1F2937", zIndex:2, whiteSpace:"nowrap" }}>{info.pctMedia}%</span>
+                          <span style={{ position:"absolute", right:4, top:"50%", transform:"translateY(-50%)", fontSize:8, fontWeight:700, color: frac>0.9?textoSobre(sCor):"#1F2937", zIndex:2, whiteSpace:"nowrap" }}>{ddmm(info.maxFim)}</span>
                         </div>
                       )}
                     </div>
@@ -1808,7 +1822,7 @@ function BarRow({ r, cells, atualizadoEm, rowH = 32 }) {
 
   const { assignments, numLanes } = assignLanes(r.fases);
   const GAP = numLanes > 1 ? 2 : 0;
-  const laneH = numLanes > 1 ? Math.max(8, Math.floor((rowH - 4 - GAP * (numLanes - 1)) / numLanes)) : 14;
+  const laneH = 14; // altura fixa por fase — a raia cresce, a barra não encolhe
   const totalH = numLanes * laneH + (numLanes - 1) * GAP;
   const topBase = Math.max(0, (rowH - totalH) / 2);
 
@@ -1844,43 +1858,27 @@ function BarRow({ r, cells, atualizadoEm, rowH = 32 }) {
         const f1 = dateToFrac(fimEfetivo, cells);
         if (f0 == null || f1 == null || f1 < f0) return null;
 
+        // ── ENTREGA: marco em estrela (cor da faixa), sem barra e sem % ──
+        if (f.fase === 'Entrega') {
+          const estLeft = f1 * 100;
+          const textoData = f.fimRepactuado ? ddmm(f.fim) + " → " + ddmm(fimEfetivo) : ddmm(fimEfetivo);
+          return (
+            <div key={i} style={{ position: "absolute", left: `${estLeft}%`, top: `${top}px`, height: `${laneH}px`, display: "flex", alignItems: "center", zIndex: lane + 2, whiteSpace: "nowrap", marginLeft: `-${laneH / 2}px` }}>
+              <span style={{ fontSize: laneH + 2, lineHeight: 1, color: cor }}>★</span>
+              <span style={{ marginLeft: 2, fontSize: 8, fontWeight: 700, color: "#1F2937" }}>{textoData}</span>
+            </div>
+          );
+        }
+
         const frac = Math.max(0, Math.min(1, (Number(f.pct) || 0) / 100));
         const naturalW = (f1 - f0) * 100;
-        // limitar ao mês atual — se não cabe à frente, cresce para trás
+        // Célula onde a fase começa/termina — usado só para detectar trimestre comprimido.
         const currCell = cells.find(c => f0 >= c.f0 && f0 < c.f1) || cells[cells.length - 1];
-        const mesLabel = currCell?.mesLabel;
-        const lastCellOfMes = mesLabel
-          ? [...cells].reverse().find(c => c.mesLabel === mesLabel && !c.futuro)
-          : currCell;
-        const firstCellOfMes = mesLabel
-          ? cells.find(c => c.mesLabel === mesLabel && !c.futuro)
-          : currCell;
-        const monthEnd   = lastCellOfMes?.f1 ?? 1;
-        const monthStart = firstCellOfMes?.f0 ?? 0;
-        const MIN_W = 8; // % mínimo para caber o texto
-        const spaceAhead = (monthEnd - f0) * 100;
+        const f1Cell   = cells.find(c => f1 >= c.f0 && f1 < c.f1) || cells[cells.length - 1];
 
-        // fim está no mesmo mês que início?
-        const f1Cell = cells.find(c => f1 >= c.f0 && f1 < c.f1) || cells[cells.length-1];
-        const sameMonth = !!(mesLabel && mesLabel === f1Cell?.mesLabel && !f1Cell?.futuro);
-
-        // isNarrow: barra que cabe dentro do mês atual mas não tem espaço à frente para o texto
-        // Se fim estiver em outro mês/trimestre, renderiza normalmente (não ajusta)
-        const isNarrow = sameMonth && spaceAhead < MIN_W;
-        // displayW:
-        //   - isNarrow (mesmo mês, sem espaço à frente) → cresce para trás, limitado ao mês
-        //   - barra curta com fim em mês/tri diferente → pode crescer para frente livremente
-        //   - normal → usa naturalW
-        // const displayW = isNarrow
-          // ? Math.max(naturalW, Math.min(MIN_W, (monthEnd - monthStart) * 100))
-         // : !sameMonth && naturalW < MIN_W ? Math.max(naturalW, MIN_W)
-         //  : naturalW;
-
-      // Fase inteira em tri comprimido → ocupa coluna inteira.
-        // Fase que INICIA em tri comprimido (e transborda) → âncora no INÍCIO da coluna.
-        // Fase que TERMINA em tri comprimido (começou no vigente) → âncora no FIM da coluna.
-        // Consistência visual: textos e barras respeitam os limites das colunas comprimidas.
-        const iniciaEmComprimido = !!currCell?.futuro;
+        // Tri comprimido (anterior/posterior) = célula única larga → barra preenche a coluna inteira.
+        // Tri vigente → largura real da barra; o texto migra pra direita se não couber.
+        const iniciaEmComprimido  = !!currCell?.futuro;
         const terminaEmComprimido = !!f1Cell?.futuro;
         const emTrimestreComprimido = iniciaEmComprimido && terminaEmComprimido && currCell === f1Cell;
 
@@ -1889,17 +1887,10 @@ function BarRow({ r, cells, atualizadoEm, rowH = 32 }) {
           displayLeft = currCell.f0 * 100;
           displayW = (currCell.f1 - currCell.f0) * 100;
         } else if (iniciaEmComprimido || terminaEmComprimido) {
-          const leftFrac = iniciaEmComprimido ? currCell.f0 : f0;
-          const rightFrac = terminaEmComprimido ? f1Cell.f1 : f1;
+          const leftFrac  = iniciaEmComprimido  ? currCell.f0 : f0;
+          const rightFrac = terminaEmComprimido ? f1Cell.f1   : f1;
           displayLeft = leftFrac * 100;
           displayW = (rightFrac - leftFrac) * 100;
-        } else if (isNarrow) {
-          
-          displayW = Math.max(naturalW, Math.min(MIN_W, (monthEnd - monthStart) * 100));
-          displayLeft = (spaceAhead < displayW ? Math.max(monthStart, monthEnd - displayW / 100) : f0) * 100;
-        } else if (!sameMonth && naturalW < MIN_W) {
-          displayW = Math.max(naturalW, MIN_W);
-          displayLeft = f0 * 100;
         } else {
           displayW = naturalW;
           displayLeft = f0 * 100;
@@ -1916,35 +1907,35 @@ function BarRow({ r, cells, atualizadoEm, rowH = 32 }) {
               )}
               <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${frac * 100}%`, background: cor, borderRadius: laneH / 2 }} />
             </div>
-            {!isNarrow && (
-              <span style={{ position: "absolute", left: 4, top: "50%", transform: "translateY(-50%)", zIndex: 2, fontSize: 8.5, fontWeight: 700, color: frac > 0.12 ? "#fff" : "#1e293b", whiteSpace: "nowrap" }}>
-                {f.pct || 0}%
-              </span>
-            )}
-           {/* <span style={{ position: "absolute", right: 3, top: "50%", transform: "translateY(-50%)", zIndex: 2, fontSize: 8, fontWeight: 700, color: frac >= 0.9 ? "#fff" : "#1e293b", whiteSpace: "nowrap" }}>
-              {isNarrow ? `${f.pct||0}% ` : ""}
-              {f.fimRepactuado ? ddmm(f.fim) + " → " + ddmm(f.fimRepactuado) : ddmm(fimEfetivo)}
-            </span> */}
 
             {(() => {
               const textoDatas = f.fimRepactuado ? ddmm(f.fim) + " → " + ddmm(f.fimRepactuado) : ddmm(fimEfetivo);
-              const textoCompleto = isNarrow ? `${f.pct||0}% ${textoDatas}` : textoDatas;
-              // Estimativa: ~4.5px por caractere em fonte 8px bold
-              const larguraTextoPx = textoCompleto.length * 4.5;
-              const larguraBarraAprox = (displayW / 100) * 900; // aproximação da largura do Gantt em px
-              // Em trimestre comprimido: força texto DENTRO da barra (regra: nunca vazar)
-              const textoCabeDentro = emTrimestreComprimido || (larguraTextoPx < larguraBarraAprox - 8);
+              const textoPct   = `${f.pct || 0}%`;
+              const GANTT_PX = 900;   // largura útil aproximada da área de barras
+              const CHAR_PX  = 4.7;   // largura média por caractere @ 8px bold
+              const barraPx  = (displayW / 100) * GANTT_PX;
+              const pctPx    = textoPct.length * CHAR_PX;
+              const datasPx  = textoDatas.length * CHAR_PX;
+              // Cabe se os DOIS textos couberem lado a lado. Sem número mágico de largura de barra.
+              const cabeDentro = pctPx + datasPx + 10 < barraPx;
 
-              if (textoCabeDentro) {
+              if (cabeDentro) {
+                // Cor pelo PONTO MÉDIO de cada texto contra a fronteira do preenchimento:
+                // sobre a parte forte → contraste da cor da fase; sobre o envelope claro → chumbo.
+                const fimPreenchido = barraPx * frac;
+                const corPct   = (4 + pctPx / 2) < fimPreenchido ? textoSobre(cor) : "#1F2937";
+                const corDatas = (barraPx - 3 - datasPx / 2) < fimPreenchido ? textoSobre(cor) : "#1F2937";
                 return (
-                  <span style={{ position: "absolute", right: 3, top: "50%", transform: "translateY(-50%)", zIndex: 2, fontSize: emTrimestreComprimido ? 7 : 8, fontWeight: 700, color: frac >= 0.9 ? "#fff" : "#1e293b", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "clip", maxWidth: "100%" }}>
-                    {textoCompleto}
-                  </span>
+                  <>
+                    <span style={{ position:"absolute", left:4, top:"50%", transform:"translateY(-50%)", zIndex:2, fontSize:8.5, fontWeight:700, color:corPct, whiteSpace:"nowrap" }}>{textoPct}</span>
+                    <span style={{ position:"absolute", right:3, top:"50%", transform:"translateY(-50%)", zIndex:2, fontSize:8, fontWeight:700, color:corDatas, whiteSpace:"nowrap" }}>{textoDatas}</span>
+                  </>
                 );
               }
+              // Não cabe: texto inteiro à DIREITA da barra, mesmo transbordando mês/trimestre.
               return (
-                <span style={{ position: "absolute", left: "100%", marginLeft: 4, top: "50%", transform: "translateY(-50%)", zIndex: 3, fontSize: 8, fontWeight: 700, color: "#1e293b", whiteSpace: "nowrap" }}>
-                  {textoCompleto}
+                <span style={{ position:"absolute", left:"100%", marginLeft:4, top:"50%", transform:"translateY(-50%)", zIndex:3, fontSize:8, fontWeight:700, color:"#1F2937", whiteSpace:"nowrap" }}>
+                  {textoPct} {textoDatas}
                 </span>
               );
             })()}
@@ -2272,13 +2263,13 @@ function gerarSlidesXmls({ projeto, raias, timeline, usaPacotes, pacotes }) {
   const bodyBottom  = 5.92;
   const ALTURA_UTIL = bodyBottom - bodyTop;   // 3.01"
 
-  // Altura mínima de uma raia: cada fase ocupa uma lane exclusiva.
-  const MIN_LANE = 0.13;
+  // Altura mínima de uma raia: cada fase ocupa uma lane exclusiva, altura fixa por fase.
+  const LANE_H = 0.2; // altura fixa por fase (casa com o render) — antes MIN_LANE=0.13
   const alturaMinRaia = (r) => {
     if (r.despriorizado) return 0;
     const n = Math.max((r.fases || []).length, 1);
     if (n <= 1) return 0;
-    return n * MIN_LANE + (n - 1) * 0.02 + 0.06;
+    return n * LANE_H + (n - 1) * 0.02 + 0.06;
   };
 
   // Replica exatamente o cálculo interno de rowH de gerarSlideXml.
@@ -2286,43 +2277,12 @@ function gerarSlidesXmls({ projeto, raias, timeline, usaPacotes, pacotes }) {
     const rh = Math.min(0.42, ALTURA_UTIL / Math.max(us.length, 7));
     return us.reduce((s, u) => s + (u.kind === 'pac' ? rh : Math.max(rh, u.min)), 0);
   };
+  const cabe = (us) => us.length <= MAX_LINHAS && alturaPagina(us) <= ALTURA_UTIL + 0.02;
 
-  // 1) Linearizar tudo na ORDEM cadastrada
-  const units = [];
-  if (!usaPacotes || !pacotes?.length) {
-    raias.forEach(r => units.push({ kind: 'raia', r, min: alturaMinRaia(r) }));
-  } else {
-    pacotes.forEach(pac => {
-      units.push({ kind: 'pac', pac });
-      pac.raiaIds.forEach(id => {
-        const r = raias.find(x => x.id === id);
-        if (r) units.push({ kind: 'raia', r, min: alturaMinRaia(r), pacId: pac.id });
-      });
-    });
-  }
   // Legenda é do PROJETO inteiro, não da página — senão cada slide mostra uma legenda.
   const legenda = legendaDoProjeto(raias);
-  if (!units.length) return [gerarSlideXml({ projeto, raias, timeline, usaPacotes, pacotes, legenda })];
 
-  // 2) Fatiar em páginas respeitando MAX_LINHAS e a altura útil
-  const pages = [];
-  let cur = [];
-  for (const u of units) {
-    const tentativa = [...cur, u];
-    const estoura = cur.length > 0 &&
-      (tentativa.length > MAX_LINHAS || alturaPagina(tentativa) > ALTURA_UTIL + 0.02);
-    if (estoura) { pages.push(cur); cur = []; }
-    // Se a página nova começa com raia de um pacote, repete o cabeçalho do pacote.
-    if (cur.length === 0 && u.kind === 'raia' && u.pacId) {
-      const pac = pacotes.find(p => p.id === u.pacId);
-      if (pac) cur.push({ kind: 'pac', pac });
-    }
-    cur.push(u);
-  }
-  if (cur.length) pages.push(cur);
-
-  // 3) Cada página vira um slide completo
-  return pages.map(page => {
+  const montaSlide = (page) => {
     const pageRaias = page.filter(u => u.kind === 'raia').map(u => u.r);
     if (!usaPacotes || !pacotes?.length) {
       return gerarSlideXml({ projeto, raias: pageRaias, timeline, usaPacotes: false, pacotes: [], legenda });
@@ -2333,7 +2293,47 @@ function gerarSlidesXmls({ projeto, raias, timeline, usaPacotes, pacotes }) {
       if (p) p.raiaIds.push(u.r.id);
     });
     return gerarSlideXml({ projeto, raias: pageRaias, timeline, usaPacotes: true, pacotes: pagePacotes, legenda });
+  };
+
+  // ── SEM PACOTES: quebra linha a linha (ordem cadastrada) ──
+  if (!usaPacotes || !pacotes?.length) {
+    const units = raias.map(r => ({ kind: 'raia', r, min: alturaMinRaia(r) }));
+    if (!units.length) return [gerarSlideXml({ projeto, raias, timeline, usaPacotes, pacotes, legenda })];
+    const pages = []; let cur = [];
+    for (const u of units) {
+      if (cur.length > 0 && !cabe([...cur, u])) { pages.push(cur); cur = []; }
+      cur.push(u);
+    }
+    if (cur.length) pages.push(cur);
+    return pages.map(montaSlide);
+  }
+
+  // ── COM PACOTES: cada pacote começa no topo de uma página, salvo se couber inteiro no resto ──
+  const pages = []; let cur = [];
+  const flush = () => { if (cur.length) { pages.push(cur); cur = []; } };
+  pacotes.forEach(pac => {
+    const pacRaias = pac.raiaIds.map(id => raias.find(x => x.id === id)).filter(Boolean);
+    const header = { kind: 'pac', pac };
+    const raiaUnits = pacRaias.map(r => ({ kind: 'raia', r, min: alturaMinRaia(r), pacId: pac.id }));
+    const bloco = [header, ...raiaUnits];
+    if (cabe(bloco)) {
+      // pacote inteiro cabe numa página; junta ao resto se couber, senão nova página
+      if (cur.length > 0 && !cabe([...cur, ...bloco])) flush();
+      cur.push(...bloco);
+    } else {
+      // pacote maior que uma página: SEMPRE começa numa página nova, depois quebra repetindo o cabeçalho
+      flush();
+      let sub = [header];
+      for (const u of raiaUnits) {
+        if (sub.length > 1 && !cabe([...sub, u])) { pages.push(sub); sub = [header, u]; }
+        else sub.push(u);
+      }
+      cur = sub; // resto vira página corrente (um próximo pacote pequeno pode compartilhar)
+    }
   });
+  flush();
+  if (!pages.length) return [gerarSlideXml({ projeto, raias, timeline, usaPacotes, pacotes, legenda })];
+  return pages.map(montaSlide);
 }
 
 function baixarPptx(projects) {
@@ -2409,7 +2409,8 @@ function gerarSlideXml({ projeto, raias, timeline, usaPacotes, pacotes, legenda 
   const legW = legItens.reduce((s,it)=> s + 0.14 + it.label.length*0.066 + 0.12, 0);
   let lx = Math.max(3.4, Math.min(6.5, X1 - legW));
   legItens.forEach(it=>{
-    S.push(shape({ x:lx,y:2.07,w:0.11,h:0.11,fill:HX(it.cor) }));
+    if (it.estrela) S.push(shape({ x:lx-0.02,y:2.03,w:0.16,h:0.16,prst:"star5",fill:HX(it.cor) }));
+    else            S.push(shape({ x:lx,y:2.07,w:0.11,h:0.11,fill:HX(it.cor) }));
     S.push(shape({ x:lx+0.14,y:2.0,w:Math.max(0.4,it.label.length*0.066+0.1),h:0.22,text:it.label,textOpt:{sz:700,color:"334155",anchor:"ctr",wrap:"none"} }));
     lx += 0.14 + it.label.length*0.066 + 0.12;
   });
@@ -2439,21 +2440,12 @@ function gerarSlideXml({ projeto, raias, timeline, usaPacotes, pacotes, legenda 
   const rowH=Math.min(0.42,(bodyBottom-bodyTop)/nRows);
   const barH=Math.min(0.2,rowH*0.55);
 
-  // altura por raia: usa lane mínima de 0.13in (~9pt) para não sobrescrever
+  // altura por raia: uma lane por fase (MESMA contagem do render), barra fixa (barH) por fase
   const calcRhPptx = (r) => {
     if (r.despriorizado) return rowH;
-    const comDatas = (r.fases||[]).filter(f=>!f.aDefinir);
-    const semDatas = (r.fases||[]).filter(f=>f.aDefinir);
-    const ends=[];
-    [...comDatas].sort((a,b)=>(a.inicio||'')<=(b.inicio||'')?-1:1).forEach(f=>{
-      const fim=f.fimRepactuado||f.fim||'';
-      let l=ends.findIndex(e=>(e||'')<(f.inicio||''));
-      if(l===-1){l=ends.length;ends.push('');}ends[l]=fim;
-    });
-    const numLanes = Math.max(ends.length + semDatas.length, 1);
+    const numLanes = Math.max((r.fases || []).length, 1);
     if (numLanes <= 1) return rowH;
-    const MIN_LANE = 0.13; // altura mínima legível por lane (~9pt)
-    const needed = numLanes * MIN_LANE + (numLanes-1)*0.02 + 0.06;
+    const needed = numLanes * barH + (numLanes - 1) * 0.02 + 0.06;
     return Math.max(rowH, needed);
   };
 
@@ -2464,7 +2456,7 @@ function gerarSlideXml({ projeto, raias, timeline, usaPacotes, pacotes, legenda 
     S.push(shape({x:0.16,y:ry,w:0.64,h:rh,text:r.lecom||"",textOpt:{sz:900,color:"404040",algn:"ctr",anchor:"ctr",wrap:"none"}}));
     S.push(shape({x:0.86,y:ry,w:2.28,h:rh,text:r.nome||"",textOpt:{sz:900,bold:true,color:"1F2A44",anchor:"ctr"}}));
     const stRaw = r.despriorizado ? 'Despriorizado' : (r.statusDemanda || 'A iniciar');
-    const stCor = r.despriorizado ? '7F7F7F' : stRaw === 'Concluído' ? '00B050' : stRaw === 'Monitoramento e Controle' ? '0891B2' : stRaw === 'Op. Assistida' ? '14B8A6' : stRaw === 'Aguardando Publicação' ? 'F59E0B' : stRaw === 'Em Andamento' ? '0070C0' : stRaw === 'Atrasado' ? 'C00000' : '94A3B8';
+    const stCor = r.despriorizado ? '7F7F7F' : stRaw === 'Concluído' ? '00B050' : stRaw === 'Monitoramento e Controle' ? '0891B2' : stRaw === 'Op. Assistida' ? '006100' : stRaw === 'Aguardando Publicação' ? 'F59E0B' : stRaw === 'Em Andamento' ? '0070C0' : stRaw === 'Atrasado' ? 'C00000' : '94A3B8';
     S.push(shape({x:3.18,y:ry,w:0.98,h:rh,text:stRaw,textOpt:{sz:900,bold:true,color:stCor,algn:"ctr",anchor:"ctr",wrap:"none"}}));
     const dtIni=(()=>{const d=r.fases[0]?.inicio||"";if(!d)return"";const x=new Date(d+"T12:00:00");if(isNaN(x))return"";return String(x.getDate()).padStart(2,"0")+"/"+String(x.getMonth()+1).padStart(2,"0");})();
     S.push(shape({x:4.18,y:ry,w:0.68,h:rh,text:dtIni,textOpt:{sz:900,color:"404040",algn:"ctr",anchor:"ctr",wrap:"none"}}));
@@ -2482,11 +2474,10 @@ function gerarSlideXml({ projeto, raias, timeline, usaPacotes, pacotes, legenda 
     };
     
     const {asgn,n:numL}=lanesInfo;
-    const lBarH=numL>1?Math.min(barH,(rh*0.75)/numL):barH;
+    const lBarH=barH;               // altura fixa por fase, igual à de fase única
     const lGap=numL>1?0.02:0;
     const totH=numL*lBarH+(numL-1)*lGap;
     const lTop=ry+Math.max(0,(rh-totH)/2);
-    const MIN_BAR=0.25;
     r.fases.forEach((f,fi)=>{
       const lane=asgn[fi]; const cy2=lTop+lane*(lBarH+lGap);
       const rawCor = faseCor(f); // respeita a cor escolhida na fase manual
@@ -2503,20 +2494,25 @@ function gerarSlideXml({ projeto, raias, timeline, usaPacotes, pacotes, legenda 
         return;
       }
       const fimEfetivo = f.fimRepactuado || f.fim;
+      // ── ENTREGA: marco em estrela (cor da faixa), sem barra e sem % ──
+      if(f.fase==='Entrega'){
+        const estX=dX(fimEfetivo); if(estX==null) return;
+        const estSize=lBarH*1.25; const estY=cy2+(lBarH-estSize)/2;
+        S.push(shape({x:estX-estSize/2,y:estY,w:estSize,h:estSize,prst:"star5",fill:cor}));
+        const dTxt=f.fimRepactuado?ddmm(f.fim)+'→'+ddmm(f.fimRepactuado):ddmm(fimEfetivo);
+        S.push(shape({x:estX+estSize/2+0.02,y:cy2,w:1.6,h:lBarH,text:dTxt,textOpt:{sz:700,bold:true,color:"1F2937",algn:"l",anchor:"ctr",wrap:"none"}}));
+        return;
+      }
       const xa=dX(f.inicio), xb=dX(fimEfetivo);
       if(xa==null||xb==null) return;
       const naturalW=Math.max(xb-xa,0);
-      const MIN_DISPLAY=0.6; // ~polegadas mínimas para caber % + data
       const f1fracPptx=dateToFrac(fimEfetivo,cells);
       const f0fracPptx=dateToFrac(f.inicio,cells);
       const f1cellPptx=f1fracPptx!=null?cells.find(c=>f1fracPptx>=c.f0&&f1fracPptx<c.f1)||cells[cells.length-1]:null;
       const f0cellPptx=f0fracPptx!=null?cells.find(c=>f0fracPptx>=c.f0&&f0fracPptx<c.f1)||cells[cells.length-1]:null;
-      const sameMonthPptx=!!(f0cellPptx?.mesLabel&&f0cellPptx.mesLabel===f1cellPptx?.mesLabel&&!f1cellPptx?.futuro);
-      
-      // Fase inteira em tri comprimido → ocupa coluna inteira.
-      // Fase que INICIA em tri comprimido → âncora no início da coluna.
-      // Fase que TERMINA em tri comprimido → âncora no fim da coluna.
-      // Consistência total com o preview em tela.
+
+      // Tri comprimido (anterior/posterior) = coluna única → barra preenche a coluna inteira.
+      // Tri vigente → largura real; o texto migra pra direita se não couber.
       const iniciaComprimidoPptx = !!f0cellPptx?.futuro;
       const terminaComprimidoPptx = !!f1cellPptx?.futuro;
       const emComprimidoPptx = iniciaComprimidoPptx && terminaComprimidoPptx && f0cellPptx === f1cellPptx;
@@ -2530,8 +2526,9 @@ function gerarSlideXml({ projeto, raias, timeline, usaPacotes, pacotes, legenda 
         const rightX = terminaComprimidoPptx ? fx(f1cellPptx.f1) : xb;
         barW = rightX - barX;
       } else {
+        // Tri vigente: largura real. Texto migra pra direita se não couber.
         barX = xa;
-        barW = sameMonthPptx ? Math.max(naturalW, MIN_BAR) : Math.max(naturalW, naturalW < MIN_DISPLAY ? MIN_DISPLAY : MIN_BAR);
+        barW = naturalW;
       }
       const xd = barX + barW * frac;
       
@@ -2539,13 +2536,20 @@ function gerarSlideXml({ projeto, raias, timeline, usaPacotes, pacotes, legenda 
       if(f.fimRepactuado){const xbOrig=dX(f.fim);if(xbOrig!=null&&xbOrig<xb){S.push(shape({x:xbOrig-0.01,y:cy2,w:0.02,h:lBarH,fill:"F47B20"}));}}
       if(frac>0.01) S.push(shape({x:barX,y:cy2,w:barW*frac,h:lBarH,fill:cor,round:50000}));
       const dataTexto = f.fimRepactuado ? ddmm(f.fim)+'→'+ddmm(f.fimRepactuado) : ddmm(fimEfetivo);
-      // Em trimestre comprimido, barra é larga o suficiente pra dois textos (% esq + data dir)
-      const mostrar2Textos = naturalW >= MIN_BAR || emComprimidoPptx;
-      if(mostrar2Textos){
-        S.push(shape({x:barX+0.03,y:cy2,w:Math.max(0.3,xd-barX),h:lBarH,text:`${f.pct||0}%`,textOpt:{sz:700,bold:true,color:frac>0.12?"FFFFFF":"1E293B",algn:"l",anchor:"ctr",wrap:"none"}}));
-        S.push(shape({x:barX,y:cy2,w:barW,h:lBarH,text:dataTexto,textOpt:{sz:700,bold:true,color:frac>=0.9?"FFFFFF":"1E293B",algn:"r",anchor:"ctr",wrap:"none"}}));
+      const pctTexto  = `${f.pct||0}%`;
+      // Largura real do texto em polegadas: Calibri bold ≈ 0,5 × tamanho da fonte por caractere.
+      const larguraTexto = (t) => t.length * 7 * 0.5 / 72;   // sz:700 = 7pt
+      const wPct = larguraTexto(pctTexto), wData = larguraTexto(dataTexto);
+      const cabeDentro = wPct + wData + 0.08 < barW;
+      if(cabeDentro){
+        // Ponto médio de cada texto contra a fronteira do preenchimento (xd).
+        const corPct  = (barX + 0.03 + wPct/2) < xd ? HX(textoSobre(rawCor)) : "1F2937";
+        const corData = (barX + barW - 0.03 - wData/2) < xd ? HX(textoSobre(rawCor)) : "1F2937";
+        S.push(shape({x:barX+0.03,y:cy2,w:Math.max(0.3,xd-barX),h:lBarH,text:pctTexto,textOpt:{sz:700,bold:true,color:corPct,algn:"l",anchor:"ctr",wrap:"none"}}));
+        S.push(shape({x:barX,y:cy2,w:barW,h:lBarH,text:dataTexto,textOpt:{sz:700,bold:true,color:corData,algn:"r",anchor:"ctr",wrap:"none"}}));
       } else {
-        S.push(shape({x:barX,y:cy2,w:barW,h:lBarH,text:`${f.pct||0}% ${dataTexto}`,textOpt:{sz:700,bold:true,color:"1E293B",algn:"ctr",anchor:"ctr",wrap:"none"}}));
+        // Não cabe: texto inteiro à DIREITA da barra, fora dela.
+        S.push(shape({x:barX+barW+0.03,y:cy2,w:1.4,h:lBarH,text:`${pctTexto} ${dataTexto}`,textOpt:{sz:700,bold:true,color:"1F2937",algn:"l",anchor:"ctr",wrap:"none"}}));
       }
     });
   };
@@ -2559,7 +2563,7 @@ function gerarSlideXml({ projeto, raias, timeline, usaPacotes, pacotes, legenda 
       const pacRaias = pac.raiaIds.map(id => raias.find(r=>r.id===id)).filter(Boolean);
       const info = calcPacoteInfo(pac, pacRaias);
       
-      const sCor = info.status==='Concluído'?'00B050':info.status==='Monitoramento e Controle'?'0891B2':info.status==='Op. Assistida'?'14B8A6':info.status==='Aguardando Publicação'?'F59E0B':info.status==='Em Andamento'?'0070C0':info.status==='Atrasado'?'C00000':'94A3B8';
+      const sCor = info.status==='Concluído'?'00B050':info.status==='Monitoramento e Controle'?'0891B2':info.status==='Op. Assistida'?'006100':info.status==='Aguardando Publicação'?'F59E0B':info.status==='Em Andamento'?'0070C0':info.status==='Atrasado'?'C00000':'94A3B8';
       const pacH = rowH;
       const ry = curY;
       [[0.14,0.67],[0.81,2.37],[3.18,1.0],[4.18,0.69]].forEach(([cx,cw])=>S.push(shape({x:cx,y:ry,w:cw,h:pacH,fill:"EEF4FF",line:GRID_LN})));
@@ -2573,7 +2577,7 @@ function gerarSlideXml({ projeto, raias, timeline, usaPacotes, pacotes, legenda 
         const wPac=xbPac-xaPac; const frac=Math.max(0,Math.min(1,info.pctMedia/100));
         S.push(shape({x:xaPac,y:ry+(pacH-barH)/2,w:wPac,h:barH,fill:tintHex(sCor,0.7),round:50000}));
         if(frac>0.01) S.push(shape({x:xaPac,y:ry+(pacH-barH)/2,w:wPac*frac,h:barH,fill:sCor,round:50000}));
-        S.push(shape({x:xaPac,y:ry+(pacH-barH)/2,w:wPac,h:barH,text:`${info.pctMedia}%  ${ddmm(info.maxFim)}`,textOpt:{sz:700,bold:true,color:frac>0.5?"FFFFFF":"1E293B",algn:"ctr",anchor:"ctr",wrap:"none"}}));
+        S.push(shape({x:xaPac,y:ry+(pacH-barH)/2,w:wPac,h:barH,text:`${info.pctMedia}%  ${ddmm(info.maxFim)}`,textOpt:{sz:700,bold:true,color:frac>0.5?HX(textoSobre(sCor)):"1E293B",algn:"ctr",anchor:"ctr",wrap:"none"}}));
       }
       curY += pacH;
       pacRaias.forEach(r => { const rh=calcRhPptx(r); renderRaiaRow(r, curY, rh); curY+=rh; });
