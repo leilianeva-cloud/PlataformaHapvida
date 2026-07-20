@@ -89,6 +89,25 @@ function trunc(s, wMax = Infinity){
   if(!isNaN(d.getTime())&&String(val).length>6) return fmtDate(d);
   return String(val).trim()||"—";
 }
+/* Replan. das boxes Atrasados/Próximas — o campo pode trazer VÁRIAS datas
+   concatenadas (ex.: "21/05/2026 30/06/2026"), pois cada repactuação acumula
+   uma data. Regras: mostrar só a MAIS RECENTE (cronológica; empate → a última
+   escrita) e sem ano. Texto livre (ex.: "A definir") passa intacto; vazio → —.
+   Aceita ano de 2 ou 4 dígitos e separador de espaço simples ou duplo. */
+function parseNPdm(val){
+  const s=(val===null||val===undefined)?"":String(val).trim();
+  if(!s||s==="NaN") return "—";
+  const found=[...s.matchAll(/(\d{2})\/(\d{2})\/(\d{2,4})/g)];
+  if(found.length===0) return s;                       // texto livre → intacto
+  const parsed=found.map((m,i)=>{
+    const d=+m[1], mo=+m[2], y=m[3].length===2?2000+(+m[3]):(+m[3]);
+    return { key:new Date(y,mo-1,d).getTime(), dm:`${m[1]}/${m[2]}`, ord:i };
+  });
+  const valid=parsed.filter(p=>!isNaN(p.key));
+  if(valid.length===0){ const last=found[found.length-1]; return `${last[1]}/${last[2]}`; }
+  valid.sort((a,b)=> a.key-b.key || a.ord-b.ord);      // mais recente por último
+  return valid[valid.length-1].dm;
+}
 function stripPref(s){
   const str=String(s||"");
   return str.startsWith("Digital - ")?str.slice(10):str;
@@ -166,9 +185,9 @@ function processData(portBuf,melBuf,melSheetName,lider,trimestre,compromisso){
     const da=a[23] instanceof Date?a[23]:new Date("2099");
     const db=b[23] instanceof Date?b[23]:new Date("2099");
     return da-db;
-  }).map(r=>({lecom:String(r[0]||""),squad:stripPref(String(r[61]||"")),nome:String(r[2]||""),fase:String(r[19]||""),target:fmtDM(r[23]),np:parseNP(r[76])}));
+  }).map(r=>({lecom:String(r[0]||""),squad:stripPref(String(r[61]||"")),nome:String(r[2]||""),fase:String(r[19]||""),target:fmtDM(r[23]),np:parseNPdm(r[76])}));
 
-  const prx_proj=prx_p.map(r=>({lecom:String(r[0]||""),squad:stripPref(String(r[61]||"")),nome:String(r[2]||""),fase:String(r[19]||""),status:shortStatusP(r[20]),target:fmtDM(r[23]),np:parseNP(r[76])}));
+  const prx_proj=prx_p.map(r=>({lecom:String(r[0]||""),squad:stripPref(String(r[61]||"")),nome:String(r[2]||""),fase:String(r[19]||""),status:shortStatusP(r[20]),target:fmtDM(r[23]),np:parseNPdm(r[76])}));
 
   const bl_fin=fin.map(r=>({lecom:String(r[0]||""),squad:stripPref(String(r[61]||"")),nome:String(r[2]||""),fase:String(r[19]||""),status:shortStatusP(r[20]),target:fmtDate(r[23]),np:parseNP(r[76]),enc:ENTREGUES.includes(String(r[19]||""))}));
   const bl_ea=ea.map(r=>({lecom:String(r[0]||""),squad:stripPref(String(r[61]||"")),nome:String(r[2]||""),fase:String(r[19]||""),status:shortStatusP(r[20]),target:fmtDate(r[23]),np:parseNP(r[76]),enc:ENTREGUES.includes(String(r[19]||""))}));
