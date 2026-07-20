@@ -37,30 +37,52 @@ function fmtDate(v){
   }
   return "—";
 }
-/* ── AUTOFIT DA COLUNA "PROJETO" ───────────────────────────────────────────
-   Antes: truncava num limite fixo de 42 chars — medido na box do slide 2 e
-   aplicado também no Backlog, que é bem mais largo e tinha folga sobrando.
-   Agora: medimos as colunas em EMU, cada coluna que não é "Projeto" encolhe
-   até o que realmente precisa (maior entre cabeçalho e maior dado da semana),
-   e TODA a sobra vai para "Projeto". Só então truncamos — no limite real da
-   coluna já alargada. Fonte continua 8pt; a largura total da tabela não muda.
-   Calibração (a medição antiga, agora usada como métrica):
-     (2.383.200 EMU − 182.880 de padding) / 42 chars = 52.388 EMU por char @ 8pt
-   ────────────────────────────────────────────────────────────────────────── */
-const EMU_CHAR8 = 52388;   // largura média de 1 caractere a 8pt
-const CELL_PAD  = 182880;  // lIns + rIns padrão da célula (0,1" cada)
-const HDR_K     = 1.25;    // cabeçalho é maior/negrito → margem de segurança
-const NOME_COL  = 2;       // "Projeto" é a 3ª coluna em TODAS as tabelas
-const NOME_MIN  = 42;      // piso: nunca sair pior que o comportamento atual
-
-const wNeed  = (t,k=1)=>Math.ceil(String(t??"").length*EMU_CHAR8*k)+CELL_PAD;
-const charsIn= w=>Math.max(0,Math.floor((w-CELL_PAD)/EMU_CHAR8));
-
-function trunc(s, max = NOME_MIN){
-  const t = String(s ?? "");
-  return t.length > max ? t.slice(0, max - 1).trimEnd() + "…" : t;
+/* Versão dia/mês (sem ano) — usada SÓ nas boxes Atrasados/Próximas do slide 2.
+   fmtDate completa continua no backlog e na coluna Novo Plano. */
+function fmtDM(v){
+  const f=fmtDate(v);
+  return f==="—"?f:f.slice(0,5);   // "29/05/26" -> "29/05"
 }
-function parseNP(val){
+/* ── AUTOFIT DA COLUNA "PROJETO" ───────────────────────────────────────────
+   A constante fixa antiga (52.388 EMU/char) era uma ESTIMATIVA — vinha de um
+   comentário no código, não de medição. Ela super-alocava de 8% a 34% e roubava
+   espaço da coluna "Projeto". Aqui usamos a largura REAL de cada caractere em
+   Calibri 8pt (a fonte das células), medida com métrica Carlito e embutida.
+   Nomes que ainda não couberem numa linha simplesmente quebram — como o Squad
+   já faz hoje. Não truncamos mais no slide 2: o título sai completo, igual ao
+   backlog. A box tem folga vertical de sobra (medido: CAP=6 aguenta até todas
+   as linhas quebrando em duas), então a paginação não muda.
+   ────────────────────────────────────────────────────────────────────────── */
+const CELL_PAD = 182880;   // lIns + rIns padrão da célula (0,1" cada)
+const HDR_K    = 1.15;     // cabeçalho é negrito → pequena folga de segurança
+const NOME_COL = 2;        // "Projeto" é a 3ª coluna em TODAS as tabelas
+
+/* Largura em EMU de cada caractere a 8pt (Calibri, medido via Carlito).
+   Fallback = largura do "n" para qualquer caractere fora da tabela. */
+const CHAR_W = {32:22969, 33:33089, 34:40729, 35:50602, 36:51495, 37:72628, 38:69304, 39:22423, 40:30807, 41:30807, 42:50602, 43:50602, 44:25350, 45:31105, 46:25648, 47:39241, 48:51495, 49:51495, 50:51495, 51:51495, 52:51495, 53:51495, 54:51495, 55:51495, 56:51495, 57:51495, 58:27186, 59:27186, 60:50602, 61:50602, 62:50602, 63:47079, 64:90835, 65:58787, 66:55265, 67:54173, 68:62508, 69:49609, 70:46682, 71:64095, 72:63302, 73:25598, 74:32395, 75:52784, 76:42714, 77:86866, 78:65584, 79:67270, 80:52487, 81:68362, 82:55166, 83:46682, 84:49510, 85:65187, 86:57646, 87:90388, 88:52735, 89:49510, 90:47575, 91:31155, 92:39241, 93:31155, 94:50602, 95:50602, 96:29567, 97:48667, 98:53380, 99:42962, 100:53380, 101:50552, 102:31006, 103:47823, 104:53380, 105:23316, 106:24309, 107:46186, 108:23316, 109:81161, 110:53380, 111:53578, 112:53380, 113:53380, 114:35421, 115:39737, 116:34032, 117:53380, 118:45889, 119:72628, 120:44004, 121:45988, 122:40134, 123:31948, 124:46782, 125:31948, 126:50602, 170:40878, 186:42912, 192:58787, 193:58787, 194:58787, 195:58787, 199:54173, 201:49609, 202:49609, 205:25598, 211:67270, 212:67270, 213:67270, 218:65187, 220:65187, 224:48667, 225:48667, 226:48667, 227:48667, 231:42962, 233:50552, 234:50552, 237:23316, 243:53578, 244:53578, 245:53578, 250:53380, 252:53380, 8211:50602, 8212:91976, 8226:50602, 8230:70148};
+const CHAR_FB = 53380;
+
+const wOf   = ch => CHAR_W[ch.charCodeAt(0)] ?? CHAR_FB;
+const wStr  = (t,k=1)=>{let s=0;for(const c of String(t??"")) s+=wOf(c); return Math.ceil(s*k)+CELL_PAD;};
+const charsIn = (t,wMax)=>{ // quantos chars de t cabem numa coluna de wMax EMU
+  const cap=wMax-CELL_PAD; let s=0,i=0;
+  for(const c of String(t??"")){ s+=wOf(c); if(s>cap) break; i++; }
+  return i;
+};
+
+/* Trunca respeitando a largura REAL da coluna (não um nº fixo de chars).
+   wMax=Infinity → nunca trunca (usado no slide 2, título completo). */
+function trunc(s, wMax = Infinity){
+  const t = String(s ?? "");
+  if(!isFinite(wMax)) return t;
+  const cap = wMax - CELL_PAD;
+  let sum=0;
+  for(let i=0;i<t.length;i++){
+    sum += wOf(t[i]);
+    if(sum > cap) return t.slice(0, Math.max(1,i)).trimEnd() + "…";
+  }
+  return t;
+}function parseNP(val){
   if(val===null||val===undefined||String(val).trim()===""||String(val)==="NaN") return "—";
   if(val instanceof Date&&!isNaN(val)) return fmtDate(val);
   const d=new Date(val);
@@ -144,9 +166,9 @@ function processData(portBuf,melBuf,melSheetName,lider,trimestre,compromisso){
     const da=a[23] instanceof Date?a[23]:new Date("2099");
     const db=b[23] instanceof Date?b[23]:new Date("2099");
     return da-db;
-  }).map(r=>({lecom:String(r[0]||""),squad:stripPref(String(r[61]||"")),nome:String(r[2]||""),fase:String(r[19]||""),target:fmtDate(r[23]),np:parseNP(r[76])}));
+  }).map(r=>({lecom:String(r[0]||""),squad:stripPref(String(r[61]||"")),nome:String(r[2]||""),fase:String(r[19]||""),target:fmtDM(r[23]),np:parseNP(r[76])}));
 
-  const prx_proj=prx_p.map(r=>({lecom:String(r[0]||""),squad:stripPref(String(r[61]||"")),nome:String(r[2]||""),fase:String(r[19]||""),status:shortStatusP(r[20]),target:fmtDate(r[23]),np:parseNP(r[76])}));
+  const prx_proj=prx_p.map(r=>({lecom:String(r[0]||""),squad:stripPref(String(r[61]||"")),nome:String(r[2]||""),fase:String(r[19]||""),status:shortStatusP(r[20]),target:fmtDM(r[23]),np:parseNP(r[76])}));
 
   const bl_fin=fin.map(r=>({lecom:String(r[0]||""),squad:stripPref(String(r[61]||"")),nome:String(r[2]||""),fase:String(r[19]||""),status:shortStatusP(r[20]),target:fmtDate(r[23]),np:parseNP(r[76]),enc:ENTREGUES.includes(String(r[19]||""))}));
   const bl_ea=ea.map(r=>({lecom:String(r[0]||""),squad:stripPref(String(r[61]||"")),nome:String(r[2]||""),fase:String(r[19]||""),status:shortStatusP(r[20]),target:fmtDate(r[23]),np:parseNP(r[76]),enc:ENTREGUES.includes(String(r[19]||""))}));
@@ -179,8 +201,8 @@ function processData(portBuf,melBuf,melSheetName,lider,trimestre,compromisso){
   const fasM={};
   for(const r of allM){const s=canonFaseM(r[14]);fasM[s]=(fasM[s]||0)+1;}
 
-  const atraso_mel=at_m.sort((a,b)=>(a[12]||0)-(b[12]||0)).map(r=>({lecom:String(r[1]||""),squad:stripPref(String(r[34]||"")),nome:String(r[7]||""),status:shortStatusM(r[14]),target:fmtDate(r[12]),np:"—"}));
-  const prx_mel=er_m.map(r=>({lecom:String(r[1]||""),squad:stripPref(String(r[34]||"")),nome:String(r[7]||""),fase:"—",status:shortStatusM(r[14]),target:fmtDate(r[12]),np:"—"}));
+  const atraso_mel=at_m.sort((a,b)=>(a[12]||0)-(b[12]||0)).map(r=>({lecom:String(r[1]||""),squad:stripPref(String(r[34]||"")),nome:String(r[7]||""),status:shortStatusM(r[14]),target:fmtDM(r[12]),np:"—"}));
+  const prx_mel=er_m.map(r=>({lecom:String(r[1]||""),squad:stripPref(String(r[34]||"")),nome:String(r[7]||""),fase:"—",status:shortStatusM(r[14]),target:fmtDM(r[12]),np:"—"}));
   const bl_mel=allM.map(r=>({lecom:String(r[1]||""),squad:stripPref(String(r[34]||"")),nome:String(r[7]||""),status:shortStatusM(r[14]),target:fmtDate(r[12]),np:"—",fin:String(r[14]||"")==="06.Finalizado"}));
 
   const total_p=fin.length,total_m=allM.length,total_c=total_p+total_m;
@@ -307,54 +329,68 @@ function prxToTop(xml){
 const setTitleAt =(xml,t)=>xml.replace("<a:t>ENTREGAS EM ATRASO</a:t>",`<a:t>${esc(t)}</a:t>`);
 const setTitlePx =(xml,t)=>xml.replace("<a:t>ENTREGAS PRÓXIMAS</a:t>",`<a:t>${esc(t)}</a:t>`);
 
-/* Extrai a matriz de textos das células a partir das linhas já renderizadas.
-   Cada <a:tc> tem exatamente um <a:t>, então a ordem bate com as colunas. */
+/* Matriz de textos das células — cada <a:tc> renderizada tem um <a:t>. */
 function cellMatrix(rowsXml){
   return String(rowsXml||"").split("</a:tr>")
     .filter(s=>s.indexOf("<a:tc>")!==-1)
     .map(r=>[...r.matchAll(/<a:t>([^<]*)<\/a:t>/g)].map(m=>m[1]));
 }
 
-/* Redistribui os <a:gridCol> da tabela tblIdx: cada coluna que não é "Projeto"
-   encolhe até o que precisa (nunca alarga, nunca fica menor que o cabeçalho),
-   e a sobra inteira vai para "Projeto".
-   Retorna { xml, nomeMax } — nomeMax = chars que cabem na coluna resultante.
-   A soma das larguras é preservada, então o graphicFrame não precisa mudar. */
+/* Lê o cabeçalho por CÉLULA, concatenando runs — o template pode fragmentar
+   "Target de entrega" em dois runs; varredura genérica de <a:t> desalinha. */
+function headerCells(trXml,nCols){
+  const out=new Array(nCols).fill("");
+  const tcs=[...String(trXml||"").matchAll(/<a:tc(?:\s[^>]*?)?>[\s\S]*?<\/a:tc>/g)].map(m=>m[0]);
+  let c=0;
+  for(const tc of tcs){
+    if(c>=nCols) break;
+    const gs=parseInt((tc.match(/gridSpan="(\d+)"/)||[,"1"])[1],10);
+    if(!/hMerge="1"/.test(tc))
+      out[c]=[...tc.matchAll(/<a:t>([^<]*)<\/a:t>/g)].map(x=>x[1]).join("");
+    c+=gs;
+  }
+  return out;
+}
+
+/* Redistribui os <a:gridCol>: cada coluna que não é "Projeto" encolhe até o
+   que REALMENTE precisa (medido em Calibri: maior entre cabeçalho e maior dado),
+   e toda a sobra vai para "Projeto". Nunca alarga uma coluna além do que tem.
+   Retorna { xml, nomeW } — nomeW = largura final da coluna "Projeto" em EMU.
+   A soma das larguras é preservada → o graphicFrame não muda. */
 function fitNomeCol(xml, tblIdx, probeRowsXml){
   const pos=[]; let p=0;
   while(true){const f=xml.indexOf("<a:tbl>",p);if(f===-1)break;pos.push(f);p=f+1;}
   const tp=pos[tblIdx];
-  if(tp===undefined) return {xml,nomeMax:NOME_MIN};
+  if(tp===undefined) return {xml,nomeW:0};
   const te=xml.indexOf("</a:tbl>",tp)+8;
   const tbl=xml.slice(tp,te);
 
   const gm=tbl.match(/<a:tblGrid>[\s\S]*?<\/a:tblGrid>/);
-  if(!gm) return {xml,nomeMax:NOME_MIN};
+  if(!gm) return {xml,nomeW:0};
   const cols=[...gm[0].matchAll(/<a:gridCol[^>]*\sw="(\d+)"/g)].map(m=>parseInt(m[1],10));
-  if(cols.length<=NOME_COL) return {xml,nomeMax:NOME_MIN};
+  if(cols.length<=NOME_COL) return {xml,nomeW:cols[NOME_COL]||0};
 
-  // cabeçalho: 1ª linha, preservada do template
   const hs=tbl.indexOf("<a:tr"), he=tbl.indexOf("</a:tr>",hs)+7;
-  const hdr=hs===-1?[]:[...tbl.slice(hs,he).matchAll(/<a:t>([^<]*)<\/a:t>/g)].map(m=>m[1]);
+  const hdr=hs===-1?[]:headerCells(tbl.slice(hs,he),cols.length);
   const matrix=cellMatrix(probeRowsXml);
 
   const total=cols.reduce((a,b)=>a+b,0);
   const out=cols.slice();
   for(let c=0;c<cols.length;c++){
     if(c===NOME_COL) continue;
-    let w=wNeed(hdr[c]||"",HDR_K);
-    for(const row of matrix) w=Math.max(w,wNeed(row[c]||""));
-    out[c]=Math.min(cols[c],Math.max(1,w));   // só encolhe; nunca alarga
+    let w=wStr(hdr[c]||"",HDR_K);
+    for(const row of matrix) w=Math.max(w,wStr(row[c]||""));
+    out[c]=Math.min(cols[c],Math.max(1,w));   // só encolhe
   }
   const nomeW=total-out.reduce((a,b,i)=>i===NOME_COL?a:a+b,0);
   if(nomeW<=cols[NOME_COL])                    // sem folga → não mexe
-    return {xml,nomeMax:Math.max(NOME_MIN,charsIn(cols[NOME_COL]))};
+    return {xml,nomeW:cols[NOME_COL]};
   out[NOME_COL]=nomeW;
 
   let i=0;
   const newGrid=gm[0].replace(/(<a:gridCol[^>]*\sw=")(\d+)(")/g,(_,a,__,c)=>`${a}${out[i++]}${c}`);
   const newTbl=tbl.replace(gm[0],newGrid);
-  return {xml:xml.slice(0,tp)+newTbl+xml.slice(te), nomeMax:Math.max(NOME_MIN,charsIn(nomeW))};
+  return {xml:xml.slice(0,tp)+newTbl+xml.slice(te), nomeW};
 }
 
 function rebuildTable(xml,idx,rowsXml){
@@ -573,8 +609,8 @@ async function generatePptx(templateBuf,data){
      a 2ª renderiza de verdade com o limite da coluna "Projeto" já alargada. */
   const fillTable=(xml,idx,items)=>{
     if(!items.length) return rebuildTable(xml,idx,emptyRow6());
-    const fit=fitNomeCol(xml,idx,renderRows(items,9999));
-    return rebuildTable(fit.xml,idx,renderRows(items,fit.nomeMax));
+    const fit=fitNomeCol(xml,idx,renderRows(items,Infinity));   // 1ª passada: mede
+    return rebuildTable(fit.xml,idx,renderRows(items,Infinity)); // 2ª: nome COMPLETO, sem cortar
   };
 
   function greedyChunks(items){
@@ -651,10 +687,10 @@ async function generatePptx(templateBuf,data){
       const slice=items.slice(p*BL_PER_SLIDE,(p+1)*BL_PER_SLIDE);
       let rowsXml=emptyXml;
       if(slice.length){
-        // mede com os nomes inteiros, depois renderiza com o limite real
-        const fit=fitNomeCol(xml,0,slice.map((r,i)=>rowFn(r,i,9999)).join("\n"));
+        // mede com os nomes inteiros; renderiza COMPLETO (igual slide 2)
+        const fit=fitNomeCol(xml,0,slice.map((r,i)=>rowFn(r,i,Infinity)).join("\n"));
         xml=fit.xml;
-        rowsXml=slice.map((r,i)=>rowFn(r,i,fit.nomeMax)).join("\n");
+        rowsXml=slice.map((r,i)=>rowFn(r,i,Infinity)).join("\n");
       }
       xml=rebuildBL(xml,rowsXml);
       zip.file(`ppt/slides/slide${num}.xml`,xml);
