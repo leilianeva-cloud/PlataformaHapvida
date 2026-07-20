@@ -870,8 +870,10 @@ function ReportScreen({ projects, setProjects, currentIdx, setCurrentIdx, active
   };
 
   // projetos visíveis na tela 2 (filtrados se vier de "Atualizar agora" com seleção)
+  // Marcos só mostra o que foi selecionado. Nunca cai em "todos" — não se entra aqui sem seleção
+  // (o botão "Atualizar agora" fica desativado com 0 selecionados).
   const visibleProjects = useMemo(() =>
-    activeProjectIds ? projects.filter(p => activeProjectIds.has(p.id)) : projects,
+    activeProjectIds ? projects.filter(p => activeProjectIds.has(p.id)) : [],
   [projects, activeProjectIds]);
 
   // currentIdx aponta dentro de visibleProjects; para editar, mapeia para índice real em projects
@@ -1067,12 +1069,10 @@ function ReportScreen({ projects, setProjects, currentIdx, setCurrentIdx, active
           {activeProjectIds && (
             <span style={{ fontSize:12, color:'#64748b', marginRight:'auto' }}>
               <ClipboardList size={12} style={{marginRight:4, verticalAlign:'middle'}}/>
-              {visibleProjects.length} selecionado{visibleProjects.length!==1?'s':''} &nbsp;·&nbsp;
-              <button onClick={() => setActiveProjectIds(null)} style={{ background:'none', border:'none', color:'#2F5597', cursor:'pointer', fontSize:12, textDecoration:'underline', padding:0 }}>
-                ver todos ({projects.length})
-              </button>
+              {visibleProjects.length} selecionado{visibleProjects.length!==1?'s':''}
             </span>
           )}
+          
           <span style={{ fontSize:13, color:'#64748b', marginRight:6, fontWeight:600 }}>
             {projeto.nome || `Projeto ${currentIdx+1}`}
           </span>
@@ -1270,6 +1270,7 @@ function AppGateway() {
   function voltarHome() {
     sessionStorage.removeItem('hap_destino')
     sessionStorage.removeItem('hap_screen')
+    sessionStorage.removeItem('hap_active_ids')
     setDestino(null)
   }
 
@@ -1383,8 +1384,29 @@ function AppContent({ initialScreen, onVoltar }) {
       logAudit('DELETE_PROJECT', 'project', projectId, { acao: 'apagado_do_banco' });
     } catch (e) { console.error('[removerDoBanco]', e); }
   };
+
   
-  const [activeProjectIds, setActiveProjectIds] = useState(null)
+  
+  // activeProjectIds persistido em sessionStorage — sobrevive a reload/navegação (bug dos "30+").
+  const [activeProjectIds, setActiveProjectIdsRaw] = useState(() => {
+    try {
+      const raw = sessionStorage.getItem('hap_active_ids')
+      if (raw) { const arr = JSON.parse(raw); if (Array.isArray(arr) && arr.length) return new Set(arr) }
+    } catch { /* ignore */ }
+    return null
+  })
+  // Wrapper: toda mudança de seleção reflete no sessionStorage.
+  const setActiveProjectIds = (val) => {
+    setActiveProjectIdsRaw(prev => {
+      const next = typeof val === 'function' ? val(prev) : val
+      try {
+        if (next && next.size) sessionStorage.setItem('hap_active_ids', JSON.stringify([...next]))
+        else sessionStorage.removeItem('hap_active_ids')
+      } catch { /* ignore */ }
+      return next
+    })
+  }
+  
   const [loaded, setLoaded] = useState(false)
   const [saved, setSaved] = useState(false)
   const [gerando, setGerando] = useState(false)
@@ -1624,7 +1646,7 @@ function AppContent({ initialScreen, onVoltar }) {
     currentIdx={currentIdx} setCurrentIdx={setCurrentIdx}
     activeProjectIds={activeProjectIds} setActiveProjectIds={setActiveProjectIds}
     saved={saved} gerando={gerando} setGerando={setGerando}
-    onBack={() => { setActiveProjectIds(null); navegarScreen('import'); }}
+    onBack={() => { navegarScreen('import'); }}
     onVoltar={onVoltar}
     salvarManual={salvarManual}
   />;
