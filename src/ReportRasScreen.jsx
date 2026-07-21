@@ -43,6 +43,13 @@ function fmtDM(v){
   const f=fmtDate(v);
   return f==="—"?f:f.slice(0,5);   // "29/05/26" -> "29/05"
 }
+/* Converte número serial do Excel (sistema 1900) em Date local à meia-noite,
+   sem drift de fuso. Defesa caso alguma leitura venha sem cellDates. */
+function excelSerialToDate(n){
+  const u=new Date(Math.round((n-25569)*86400000));
+  return new Date(u.getUTCFullYear(),u.getUTCMonth(),u.getUTCDate());
+}
+
 /* ── AUTOFIT DA COLUNA "PROJETO" ───────────────────────────────────────────
    A constante fixa antiga (52.388 EMU/char) era uma ESTIMATIVA — vinha de um
    comentário no código, não de medição. Ela super-alocava de 8% a 34% e roubava
@@ -88,7 +95,14 @@ function trunc(s, wMax = Infinity){
   const d=new Date(val);
   if(!isNaN(d.getTime())&&String(val).length>6) return fmtDate(d);
   return String(val).trim()||"—";
-}
+}function parseNPdm(val){
+  // Col BY vem como Date nativo quando lida com cellDates:true (caso do gerador).
+  // Sem isto, String(Date) = "Fri Jun 12 2026 00:00:28 GMT-0300..." e a regex de
+  // dd/mm não casa, devolvendo a string crua no slide.
+  if(val instanceof Date && !isNaN(val)) return fmtDM(val);
+  if(typeof val==="number" && isFinite(val)) return fmtDM(excelSerialToDate(val));
+  const s=(val===null||val===undefined)?"":String(val).trim();
+  if(!s||s==="NaN") return "—";
 /* Replan. das boxes Atrasados/Próximas — o campo pode trazer VÁRIAS datas
    concatenadas (ex.: "21/05/2026 30/06/2026"), pois cada repactuação acumula
    uma data. Regras: mostrar só a MAIS RECENTE (cronológica; empate → a última
