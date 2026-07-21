@@ -95,22 +95,21 @@ function trunc(s, wMax = Infinity){
   const d=new Date(val);
   if(!isNaN(d.getTime())&&String(val).length>6) return fmtDate(d);
   return String(val).trim()||"—";
-}function parseNPdm(val){
-  // Col BY vem como Date nativo quando lida com cellDates:true (caso do gerador).
-  // Sem isto, String(Date) = "Fri Jun 12 2026 00:00:28 GMT-0300..." e a regex de
-  // dd/mm não casa, devolvendo a string crua no slide.
-  if(val instanceof Date && !isNaN(val)) return fmtDM(val);
-  if(typeof val==="number" && isFinite(val)) return fmtDM(excelSerialToDate(val));
-  const s=(val===null||val===undefined)?"":String(val).trim();
-  if(!s||s==="NaN") return "—";
+}
 /* Replan. das boxes Atrasados/Próximas — o campo pode trazer VÁRIAS datas
    concatenadas (ex.: "21/05/2026 30/06/2026"), pois cada repactuação acumula
    uma data. Regras: mostrar só a MAIS RECENTE (cronológica; empate → a última
    escrita) e sem ano. Texto livre (ex.: "A definir") passa intacto; vazio → —.
    Aceita ano de 2 ou 4 dígitos e separador de espaço simples ou duplo. */
+// Col BY vem como Date nativo quando lida com cellDates:true (caso do gerador).
+  // Sem isto, String(Date) = "Fri Jun 12 2026 00:00:28 GMT-0300..." e a regex de
+  // dd/mm não casa, devolvendo a string crua no slide.
 function parseNPdm(val){
+  if(val instanceof Date && !isNaN(val)) return fmtDM(val);
+  if(typeof val==="number" && isFinite(val)) return fmtDM(excelSerialToDate(val));
   const s=(val===null||val===undefined)?"":String(val).trim();
   if(!s||s==="NaN") return "—";
+  
   const found=[...s.matchAll(/(\d{2})\/(\d{2})\/(\d{2,4})/g)];
   if(found.length===0) return s;                       // texto livre → intacto
   const parsed=found.map((m,i)=>{
