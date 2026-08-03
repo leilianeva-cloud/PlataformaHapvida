@@ -509,7 +509,13 @@ export function analisarBase(xlsxBuf, hoje = new Date()) {
     backlogRows,
     plano,
     porStatus: contar(rows, 'State'),
-    porSquad: contar(rows, 'Team Project'),
+    porSquad: (() => {
+      const c = contar(rows, 'Team Project');
+      // O gráfico de Squad exibe % do total de incidentes (numFmt "0%" no template).
+      // Gravamos o percentual já calculado — barra não calcula proporção sozinha,
+      // e o template só cola um "%" no valor. Soma sempre 100 (maior resto).
+      return { cats: c.cats, vals: c.vals, pcts: paraPercentuais(c.vals) };
+    })(),
     slidesDashboard: plano.dashboard.length,
     slidesBacklog: plano.backlog.length,
     totalSlides: 2 + plano.dashboard.length + plano.backlog.length, // capa + encerramento
@@ -545,8 +551,10 @@ export async function gerarReportIncidentes({ templateBuf, xlsxBuf, campos, hoje
   const chart2Base = await zip.file('ppt/charts/chart2.xml').async('string');
 
   /* ---- gráficos (mesmos dados em todas as páginas) ---- */
+  // chart1 (Status): contagem absoluta.
+  // chart2 (Squad): percentual do total — o template formata como "0%".
   const chart1Novo = updateChartCache(chart1Base, a.porStatus.cats, a.porStatus.vals);
-  const chart2Novo = updateChartCache(chart2Base, a.porSquad.cats, a.porSquad.vals);
+  const chart2Novo = updateChartCache(chart2Base, a.porSquad.cats, a.porSquad.pcts);
 
   /* ---- páginas do dashboard ---- */
   const ordemDash = [];
@@ -704,4 +712,27 @@ function contar(rows, campo) {
   }
   const ord = [...mapa.entries()].sort((a, b) => b[1] - a[1]);
   return { cats: ord.map((e) => e[0]), vals: ord.map((e) => e[1]) };
+}
+
+/**
+ * Converte contagens em percentuais inteiros que SEMPRE somam 100.
+ * Método do maior resto: arredonda tudo p/ baixo e distribui os pontos que
+ * faltam para as categorias de maior parte fracionária. Na prática dá o mesmo
+ * que arredondamento simples, mas fecha 100% mesmo nos casos de borda
+ * (ex.: 1,1,1 → 34,33,33 em vez de 33,33,33=99%).
+ */
+function paraPercentuais(vals) {
+  const total = vals.reduce((s, v) => s + v, 0);
+  if (total === 0) return vals.map(() => 0);
+
+  const brutos = vals.map((v) => (v / total) * 100);
+  const base = brutos.map((x) => Math.floor(x));
+  let resto = 100 - base.reduce((s, v) => s + v, 0);
+
+  const ordem = brutos
+    .map((x, i) => ({ i, frac: x - Math.floor(x) }))
+    .sort((a, b) => b.frac - a.frac);
+
+  for (let k = 0; k < resto; k++) base[ordem[k % ordem.length].i] += 1;
+  return base;
 }

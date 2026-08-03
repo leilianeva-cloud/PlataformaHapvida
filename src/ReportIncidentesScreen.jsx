@@ -680,7 +680,7 @@ function PreviewPanel({ d }) {
         <div style={S.infoBox}>
           <div style={S.infoBoxTitle}>Incidentes por Squad</div>
           {d.porSquad.cats.map((c, i) => (
-            <div key={c} style={S.infoRow}>{c} · {d.porSquad.vals[i]}</div>
+            <div key={c} style={S.infoRow}>{c} · {d.porSquad.vals[i]} ({d.porSquad.pcts[i]}%)</div>
           ))}
         </div>
       </div>
