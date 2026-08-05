@@ -187,7 +187,7 @@ function processData(portBuf,melBuf,melSheetName,lider,trimestre,compromisso){
   };
   const sqP={};
   for(const r of fin){
-    const sq=stripPref(String(r[61]||""))||"Sem Squad";
+    const sq=stripPref(String(r[62]||""))||"Sem Squad";
     if(!sqP[sq]) sqP[sq]={total:0,enc:0};
     sqP[sq].total++; if(ENTREGUES.includes(String(r[19]||""))) sqP[sq].enc++;
   }
@@ -198,20 +198,20 @@ function processData(portBuf,melBuf,melSheetName,lider,trimestre,compromisso){
     const da=a[23] instanceof Date?a[23]:new Date("2099");
     const db=b[23] instanceof Date?b[23]:new Date("2099");
     return da-db;
-  }).map(r=>({lecom:String(r[0]||""),squad:stripPref(String(r[61]||"")),nome:String(r[2]||""),fase:String(r[19]||""),target:fmtDM(r[23]),np:parseNPdm(r[76])}));
+  }).map(r=>({lecom:String(r[0]||""),squad:stripPref(String(r[62]||"")),nome:String(r[2]||""),fase:String(r[19]||""),target:fmtDM(r[23]),np:parseNPdm(r[76])}));
 
-  const prx_proj=prx_p.map(r=>({lecom:String(r[0]||""),squad:stripPref(String(r[61]||"")),nome:String(r[2]||""),fase:String(r[19]||""),status:shortStatusP(r[20]),target:fmtDM(r[23]),np:parseNPdm(r[76])}));
+  const prx_proj=prx_p.map(r=>({lecom:String(r[0]||""),squad:stripPref(String(r[62]||"")),nome:String(r[2]||""),fase:String(r[19]||""),status:shortStatusP(r[20]),target:fmtDM(r[23]),np:parseNPdm(r[76])}));
 
-  const bl_fin=fin.map(r=>({lecom:String(r[0]||""),squad:stripPref(String(r[61]||"")),nome:String(r[2]||""),fase:String(r[19]||""),status:shortStatusP(r[20]),target:fmtDate(r[23]),np:parseNP(r[76]),enc:ENTREGUES.includes(String(r[19]||""))}));
-  const bl_ea=ea.map(r=>({lecom:String(r[0]||""),squad:stripPref(String(r[61]||"")),nome:String(r[2]||""),fase:String(r[19]||""),status:shortStatusP(r[20]),target:fmtDate(r[23]),np:parseNP(r[76]),enc:ENTREGUES.includes(String(r[19]||""))}));
+  const bl_fin=fin.map(r=>({lecom:String(r[0]||""),squad:stripPref(String(r[62]||"")),nome:String(r[2]||""),fase:String(r[19]||""),status:shortStatusP(r[20]),target:fmtDate(r[23]),np:parseNP(r[76]),enc:ENTREGUES.includes(String(r[19]||""))}));
+  const bl_ea=ea.map(r=>({lecom:String(r[0]||""),squad:stripPref(String(r[62]||"")),nome:String(r[2]||""),fase:String(r[19]||""),status:shortStatusP(r[20]),target:fmtDate(r[23]),np:parseNP(r[76]),enc:ENTREGUES.includes(String(r[19]||""))}));
 
   const melRows=readSheet(melBuf,melSheetName,0);
-  const allM=melRows.filter(r=>r[24]&&norm(String(r[24])).includes(norm(lider))&&!r[9]);
-  const fin_m=allM.filter(r=>String(r[14]||"")==="06.Finalizado");
-  const act_m=allM.filter(r=>String(r[14]||"")!=="06.Finalizado");
+  const allM=melRows.filter(r=>r[25]&&norm(String(r[25])).includes(norm(lider))&&!r[9]);
+  const fin_m=allM.filter(r=>String(r[15]||"")==="06.Finalizado");
+  const act_m=allM.filter(r=>String(r[15]||"")!=="06.Finalizado");
   const at_m=[],er_m=[],np_m=[];
   for(const r of act_m){
-    const d=r[12] instanceof Date?r[12]:null;
+    const d=r[13] instanceof Date?r[13]:null;
     if(d&&d<today) at_m.push(r);
     else if(d&&d>=today&&d<=today5) er_m.push(r);
     else if(d&&d>today5) np_m.push(r);
@@ -219,9 +219,9 @@ function processData(portBuf,melBuf,melSheetName,lider,trimestre,compromisso){
 
   const sqM={};
   for(const r of allM){
-    const sq=stripPref(String(r[34]||""))||"Sem Squad";
+    const sq=stripPref(String(r[35]||""))||"Sem Squad";
     if(!sqM[sq]) sqM[sq]={total:0,fin:0};
-    sqM[sq].total++; if(String(r[14]||"")==="06.Finalizado") sqM[sq].fin++;
+    sqM[sq].total++; if(String(r[15]||"")==="06.Finalizado") sqM[sq].fin++;
   }
   // Canonical status matching for melhorias
   const FASE_M_CANON=["01.Não Iniciado","02.Planejamento/Especificação","03.Desenvolvimento","04.Homologação","05.Ag. Publicação","06.Finalizado"];
@@ -231,11 +231,11 @@ function processData(portBuf,melBuf,melSheetName,lider,trimestre,compromisso){
     return hit||String(raw||"").trim()||"(sem status)";
   };
   const fasM={};
-  for(const r of allM){const s=canonFaseM(r[14]);fasM[s]=(fasM[s]||0)+1;}
+  for(const r of allM){const s=canonFaseM(r[15]);fasM[s]=(fasM[s]||0)+1;}
 
-  const atraso_mel=at_m.sort((a,b)=>(a[12]||0)-(b[12]||0)).map(r=>({lecom:String(r[1]||""),squad:stripPref(String(r[34]||"")),nome:String(r[7]||""),status:shortStatusM(r[14]),target:fmtDM(r[12]),np:"—"}));
-  const prx_mel=er_m.map(r=>({lecom:String(r[1]||""),squad:stripPref(String(r[34]||"")),nome:String(r[7]||""),fase:"—",status:shortStatusM(r[14]),target:fmtDM(r[12]),np:"—"}));
-  const bl_mel=allM.map(r=>({lecom:String(r[1]||""),squad:stripPref(String(r[34]||"")),nome:String(r[7]||""),status:shortStatusM(r[14]),target:fmtDate(r[12]),np:"—",fin:String(r[14]||"")==="06.Finalizado"}));
+  const atraso_mel=at_m.sort((a,b)=>(a[13]||0)-(b[13]||0)).map(r=>({lecom:String(r[1]||""),squad:stripPref(String(r[35]||"")),nome:String(r[7]||""),status:shortStatusM(r[15]),target:fmtDM(r[13]),np:"—"}));
+  const prx_mel=er_m.map(r=>({lecom:String(r[1]||""),squad:stripPref(String(r[35]||"")),nome:String(r[7]||""),fase:"—",status:shortStatusM(r[15]),target:fmtDM(r[13]),np:"—"}));
+  const bl_mel=allM.map(r=>({lecom:String(r[1]||""),squad:stripPref(String(r[35]||"")),nome:String(r[7]||""),status:shortStatusM(r[15]),target:fmtDate(r[13]),np:"—",fin:String(r[15]||"")==="06.Finalizado"}));
 
   const total_p=fin.length,total_m=allM.length,total_c=total_p+total_m;
   const at_c=at_p.length+at_m.length,er_c=er_p.length+er_m.length,np_c=np_p.length+np_m.length;
