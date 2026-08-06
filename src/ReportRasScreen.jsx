@@ -153,6 +153,11 @@ function readSheet(buf,sheetName,headerRowIdx){
 }
 
 /* ── DATA PROCESSING ───────────────────────────────────────────────────────── */
+/* SheetJS devolve datas com resíduo de hora (ex.: 00:00:28) por arredondamento
+   do serial do Excel. Comparar direto contra meia-noite joga o item do último dia
+   da janela para fora. d0() zera a hora antes de qualquer comparação. */
+function d0(v){ if(!(v instanceof Date)) return null; const d=new Date(v); d.setHours(0,0,0,0); return d; }
+
 function processData(portBuf,melBuf,melSheetName,lider,trimestre,compromisso){
   const today=new Date(); today.setHours(0,0,0,0);
   const today5=new Date(today); today5.setDate(today5.getDate()+5);
@@ -170,13 +175,13 @@ function processData(portBuf,melBuf,melSheetName,lider,trimestre,compromisso){
   const act_p=fin.filter(r=>!ENTREGUES.includes(String(r[19]||"")));
   const at_p=[],er_p=[],np_p=[];
   for(const r of act_p){
-    const st=String(r[20]||""),d=r[23] instanceof Date?r[23]:null;
+    const st=String(r[20]||""),d=d0(r[23]);
     if(norm(st).startsWith("atrasado")) at_p.push(r);
     else if(d&&d<today) at_p.push(r);
     else if(d&&d>=today&&d<=today5) er_p.push(r);
     else if(d&&d>today5) np_p.push(r);
   }
-  const prx_p=act_p.filter(r=>{const d=r[23];return d instanceof Date&&d>=today&&d<=today5;});
+  const prx_p=act_p.filter(r=>{const d=d0(r[23]);return !!d&&d>=today&&d<=today5;});
 
   // Canonical phase matching: normalize Excel value, map back to canonical label
   const FASE_P_CANON=["Solicitado","Planejamento","Execução","Piloto","Expansão","Monitoramento e Controle","Encerrado"];
@@ -211,7 +216,7 @@ function processData(portBuf,melBuf,melSheetName,lider,trimestre,compromisso){
   const act_m=allM.filter(r=>String(r[15]||"")!=="06.Finalizado");
   const at_m=[],er_m=[],np_m=[];
   for(const r of act_m){
-    const d=r[13] instanceof Date?r[13]:null;
+    const d=d0(r[13]);
     if(d&&d<today) at_m.push(r);
     else if(d&&d>=today&&d<=today5) er_m.push(r);
     else if(d&&d>today5) np_m.push(r);
