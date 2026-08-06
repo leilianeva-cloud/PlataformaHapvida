@@ -139,6 +139,27 @@ function shortStatusP(s){
 function shortStatusM(s){
   return String(s||"").replace(/^\s*\d{1,2}\.\s*/,"").trim();
 }
+/* Escreve texto no 1º run de um shape identificado pelo seu ID no OOXML.
+   Substituir por texto literal (ex.: "<a:t>15</a:t>") é frágil: se um KPI
+   escrito antes gerar justamente o literal procurado pelo KPI seguinte, o
+   segundo sobrescreve o primeiro. Foi o que trocou "No Prazo" e "Alerta".
+   O ID do shape é estável e único no slide. */
+function setSpText(xml,id,txt){
+  const parts=xml.split("<p:sp>");
+  for(let i=1;i<parts.length;i++){
+    const end=parts[i].indexOf("</p:sp>");
+    if(end<0) continue;
+    const body=parts[i].slice(0,end);
+    if(!new RegExp('id="'+id+'"\\s+name=').test(body)) continue;
+    let done=false;
+    const nb=body.replace(/<a:t>[\s\S]*?<\/a:t>/,()=>{done=true;return "<a:t>"+esc(txt)+"</a:t>";});
+    if(!done) return xml;
+    parts[i]=nb+parts[i].slice(end);
+    return parts.join("<p:sp>");
+  }
+  return xml;
+}
+
 function esc(s){ return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
 function rowBg(i){ return i%2===0?"FFFFFF":"F4F7FD"; }
 function pctFmt(n,t){ return t>0?(n/t*100).toFixed(1).replace(".",","):"0,0"; }
@@ -609,14 +630,18 @@ async function generatePptx(templateBuf,data){
   zip.file("ppt/charts/chart4.xml",c4);
 
   let s2=await rd("ppt/slides/slide2.xml");
+  /* KPIs e metas: por ID de shape (ver setSpText). */
+  s2=setSpText(s2,307,String(data.total_c));
+  s2=setSpText(s2,312,String(data.np_c));
+  s2=setSpText(s2,315,`${data.np_pct}% do total`);
+  s2=setSpText(s2,317,String(data.er_c));
+  s2=setSpText(s2,320,`${data.er_pct}% do total`);
+  s2=setSpText(s2,322,String(data.at_c));
+  s2=setSpText(s2,325,`${data.at_pct}% do total`);
+  s2=setSpText(s2,5,`${data.pct_p_str}%`);
+  s2=setSpText(s2,47,`${data.pct_m_str}%`);
+
   const repls=[
-    ["<a:t>47</a:t>",`<a:t>${data.total_c}</a:t>`],
-    ["<a:t>28</a:t>",`<a:t>${data.np_c}</a:t>`],
-    ["<a:t>60% do total</a:t>",`<a:t>${data.np_pct}% do total</a:t>`],
-    ["<a:t>15</a:t>",`<a:t>${data.er_c}</a:t>`],
-    ["<a:t>32% do total</a:t>",`<a:t>${data.er_pct}% do total</a:t>`],
-    ["<a:t>4</a:t>",`<a:t>${data.at_c}</a:t>`],
-    ["<a:t>8% do total</a:t>",`<a:t>${data.at_pct}% do total</a:t>`],
     ["<a:t>FASES - PROJETOS FINALIZA\u00c7\u00c3O [ TOTAL 30 ]</a:t>",`<a:t>FASES - PROJETOS FINALIZA\u00c7\u00c3O [ TOTAL ${data.total_p} ]</a:t>`],
     ["<a:t>FASES - MELHORIAS [TOTAL 30 ]</a:t>",`<a:t>FASES - MELHORIAS [ TOTAL ${data.total_m} ]</a:t>`],
     ["<a:t>\u00c1rea Executora:</a:t>",`<a:t>\u00c1rea Executora: ${data.area}</a:t>`],
@@ -624,8 +649,6 @@ async function generatePptx(templateBuf,data){
     ["<a:t>L\u00edder Executor:</a:t>",`<a:t>L\u00edder Executor: ${data.lider}</a:t>`],
   ];
   for(const [o,n] of repls) s2=s2.replace(o,n);
-  s2=s2.replace("<a:t>14%</a:t>",`<a:t>${data.pct_p_str}%</a:t>`);
-  s2=s2.replace("<a:t>14%</a:t>",`<a:t>${data.pct_m_str}%</a:t>`);
 
   /* ── PAGINAÇÃO DO SLIDE 2 (greedy) ───────────────────────────────────────
      Atraso ≤ 6  → box normal, Próximas logo abaixo.
