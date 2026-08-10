@@ -113,6 +113,7 @@ function calcPacoteInfo(pac, pacRaias) {
                   : statuses.includes('Aguardando Publicação') ? 'Aguardando Publicação'
                   : statuses.includes('Op. Assistida') ? 'Op. Assistida'
                   : statuses.includes('Monitoramento e Controle') ? 'Monitoramento e Controle'
+                  : statuses.includes('Plan./Espec.') ? 'Plan./Esp.'
                   : statuses.length && statuses.every(s => s === 'Concluído') ? 'Concluído'
                   : 'A iniciar';
   
@@ -120,7 +121,7 @@ function calcPacoteInfo(pac, pacRaias) {
 }
 
 function statusCor(s) {
-  return s === 'Concluído' ? '#00B050' : s === 'Monitoramento e Controle' ? '#0891B2' : s === 'Op. Assistida' ? '#006100' : s === 'Aguardando Publicação' ? '#F59E0B' : s === 'Em Andamento' ? '#0070C0' : s === 'Atrasado' ? '#C00000' : '#94A3B8';
+  return s === 'Concluído' ? '#00B050' : s === 'Monitoramento e Controle' ? '#0891B2' : s === 'Op. Assistida' ? '#006100' : s === 'Aguardando Publicação' ? '#F59E0B' : s === 'Em Andamento' ? '#0070C0' : s === 'Atrasado' ? '#C00000' : s === 'Plan./Esp.' ? '#7030A0' : '#94A3B8';
 }
 
 const STATUS_GERAL = {
@@ -2000,6 +2001,7 @@ function RaiaCard({ r, aberta, toggle, upd, updFase, setFaseCustom, addFase, del
             color: statusCor(r.statusDemanda || 'A iniciar') }}
             value={r.statusDemanda || 'A iniciar'} 
               onChange={(e) => upd(r.id, { statusDemanda: e.target.value })}>
+              <option value="Plan./Esp.">Plan./Espec.</option>
               <option value="A iniciar">A iniciar</option>
               <option value="Em Andamento">Em Andamento</option>
               <option value="Atrasado">Atrasado</option>
@@ -2478,7 +2480,7 @@ function gerarSlideXml({ projeto, raias, timeline, usaPacotes, pacotes, legenda 
     S.push(shape({x:0.16,y:ry,w:0.64,h:rh,text:r.lecom||"",textOpt:{sz:900,color:"404040",algn:"ctr",anchor:"ctr",wrap:"none"}}));
     S.push(shape({x:0.86,y:ry,w:2.28,h:rh,text:r.nome||"",textOpt:{sz:900,bold:true,color:"1F2A44",anchor:"ctr"}}));
     const stRaw = r.despriorizado ? 'Despriorizado' : (r.statusDemanda || 'A iniciar');
-    const stCor = r.despriorizado ? '7F7F7F' : stRaw === 'Concluído' ? '00B050' : stRaw === 'Monitoramento e Controle' ? '0891B2' : stRaw === 'Op. Assistida' ? '006100' : stRaw === 'Aguardando Publicação' ? 'F59E0B' : stRaw === 'Em Andamento' ? '0070C0' : stRaw === 'Atrasado' ? 'C00000' : '94A3B8';
+    const stCor = r.despriorizado ? '7F7F7F' : stRaw === 'Concluído' ? '00B050' : stRaw === 'Monitoramento e Controle' ? '0891B2' : stRaw === 'Op. Assistida' ? '006100' : stRaw === 'Aguardando Publicação' ? 'F59E0B' : stRaw === 'Em Andamento' ? '0070C0' : stRaw === 'Atrasado' ? 'C00000' : stRaw === 'Plan./Espec.' ? '7030A0' : '94A3B8';
     S.push(shape({x:3.18,y:ry,w:0.98,h:rh,text:stRaw,textOpt:{sz:900,bold:true,color:stCor,algn:"ctr",anchor:"ctr",wrap:"none"}}));
     const dtIni=(()=>{const d=r.fases[0]?.inicio||"";if(!d)return"";const x=new Date(d+"T12:00:00");if(isNaN(x))return"";return String(x.getDate()).padStart(2,"0")+"/"+String(x.getMonth()+1).padStart(2,"0");})();
     S.push(shape({x:4.18,y:ry,w:0.68,h:rh,text:dtIni,textOpt:{sz:900,color:"404040",algn:"ctr",anchor:"ctr",wrap:"none"}}));
@@ -2585,7 +2587,7 @@ function gerarSlideXml({ projeto, raias, timeline, usaPacotes, pacotes, legenda 
       const pacRaias = pac.raiaIds.map(id => raias.find(r=>r.id===id)).filter(Boolean);
       const info = calcPacoteInfo(pac, pacRaias);
       
-      const sCor = info.status==='Concluído'?'00B050':info.status==='Monitoramento e Controle'?'0891B2':info.status==='Op. Assistida'?'006100':info.status==='Aguardando Publicação'?'F59E0B':info.status==='Em Andamento'?'0070C0':info.status==='Atrasado'?'C00000':'94A3B8';
+      const sCor = info.status==='Concluído'?'00B050':info.status==='Monitoramento e Controle'?'0891B2':info.status==='Op. Assistida'?'006100':info.status==='Aguardando Publicação'?'F59E0B':info.status==='Em Andamento'?'0070C0':info.status==='Atrasado'?'C00000':info.status==='Plan./Espec.'?'7030A0':'94A3B8';
       const pacH = rowH;
       const ry = curY;
       [[0.14,0.67],[0.81,2.37],[3.18,1.0],[4.18,0.69]].forEach(([cx,cw])=>S.push(shape({x:cx,y:ry,w:cw,h:pacH,fill:"EEF4FF",line:GRID_LN})));
