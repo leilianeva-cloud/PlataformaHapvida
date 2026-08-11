@@ -57,7 +57,12 @@ export default function PortfolioScreen({ onVoltar, onEnviarParaStatus }) {
     if (fSm && String(r[COL.SM] || '').trim() !== fSm) return false
     if (fTri && String(r[COL.TRIMESTRE] || '').trim() !== fTri) return false
     if (fComp && String(r[COL.COMPROMISSO] || '').trim() !== fComp) return false
-    if (busca && !String(r[COL.NOME] || '').toLowerCase().includes(busca.toLowerCase())) return false
+    if (busca) {
+      const q = busca.trim().toLowerCase()
+      const nome = String(r[COL.NOME] || '').toLowerCase()
+      const lecom = String(r[COL.ID] ?? '').toLowerCase()
+      if (!nome.includes(q) && !lecom.includes(q)) return false
+    }
     return true
   }), [validRows, fSm, fTri, fComp, busca])
 
@@ -182,7 +187,7 @@ export default function PortfolioScreen({ onVoltar, onEnviarParaStatus }) {
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 14, alignItems: 'center' }}>
               <div style={{ position: 'relative', flex: '1 1 220px' }}>
                 <Search size={15} style={{ position: 'absolute', left: 11, top: 11, color: '#94A3B8' }} />
-                <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar por nome…"
+                <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar por nome ou Lecom…"
                   style={{ width: '100%', padding: '9px 12px 9px 34px', borderRadius: 9, border: '1px solid #E2E8F0', fontSize: 13, fontFamily: 'inherit' }} />
               </div>
               <select value={fSm} onChange={e => setFSm(e.target.value)} style={selStyle}><option value="">SM/PMO (todos)</option>{smOpts.map(o => <option key={o} value={o}>{o}</option>)}</select>
