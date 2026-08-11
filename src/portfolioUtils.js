@@ -40,3 +40,8 @@ export const rKey = (r) => {
   const id = String(r[COL.ID] ?? '').trim();
   return (id && id.toUpperCase() !== 'PENDENTE') ? `lecom:${id}` : `pend:${fingerprint(r)}`;
 };
+
+// Chave da LINHA (demanda). Um Lecom pode ter N linhas distintas no portfólio —
+// o Lecom identifica o CHAMADO, não a demanda. rKey continua sendo a identidade
+// do chamado (contagem "projetos distintos"); rowKey distingue linha a linha.
+export const rowKey = (r) => `${rKey(r)}#${fingerprint(r)}`;

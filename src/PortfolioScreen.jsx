@@ -3,7 +3,7 @@ import * as XLSX from 'xlsx'
 import { ArrowLeft, Upload, Search, Send, FolderOpen, AlertTriangle, RefreshCw } from 'lucide-react'
 import { useAuth } from './AuthContext'
 import { loadSharedPortfolio, saveSharedPortfolio } from './supabaseClient'
-import { COL, isValid, rKey } from './portfolioUtils'
+import { COL, isValid, rKey, rowKey } from './portfolioUtils'
 
 // Dias após os quais a idade da importação vira alerta visível a todos.
 const DIAS_ALERTA = 10
@@ -112,7 +112,7 @@ export default function PortfolioScreen({ onVoltar, onEnviarParaStatus }) {
     if (!sel.size) return
     // Envia as LINHAS (arrays crus do Excel) correspondentes às chaves selecionadas.
     // O Status espera linhas — rKey/makeProjetoFromRow indexam por número de coluna.
-    const linhas = validRows.filter(r => sel.has(rKey(r)))
+    const linhas = validRows.filter(r => sel.has(rowKey(r)))
     onEnviarParaStatus(linhas)
   }
 
@@ -208,7 +208,7 @@ export default function PortfolioScreen({ onVoltar, onEnviarParaStatus }) {
             <div style={{ background: '#fff', borderRadius: 14, overflow: 'hidden', boxShadow: '0 2px 12px rgba(0,0,0,.05)' }}>
               <div style={{ maxHeight: 520, overflowY: 'auto' }}>
                 {filtered.map((r, i) => {
-                  const k = rKey(r)
+                  const k = rowKey(r)
                   const checked = sel.has(k)
                   return (
                     <div key={i} onClick={() => toggle(k)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 16px', borderBottom: '1px solid #F1F5F9', cursor: 'pointer', background: checked ? '#EEF4FF' : '#fff' }}>

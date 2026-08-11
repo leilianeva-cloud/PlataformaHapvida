@@ -7,7 +7,7 @@ import LoginScreen from './LoginScreen';
 import ChangePasswordModal from './ChangePasswordModal';
 import HomeScreen from './HomeScreen';
 import PortfolioScreen from './PortfolioScreen';
-import { COL, isValid, rKey } from './portfolioUtils';
+import { COL, isValid, rKey, rowKey } from './portfolioUtils';
 import ReportRasScreen from './ReportRasScreen';
 import ReportIncidentesScreen from './ReportIncidentesScreen';
 import KanbanScreen from './KanbanScreen';
@@ -361,7 +361,7 @@ function ImportScreen({ portfolioRows, onImport, existingProjects: allProjects, 
   const allSelectable = useMemo(() => {
     const importados = loteImportados
       .filter(p => !filters.sm || String(p.projeto?.smPmo||'').trim() === filters.sm)
-      .map(p => ({ type:'portfolio', key:p.id, nome:p.projeto?.nome||'(sem nome)', id:String(p.id||'').replace(/^lecom:|^pend:/,''), trimestre:'', compromisso:'', proj:p }));
+      .map(p => ({ type:'portfolio', key:p.id, nome:p.projeto?.nome||'(sem nome)', id:String(p.id||'').replace(/^lecom:|^pend:/,'').replace(/#.*$/,''), trimestre:'', compromisso:'', proj:p }));
     const manuais = manualProjects.map(m => ({ type:'manual', key:manualKey(m), nome:m.nome, id:m.id, trimestre:'—', compromisso:'Manual', manual:m }));
     if (filters.tipo === 'importados') return importados;
     if (filters.tipo === 'manuais')    return manuais;
@@ -1666,7 +1666,7 @@ function AppContent({ initialScreen, onVoltar }) {
     setProjects(prev => {
       const map = Object.fromEntries(prev.map(p => [p.id, p]))
       for (const row of portfolioRowsToLote) {
-        const id = rKey(row)
+        const id = rowKey(row)
         const ex = map[id]
         map[id] = {
           id,
