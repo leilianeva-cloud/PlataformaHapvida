@@ -1848,14 +1848,19 @@ const GANTT_MAX_H = 440; // altura máxima antes de rolar
 
           {/* Função auxiliar para renderizar uma linha de demanda */}
           {(() => {
-            const RaiaRow = (r) => {
+            const RaiaRow = (r, solta) => {
+              // Demanda solta (fora de pacote) usa o fundo do cabeçalho de pacote:
+              // no mesmo nível hierárquico, mesma cor. Sem pacotes, nada muda.
+              const bgRotulo = solta ? "#EEF4FF" : "#F2F2F2";
+              const bgBarras = solta ? "#F0F6FF" : "#fff";
+              const bgFuturo = solta ? "#f0f4ff" : "#f8fafc";
               const dtInicio = ddmm(r.fases[0]?.inicio || "");
               // altura dinâmica: cresce com o número de lanes
               const { numLanes } = r.despriorizado ? { numLanes: 1 } : assignLanes(r.fases);
               const LANE_H = 14, LANE_GAP = 2, LANE_PAD = 8;
               const rh = numLanes <= 1 ? ROW_H : Math.max(ROW_H, numLanes * LANE_H + (numLanes - 1) * LANE_GAP + LANE_PAD);
               return (
-                <div key={r.id} style={{ display: "flex", borderBottom: "1px solid #D9D9D9", minHeight: rh, alignItems: "stretch", background: "#F2F2F2" }}>
+                <div key={r.id} style={{ display: "flex", borderBottom: "1px solid #D9D9D9", minHeight: rh, alignItems: "stretch", background: bgRotulo }}>
                   <div style={{ width: ROTULO_W, flexShrink: 0, display: "flex", fontSize: 11.5, alignItems: "center" }}>
                     <div style={{ width: 66, flexShrink: 0, padding: "4px 6px", color: "#404040", whiteSpace: "nowrap", borderRight: "1px solid #D9D9D9", alignSelf: "stretch", display: "flex", alignItems: "center" }}>{r.lecom}</div>
                     <div style={{ flex: 1, minWidth: 0, padding: "4px 6px", fontWeight: 600, color: "#1F2A44", lineHeight: 1.15, wordBreak: "break-word", borderRight: "1px solid #D9D9D9" }}>{r.nome}</div>
@@ -1868,9 +1873,9 @@ const GANTT_MAX_H = 440; // altura máxima antes de rolar
                     </div>
                     <div style={{ width: 75, flexShrink: 0, padding: "4px 5px", fontSize: 10, color: "#404040", display: "flex", alignItems: "center", justifyContent: "center" }}>{dtInicio}</div>
                   </div>
-                  <div style={{ flex: 1, position: "relative", minHeight: rh, background: "#fff" }}>
+                  <div style={{ flex: 1, position: "relative", minHeight: rh, background: bgBarras }}>
                     <div style={{ position: "absolute", inset: 0, display: "grid", gridTemplateColumns: cellsGrid, pointerEvents: "none" }}>
-                      {cells.map((c, i) => <div key={i} style={{ borderRight: "1px solid #D9D9D9", background: c.futuro ? "#f8fafc" : "transparent" }} />)}
+                      {cells.map((c, i) => <div key={i} style={{ borderRight: "1px solid #D9D9D9", background: c.futuro ? bgFuturo : "transparent" }} />)}
                     </div>
                     <BarRow r={r} cells={cells} atualizadoEm={projeto.atualizadoEm} rowH={rh} />
                   </div>
@@ -1881,8 +1886,9 @@ const GANTT_MAX_H = 440; // altura máxima antes de rolar
             if (!usaPacotes) return raias.map(r => RaiaRow(r));
 
             // Modo pacotes: pacotes e demandas soltas na ordem definida pelo usuário
+            const temPacote = (pacotes?.length || 0) > 0;
             return buildUnidades(raias, pacotes, ordem).map(u => {
-              if (u.t === 'raia') return RaiaRow(u.raia);
+              if (u.t === 'raia') return RaiaRow(u.raia, temPacote);
               const pac = u.pac;
               const pacRaias = pac.raiaIds.map(id => raias.find(r => r.id === id)).filter(Boolean);
               const info = calcPacoteInfo(pac, pacRaias);
@@ -2618,10 +2624,12 @@ function gerarSlideXml({ projeto, raias, timeline, usaPacotes, pacotes, ordem, l
     return Math.max(rowH, needed);
   };
 
-  const renderRaiaRow = (r, ry, rh) => {
+  const renderRaiaRow = (r, ry, rh, solta) => {
     const cy=ry+(rh-barH)/2;
-    [[0.14,0.67],[0.81,2.37],[3.18,1.0],[4.18,0.69]].forEach(([cx,cw])=>S.push(shape({x:cx,y:ry,w:cw,h:rh,fill:"F2F2F2",line:GRID_LN})));
-    cells.forEach(c=>{ const xa=fx(c.f0),xb=fx(c.f1); S.push(shape({x:xa,y:ry,w:xb-xa,h:rh,fill:c.futuro?"F8FAFC":"FFFFFF",line:GRID_LN})); });
+    // Espelha o preview: demanda solta (fora de pacote) usa o fundo do pacote.
+    const fillRot = solta ? "EEF4FF" : "F2F2F2";
+    [[0.14,0.67],[0.81,2.37],[3.18,1.0],[4.18,0.69]].forEach(([cx,cw])=>S.push(shape({x:cx,y:ry,w:cw,h:rh,fill:fillRot,line:GRID_LN})));
+    cells.forEach(c=>{ const xa=fx(c.f0),xb=fx(c.f1); S.push(shape({x:xa,y:ry,w:xb-xa,h:rh,fill:solta?(c.futuro?"EEF4FF":"F0F6FF"):(c.futuro?"F8FAFC":"FFFFFF"),line:GRID_LN})); });
     S.push(shape({x:0.16,y:ry,w:0.64,h:rh,text:r.lecom||"",textOpt:{sz:900,color:"404040",algn:"ctr",anchor:"ctr",wrap:"none"}}));
     S.push(shape({x:0.86,y:ry,w:2.28,h:rh,text:r.nome||"",textOpt:{sz:900,bold:true,color:"1F2A44",anchor:"ctr"}}));
     const stRaw = r.despriorizado ? 'Despriorizado' : (r.statusDemanda || 'A iniciar');
@@ -2729,7 +2737,7 @@ function gerarSlideXml({ projeto, raias, timeline, usaPacotes, pacotes, ordem, l
   } else {
     let curY = bodyTop;
     buildUnidades(raias, pacotes, ordem).forEach(un => {
-      if (un.t === 'raia') { const r = un.raia; const rh = calcRhPptx(r); renderRaiaRow(r, curY, rh); curY += rh; return; }
+      if (un.t === 'raia') { const r = un.raia; const rh = calcRhPptx(r); renderRaiaRow(r, curY, rh, true); curY += rh; return; }
       const pac = un.pac;
       const pacRaias = pac.raiaIds.map(id => raias.find(r=>r.id===id)).filter(Boolean);
       const info = calcPacoteInfo(pac, pacRaias);
