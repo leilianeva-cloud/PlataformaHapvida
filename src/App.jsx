@@ -113,12 +113,37 @@ function calcPacoteInfo(pac, pacRaias) {
                   : statuses.includes('Aguardando Publicação') ? 'Aguardando Publicação'
                   : statuses.includes('Op. Assistida') ? 'Op. Assistida'
                   : statuses.includes('Monitoramento e Controle') ? 'Monitoramento e Controle'
-                  : statuses.includes('Plan./Espec.') ? 'Plan./Esp.'
+                  : statuses.includes('Plan./Esp.') ? 'Plan./Esp.'
                   : statuses.length && statuses.every(s => s === 'Concluído') ? 'Concluído'
                   : 'A iniciar';
   
   return { minInicio, maxFim, pctMedia, status };
 }
+
+// ── Ordem mista: pacotes e demandas sem pacote convivem no mesmo nível ──
+// `ordem` é a fonte da verdade da ordenação de topo (persistida em ordem_json).
+// É auto-corretiva: entradas que não existem mais são ignoradas, e unidades
+// novas (pacote ou demanda solta) entram no fim. Assim nenhuma outra função
+// precisa manter a lista sincronizada.
+function buildUnidades(raias, pacotes, ordem) {
+  const rs = raias || [], ps = pacotes || [];
+  const emPacote = new Set();
+  ps.forEach(p => (p.raiaIds || []).forEach(id => emPacote.add(String(id))));
+  const soltas = rs.filter(r => !emPacote.has(String(r.id)));
+  const mapPac   = new Map(ps.map(p => [String(p.id), p]));
+  const mapSolta = new Map(soltas.map(r => [String(r.id), r]));
+  const out = [], usados = new Set();
+  (ordem || []).forEach(o => {
+    const key = o.t + ':' + String(o.id);
+    if (usados.has(key)) return;
+    if (o.t === 'pac' && mapPac.has(String(o.id)))   { out.push({ t:'pac',  id:String(o.id), pac:  mapPac.get(String(o.id)) });   usados.add(key); }
+    if (o.t === 'raia' && mapSolta.has(String(o.id))) { out.push({ t:'raia', id:String(o.id), raia: mapSolta.get(String(o.id)) }); usados.add(key); }
+  });
+  ps.forEach(p     => { if (!usados.has('pac:'  + String(p.id))) out.push({ t:'pac',  id:String(p.id), pac:p  }); });
+  soltas.forEach(r => { if (!usados.has('raia:' + String(r.id))) out.push({ t:'raia', id:String(r.id), raia:r }); });
+  return out;
+}
+const ordemDeUnidades = (us) => us.map(u => ({ t:u.t, id:u.id }));
 
 function statusCor(s) {
   return s === 'Concluído' ? '#00B050' : s === 'Monitoramento e Controle' ? '#0891B2' : s === 'Op. Assistida' ? '#006100' : s === 'Aguardando Publicação' ? '#F59E0B' : s === 'Em Andamento' ? '#0070C0' : s === 'Atrasado' ? '#C00000' : s === 'Plan./Esp.' ? '#7030A0' : '#94A3B8';
@@ -422,10 +447,10 @@ function ImportScreen({ portfolioRows, onImport, existingProjects: allProjects, 
       if (x.type === 'manual') {
         return { id, noLote:true, nFuturos:ex?.nFuturos??1, nPassados:ex?.nPassados??0,
           projeto: ex?.projeto || { ...defaultProjeto(), nome:x.manual.nome, smPmo:x.manual.smPmo||'', resumoLecom:x.manual.resumoLecom||'', areaCliente:x.manual.areaCliente||'', areaExec:x.manual.areaExec||'' },
-          raias: ex?.raias||[], pacotes: ex?.pacotes||[] };
+          raias: ex?.raias||[], pacotes: ex?.pacotes||[], ordem: ex?.ordem||[], usaPacotes: ex?.usaPacotes ?? false };
       }
       return { id, noLote:true, nFuturos:ex?.nFuturos??1, nPassados:ex?.nPassados??0,
-        projeto: ex?.projeto || {}, raias: ex?.raias||[], pacotes: ex?.pacotes||[] };
+        projeto: ex?.projeto || {}, raias: ex?.raias||[], pacotes: ex?.pacotes||[], ordem: ex?.ordem||[], usaPacotes: ex?.usaPacotes ?? false };
     });
     return [...new Map(raw.map(p=>[p.id,p])).values()];
   };
@@ -900,20 +925,67 @@ function ReportScreen({ projects, setProjects, currentIdx, setCurrentIdx, active
   const usaPacotes = proj?.usaPacotes ?? false;
   const pacotes    = proj?.pacotes ?? [];
   const setPacotes = (upd) => setProjects(ps => ps.map((p,i) => i===realIdx ? {...p, pacotes: typeof upd==='function'?upd(p.pacotes??[]):upd} : p));
+  const ordem      = proj?.ordem ?? [];
+  const unidades   = buildUnidades(raias, pacotes, ordem);
 
   const togglePacotes = () => {
     if (usaPacotes) {
       setProjects(ps => ps.map((p,i) => i===realIdx ? {...p, usaPacotes:false} : p));
     } else {
       const pid = `pac-${Date.now()}`;
-      setProjects(ps => ps.map((p,i) => i===realIdx ? {...p, usaPacotes:true, pacotes:[{id:pid, nome:'Pacote 1', raiaIds:raias.map(r=>r.id)}]} : p));
+      setProjects(ps => ps.map((p,i) => i===realIdx ? {...p, usaPacotes:true, pacotes:[{id:pid, nome:'Pacote 1', raiaIds:raias.map(r=>r.id)}], ordem:[{t:'pac', id:pid}]} : p));
     }
   };
   const addPacote = () => {
     const pid = `pac-${Date.now()}`;
     setPacotes(ps => [...ps, {id:pid, nome:`Pacote ${ps.length+1}`, raiaIds:[]}]);
   };
-  const delPacote = (pid) => setPacotes(ps => ps.filter(p => p.id !== pid));
+  // Apagar o pacote NÃO apaga as demandas: elas viram soltas, no lugar onde o pacote estava.
+  const delPacote = (pid) => setProjects(ps => ps.map((p,i) => {
+    if (i !== realIdx) return p;
+    const pcs = p.pacotes || [];
+    const alvo = pcs.find(pp => String(pp.id) === String(pid));
+    const nova = ordemDeUnidades(buildUnidades(p.raias || [], pcs, p.ordem || []));
+    const soltas = (alvo?.raiaIds || []).map(id => ({ t:'raia', id:String(id) }));
+    const pos = nova.findIndex(o => o.t === 'pac' && String(o.id) === String(pid));
+    if (pos >= 0) nova.splice(pos, 1, ...soltas); else nova.push(...soltas);
+    return { ...p, pacotes: pcs.filter(pp => String(pp.id) !== String(pid)), ordem: nova };
+  }));
+
+  // Ordena pacotes e demandas soltas NO MESMO nível.
+  const moveUnidade = (i, d) => {
+    const us = [...unidades], n = i + d;
+    if (n < 0 || n >= us.length) return;
+    [us[i], us[n]] = [us[n], us[i]];
+    setProjects(ps => ps.map((p, k) => k === realIdx ? { ...p, ordem: ordemDeUnidades(us) } : p));
+  };
+  // Ordena demandas DENTRO de um pacote.
+  const moveRaiaNoPacote = (pid, i, d) => setPacotes(ps => ps.map(p => {
+    if (String(p.id) !== String(pid)) return p;
+    const ids = [...(p.raiaIds || [])], n = i + d;
+    if (n < 0 || n >= ids.length) return p;
+    [ids[i], ids[n]] = [ids[n], ids[i]];
+    return { ...p, raiaIds: ids };
+  }));
+  // Move a demanda entre pacotes (ou para fora). Operação atômica: sai de um
+  // lugar e entra no outro na mesma atualização — nunca fica órfã no meio.
+  const setPacoteDaRaia = (raiaId, destino) => setProjects(ps => ps.map((p, i) => {
+    if (i !== realIdx) return p;
+    const pcs = p.pacotes || [];
+    const origem = pcs.find(pp => (pp.raiaIds || []).some(id => String(id) === String(raiaId)));
+    const novos = pcs.map(pp => ({ ...pp, raiaIds: (pp.raiaIds || []).filter(id => String(id) !== String(raiaId)) }));
+    const nova = ordemDeUnidades(buildUnidades(p.raias || [], pcs, p.ordem || []))
+                   .filter(o => !(o.t === 'raia' && String(o.id) === String(raiaId)));
+    if (destino === '__none__') {
+      const pos = origem ? nova.findIndex(o => o.t === 'pac' && String(o.id) === String(origem.id)) : -1;
+      const ent = { t:'raia', id:String(raiaId) };
+      if (pos >= 0) nova.splice(pos + 1, 0, ent); else nova.push(ent);
+    } else {
+      const alvo = novos.find(pp => String(pp.id) === String(destino));
+      if (alvo) alvo.raiaIds = [...alvo.raiaIds, raiaId];
+    }
+    return { ...p, pacotes: novos, ordem: nova };
+  }));
   const renomearPacote = (pid, nome) => setPacotes(ps => ps.map(p => p.id===pid ? {...p,nome} : p));
 
   const upd = (id, patch) => setRaias(rs => rs.map(r => r.id === id ? { ...r, ...patch } : r));
@@ -956,6 +1028,14 @@ function ReportScreen({ projects, setProjects, currentIdx, setCurrentIdx, active
   };
   const addFase = (id) => setRaias(rs => rs.map(r => r.id === id ? { ...r, fases: [...r.fases, { fase: ORDEM_FASES[Math.min(r.fases.length, ORDEM_FASES.length - 1)], inicio: '', fim: '', pct: 0 }] } : r));
   const delFase = (id, fi) => setRaias(rs => rs.map(r => r.id === id ? { ...r, fases: r.fases.filter((_, i) => i !== fi) } : r));
+  // Modo flat: a ordem é a do próprio array `raias`.
+  const moveRaia = (i, d) => setRaias(rs => {
+    const n = i + d;
+    if (n < 0 || n >= rs.length) return rs;
+    const a = [...rs];
+    [a[i], a[n]] = [a[n], a[i]];
+    return a;
+  });
   const moveFase = (id, fi, direcao) => setRaias(rs => rs.map(r => {
     if (r.id !== id) return r;
     const novoIdx = fi + direcao;
@@ -1116,7 +1196,7 @@ function ReportScreen({ projects, setProjects, currentIdx, setCurrentIdx, active
         </Section>
 
         {/* ---------- PREVIEW ---------- */}
-        <GanttPreview projeto={projeto} raias={raias} timeline={timeline} hojeFrac={hojeFrac} usaPacotes={usaPacotes} pacotes={pacotes} />
+        <GanttPreview projeto={projeto} raias={raias} timeline={timeline} hojeFrac={hojeFrac} usaPacotes={usaPacotes} pacotes={pacotes} ordem={ordem} />
 
         {/* ---------- TIMELINE CONFIG ---------- */}
         <Section title="Linha do tempo">
@@ -1175,20 +1255,35 @@ function ReportScreen({ projects, setProjects, currentIdx, setCurrentIdx, active
                 style={{ background: usaPacotes ? "#7030A0" : "#F1F5F9", color: usaPacotes ? "#fff" : "#334155", border: usaPacotes ? "none" : "1px solid #CBD5E1" }}>
                 {usaPacotes ? <><Package size={14}/> Remover pacotes</> : <><Package size={14}/> Quebrar em pacotes</>}
               </button>
-              {!usaPacotes && <button className="btn" onClick={addRaia} style={{ background: "#003B82", color: "#fff" }}><Plus size={15} />Adicionar demanda</button>}
+              <button className="btn" onClick={addRaia} style={{ background: "#003B82", color: "#fff" }}><Plus size={15} />Adicionar demanda</button>
               {usaPacotes  && <button className="btn" onClick={addPacote} style={{ background: "#003B82", color: "#fff" }}><Plus size={15} />Adicionar pacote</button>}
             </div>
           </div>
 
           {/* ── Modo flat (sem pacotes) ── */}
-          {!usaPacotes && raias.map((r) => (
+          {!usaPacotes && raias.map((r, ri) => (
             <RaiaCard key={r.id} r={r} aberta={!!aberta[r.id]}
               toggle={() => setAberta((a) => ({ ...a, [r.id]: !a[r.id] }))}
-              upd={upd} updFase={updFase} setFaseCustom={setFaseCustom} addFase={addFase} delFase={delFase} moveFase={moveFase} delRaia={delRaia} />
+              upd={upd} updFase={updFase} setFaseCustom={setFaseCustom} addFase={addFase} delFase={delFase} moveFase={moveFase} delRaia={delRaia}
+              podeSubir={ri > 0} podeDescer={ri < raias.length - 1} mover={(d) => moveRaia(ri, d)} />
           ))}
 
-          {/* ── Modo pacotes ── */}
-          {usaPacotes && pacotes.map((pac, pi) => {
+          {/* ── Modo pacotes: pacotes e demandas soltas convivem no mesmo nível ── */}
+          {usaPacotes && unidades.map((u, ui) => {
+            const podeSubir = ui > 0, podeDescer = ui < unidades.length - 1;
+
+            if (u.t === 'raia') {
+              const r = u.raia;
+              return (
+                <RaiaCard key={`solta-${r.id}`} r={r} aberta={!!aberta[r.id]}
+                  toggle={() => setAberta(a => ({...a, [r.id]: !a[r.id]}))}
+                  upd={upd} updFase={updFase} setFaseCustom={setFaseCustom} addFase={addFase} delFase={delFase} moveFase={moveFase} delRaia={delRaia}
+                  podeSubir={podeSubir} podeDescer={podeDescer} mover={(d) => moveUnidade(ui, d)}
+                  pacotes={pacotes} pacoteAtual="__none__" onTrocarPacote={setPacoteDaRaia} />
+              );
+            }
+
+            const pac = u.pac;
             const pacRaias = pac.raiaIds.map(id => raias.find(r => r.id === id)).filter(Boolean);
             const info = calcPacoteInfo(pac, pacRaias);
             const sCor = statusCor(info.status);
@@ -1196,6 +1291,7 @@ function ReportScreen({ projects, setProjects, currentIdx, setCurrentIdx, active
               <div key={pac.id} style={{ marginBottom: 16, border: "1.5px solid #E2E8F0", borderRadius: 12, overflow: "hidden" }}>
                 {/* cabeçalho do pacote */}
                 <div style={{ background: "#F8FAFF", borderBottom: "1.5px solid #E2E8F0", padding: "10px 14px", display: "flex", alignItems: "center", gap: 10 }}>
+                  <SetasOrdem podeSubir={podeSubir} podeDescer={podeDescer} mover={(d) => moveUnidade(ui, d)} />
                   <Package size={18} color="#2F5597"/>
                   <input className="inp" style={{ flex:1, fontWeight:700, fontSize:14, background:"transparent", border:"none", boxShadow:"none", padding:"2px 4px" }}
                     value={pac.nome} onChange={e => renomearPacote(pac.id, e.target.value)} />
@@ -1212,10 +1308,12 @@ function ReportScreen({ projects, setProjects, currentIdx, setCurrentIdx, active
                   {pacRaias.length === 0 && (
                     <div style={{ textAlign:"center", padding:"18px 0", fontSize:13, color:"#94A3B8" }}>Nenhuma demanda neste pacote</div>
                   )}
-                  {pacRaias.map(r => (
+                  {pacRaias.map((r, ri) => (
                     <RaiaCard key={r.id} r={r} aberta={!!aberta[r.id]}
                       toggle={() => setAberta(a => ({...a, [r.id]: !a[r.id]}))}
-                      upd={upd} updFase={updFase} setFaseCustom={setFaseCustom} addFase={addFase} delFase={delFase} moveFase={moveFase} delRaia={delRaia} />
+                      upd={upd} updFase={updFase} setFaseCustom={setFaseCustom} addFase={addFase} delFase={delFase} moveFase={moveFase} delRaia={delRaia}
+                      podeSubir={ri > 0} podeDescer={ri < pacRaias.length - 1} mover={(d) => moveRaiaNoPacote(pac.id, ri, d)}
+                      pacotes={pacotes} pacoteAtual={pac.id} onTrocarPacote={setPacoteDaRaia} />
                   ))}
                 </div>
               </div>
@@ -1438,6 +1536,7 @@ function AppContent({ initialScreen, onVoltar }) {
             projeto:   row.projeto_json   ? JSON.parse(row.projeto_json)  : {},
             raias:     row.raias_json     ? JSON.parse(row.raias_json)    : [],
             pacotes:   row.pacotes_json   ? JSON.parse(row.pacotes_json)  : [],
+            ordem:     row.ordem_json     ? JSON.parse(row.ordem_json)    : [],
           }))
           setProjects(ps)
           // tela já controlada pelo sessionStorage — não redirecionar aqui
@@ -1482,6 +1581,7 @@ function AppContent({ initialScreen, onVoltar }) {
         projeto_json:  JSON.stringify(p.projeto  || {}),
         raias_json:    JSON.stringify(p.raias    || []),
         pacotes_json:  JSON.stringify(p.pacotes  || []),
+        ordem_json:    JSON.stringify(p.ordem    || []),
         updated_at:    new Date().toISOString(),
       }))
       console.log('[SAVE] Upserts:', upserts.map(u => ({ id: u.project_id, nome: JSON.parse(u.projeto_json)?.nome })))
@@ -1578,6 +1678,7 @@ function AppContent({ initialScreen, onVoltar }) {
           projeto:   ex?.projeto || makeProjetoFromRow(row),
           raias:     ex?.raias ?? [],
           pacotes:   ex?.pacotes ?? [],
+          ordem:     ex?.ordem ?? [],
         }
       }
       return Object.values(map)
@@ -1609,6 +1710,9 @@ function AppContent({ initialScreen, onVoltar }) {
           naFila: entrandoNaFila.has(p.id) ? true : (existMap[p.id]?.naFila ?? p.naFila ?? true),
           noLote: p.noLote ?? existMap[p.id]?.noLote ?? true,
           raias: existMap[p.id]?.raias ?? p.raias ?? [],
+          pacotes: existMap[p.id]?.pacotes ?? p.pacotes ?? [],
+          ordem: existMap[p.id]?.ordem ?? p.ordem ?? [],
+          usaPacotes: existMap[p.id]?.usaPacotes ?? p.usaPacotes ?? false,
         }));
         setProjects(finalProjects);
         if (activateIds && activateIds.length) {
@@ -1653,7 +1757,7 @@ function AppContent({ initialScreen, onVoltar }) {
   />;
 }
 
-function GanttPreview({ projeto, raias, timeline, hojeFrac, usaPacotes, pacotes }) {
+function GanttPreview({ projeto, raias, timeline, hojeFrac, usaPacotes, pacotes, ordem }) {
   const { cells } = timeline;
   const ROTULO_W = 415; // Lecom+Marcos/Demanda+Status+Dt Início
   const ROW_H = 32;
@@ -1776,8 +1880,10 @@ const GANTT_MAX_H = 440; // altura máxima antes de rolar
 
             if (!usaPacotes) return raias.map(r => RaiaRow(r));
 
-            // Modo pacotes: linha de pacote + demandas
-            return pacotes.map(pac => {
+            // Modo pacotes: pacotes e demandas soltas na ordem definida pelo usuário
+            return buildUnidades(raias, pacotes, ordem).map(u => {
+              if (u.t === 'raia') return RaiaRow(u.raia);
+              const pac = u.pac;
               const pacRaias = pac.raiaIds.map(id => raias.find(r => r.id === id)).filter(Boolean);
               const info = calcPacoteInfo(pac, pacRaias);
               const sCor = statusCor(info.status);
@@ -1970,11 +2076,25 @@ function BarRow({ r, cells, atualizadoEm, rowH = 32 }) {
   );
 }
 
+// ---------- Setas de ordenação (reutilizado por pacote e por demanda) ----------
+function SetasOrdem({ podeSubir, podeDescer, mover }) {
+  if (!mover) return null;
+  const bs = (on) => ({ background:"none", border:"none", padding:0, lineHeight:1, display:"flex",
+                        cursor: on ? "pointer" : "default", color: on ? "#2F5597" : "#CBD5E1" });
+  return (
+    <div style={{ display:"flex", flexDirection:"column", flexShrink:0 }}>
+      <button type="button" title="Mover para cima"  disabled={!podeSubir}  onClick={() => podeSubir  && mover(-1)} style={bs(podeSubir)}><ChevronUp size={15} /></button>
+      <button type="button" title="Mover para baixo" disabled={!podeDescer} onClick={() => podeDescer && mover(1)}  style={bs(podeDescer)}><ChevronDown size={15} /></button>
+    </div>
+  );
+}
+
 // ---------- Card de raia (editor) ----------
-function RaiaCard({ r, aberta, toggle, upd, updFase, setFaseCustom, addFase, delFase, moveFase, delRaia }) {
+function RaiaCard({ r, aberta, toggle, upd, updFase, setFaseCustom, addFase, delFase, moveFase, delRaia, podeSubir, podeDescer, mover, pacotes, pacoteAtual, onTrocarPacote }) {
   return (
     <div style={{ background: "#FAFBFC", borderRadius: 10, marginBottom: 10, border: r.despriorizado ? "1px solid #E2E8F0" : "1px solid #EEF2F7" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px" }}>
+        <SetasOrdem podeSubir={podeSubir} podeDescer={podeDescer} mover={mover} />
         <button onClick={toggle} style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b", display: "flex" }}>
           {aberta ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
         </button>
@@ -2009,6 +2129,18 @@ function RaiaCard({ r, aberta, toggle, upd, updFase, setFaseCustom, addFase, del
               <option value="Op. Assistida">Op. Assistida</option>
               <option value="Monitoramento e Controle">Monitoramento e Controle</option>
               <option value="Concluído">Concluído</option>
+            </select>
+          </div>
+        )}
+        {/* Pacote da demanda — só no modo pacotes */}
+        {onTrocarPacote && (
+          <div style={{ display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
+            <span style={{ fontSize: 11, color: "#94a3b8", whiteSpace: "nowrap" }}>Pacote:</span>
+            <select className="inp" style={{ width: 130, fontSize: 12 }}
+              value={pacoteAtual || '__none__'}
+              onChange={(e) => onTrocarPacote(r.id, e.target.value)}>
+              <option value="__none__">Sem pacote</option>
+              {(pacotes || []).map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
             </select>
           </div>
         )}
@@ -2281,7 +2413,7 @@ function buildMultiSlidePptxParts(slideXmlsArr) {
 // Paginação por número de linhas (máx. 12: pacotes + demandas) E por altura útil.
 // Cada página é um slide completo: cabeçalho do report, topo da tabela e rodapé.
 // A ordem das linhas é exatamente a ordem cadastrada pelo usuário.
-function gerarSlidesXmls({ projeto, raias, timeline, usaPacotes, pacotes }) {
+function gerarSlidesXmls({ projeto, raias, timeline, usaPacotes, pacotes, ordem }) {
   const MAX_LINHAS  = 12;
   const bodyTop     = 2.91;
   const bodyBottom  = 5.92;
@@ -2316,7 +2448,11 @@ function gerarSlidesXmls({ projeto, raias, timeline, usaPacotes, pacotes }) {
       const p = pagePacotes.find(pp => pp.id === u.pacId);
       if (p) p.raiaIds.push(u.r.id);
     });
-    return gerarSlideXml({ projeto, raias: pageRaias, timeline, usaPacotes: true, pacotes: pagePacotes, legenda });
+    // Ordem DESTA página: pacotes e demandas soltas na sequência em que entraram.
+    const pageOrdem = page
+      .filter(u => u.kind === 'pac' || !u.pacId)
+      .map(u => u.kind === 'pac' ? { t:'pac', id:String(u.pac.id) } : { t:'raia', id:String(u.r.id) });
+    return gerarSlideXml({ projeto, raias: pageRaias, timeline, usaPacotes: true, pacotes: pagePacotes, ordem: pageOrdem, legenda });
   };
 
   // ── SEM PACOTES: quebra linha a linha (ordem cadastrada) ──
@@ -2335,7 +2471,14 @@ function gerarSlidesXmls({ projeto, raias, timeline, usaPacotes, pacotes }) {
   // ── COM PACOTES: cada pacote começa no topo de uma página, salvo se couber inteiro no resto ──
   const pages = []; let cur = [];
   const flush = () => { if (cur.length) { pages.push(cur); cur = []; } };
-  pacotes.forEach(pac => {
+  buildUnidades(raias, pacotes, ordem).forEach(un => {
+    if (un.t === 'raia') {
+      const u = { kind: 'raia', r: un.raia, min: alturaMinRaia(un.raia) };
+      if (cur.length > 0 && !cabe([...cur, u])) flush();
+      cur.push(u);
+      return;
+    }
+    const pac = un.pac;
     const pacRaias = pac.raiaIds.map(id => raias.find(x => x.id === id)).filter(Boolean);
     const header = { kind: 'pac', pac };
     const raiaUnits = pacRaias.map(r => ({ kind: 'raia', r, min: alturaMinRaia(r), pacId: pac.id }));
@@ -2368,7 +2511,7 @@ function baixarPptx(projects) {
   projects.forEach((p) => {
     _id = 100;
     const tl = buildTimeline(ano, mesInicio, p.nFuturos ?? 1, p.nPassados ?? 0);
-    const slides = gerarSlidesXmls({ projeto: p.projeto, raias: p.raias, timeline: tl, usaPacotes: p.usaPacotes ?? false, pacotes: p.pacotes ?? [] });
+    const slides = gerarSlidesXmls({ projeto: p.projeto, raias: p.raias, timeline: tl, usaPacotes: p.usaPacotes ?? false, pacotes: p.pacotes ?? [], ordem: p.ordem ?? [] });
     slides.forEach(xml => allSlideXmls.push(xml));
   });
   const parts = buildMultiSlidePptxParts(allSlideXmls);
@@ -2394,7 +2537,7 @@ function gerarSlideContXml({ projeto, raias, timeline, slideNum, totalSlides }) 
   return fullXml;
 }
 
-function gerarSlideXml({ projeto, raias, timeline, usaPacotes, pacotes, legenda }) {
+function gerarSlideXml({ projeto, raias, timeline, usaPacotes, pacotes, ordem, legenda }) {
   const S = [];
   const HX = (c) => (c || "").replace("#", "");
   const cells = timeline.cells;
@@ -2458,7 +2601,9 @@ function gerarSlideXml({ projeto, raias, timeline, usaPacotes, pacotes, legenda 
   // linhas
   const bodyTop=hY+hH,bodyBottom=5.92;
   const totalRows = usaPacotes && pacotes?.length
-    ? pacotes.reduce((s,pac) => s + 1 + pac.raiaIds.length, 0)
+    ? buildUnidades(raias, pacotes, ordem).reduce((s,u) => s + (u.t === 'pac'
+        ? 1 + u.pac.raiaIds.map(id => raias.find(r => r.id === id)).filter(Boolean).length
+        : 1), 0)
     : raias.length;
   const nRows=Math.max(totalRows,7);
   const rowH=Math.min(0.42,(bodyBottom-bodyTop)/nRows);
@@ -2480,7 +2625,7 @@ function gerarSlideXml({ projeto, raias, timeline, usaPacotes, pacotes, legenda 
     S.push(shape({x:0.16,y:ry,w:0.64,h:rh,text:r.lecom||"",textOpt:{sz:900,color:"404040",algn:"ctr",anchor:"ctr",wrap:"none"}}));
     S.push(shape({x:0.86,y:ry,w:2.28,h:rh,text:r.nome||"",textOpt:{sz:900,bold:true,color:"1F2A44",anchor:"ctr"}}));
     const stRaw = r.despriorizado ? 'Despriorizado' : (r.statusDemanda || 'A iniciar');
-    const stCor = r.despriorizado ? '7F7F7F' : stRaw === 'Concluído' ? '00B050' : stRaw === 'Monitoramento e Controle' ? '0891B2' : stRaw === 'Op. Assistida' ? '006100' : stRaw === 'Aguardando Publicação' ? 'F59E0B' : stRaw === 'Em Andamento' ? '0070C0' : stRaw === 'Atrasado' ? 'C00000' : stRaw === 'Plan./Espec.' ? '7030A0' : '94A3B8';
+    const stCor = r.despriorizado ? '7F7F7F' : stRaw === 'Concluído' ? '00B050' : stRaw === 'Monitoramento e Controle' ? '0891B2' : stRaw === 'Op. Assistida' ? '006100' : stRaw === 'Aguardando Publicação' ? 'F59E0B' : stRaw === 'Em Andamento' ? '0070C0' : stRaw === 'Atrasado' ? 'C00000' : stRaw === 'Plan./Esp.' ? '7030A0' : '94A3B8';
     S.push(shape({x:3.18,y:ry,w:0.98,h:rh,text:stRaw,textOpt:{sz:900,bold:true,color:stCor,algn:"ctr",anchor:"ctr",wrap:"none"}}));
     const dtIni=(()=>{const d=r.fases[0]?.inicio||"";if(!d)return"";const x=new Date(d+"T12:00:00");if(isNaN(x))return"";return String(x.getDate()).padStart(2,"0")+"/"+String(x.getMonth()+1).padStart(2,"0");})();
     S.push(shape({x:4.18,y:ry,w:0.68,h:rh,text:dtIni,textOpt:{sz:900,color:"404040",algn:"ctr",anchor:"ctr",wrap:"none"}}));
@@ -2583,11 +2728,13 @@ function gerarSlideXml({ projeto, raias, timeline, usaPacotes, pacotes, legenda 
     raias.forEach(r => { const rh=calcRhPptx(r); renderRaiaRow(r, curY, rh); curY+=rh; });
   } else {
     let curY = bodyTop;
-    pacotes.forEach(pac => {
+    buildUnidades(raias, pacotes, ordem).forEach(un => {
+      if (un.t === 'raia') { const r = un.raia; const rh = calcRhPptx(r); renderRaiaRow(r, curY, rh); curY += rh; return; }
+      const pac = un.pac;
       const pacRaias = pac.raiaIds.map(id => raias.find(r=>r.id===id)).filter(Boolean);
       const info = calcPacoteInfo(pac, pacRaias);
       
-      const sCor = info.status==='Concluído'?'00B050':info.status==='Monitoramento e Controle'?'0891B2':info.status==='Op. Assistida'?'006100':info.status==='Aguardando Publicação'?'F59E0B':info.status==='Em Andamento'?'0070C0':info.status==='Atrasado'?'C00000':info.status==='Plan./Espec.'?'7030A0':'94A3B8';
+      const sCor = info.status==='Concluído'?'00B050':info.status==='Monitoramento e Controle'?'0891B2':info.status==='Op. Assistida'?'006100':info.status==='Aguardando Publicação'?'F59E0B':info.status==='Em Andamento'?'0070C0':info.status==='Atrasado'?'C00000':info.status==='Plan./Esp.'?'7030A0':'94A3B8';
       const pacH = rowH;
       const ry = curY;
       [[0.14,0.67],[0.81,2.37],[3.18,1.0],[4.18,0.69]].forEach(([cx,cw])=>S.push(shape({x:cx,y:ry,w:cw,h:pacH,fill:"EEF4FF",line:GRID_LN})));
