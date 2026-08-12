@@ -295,8 +295,14 @@ function processData(portBuf,melBuf,melSheetName,lider,trimestre,compromisso,ign
   // Arredondamento para inteiro: decimal >=5 sobe, <5 desce (Math.round padrão)
   const pct_p_int=Math.round(pct_p);
   const pct_m_int=Math.round(pct_m);
-  const area=fin.length>0?String(fin[0][7]||"TI - Growth"):"TI - Growth";
-  const diretor=fin.length>0?String(fin[0][9]||"Digital"):"Digital";
+  /* Cabeçalho do slide: pega a 1ª linha do recorte que tenha o campo
+     preenchido — a primeira linha pode vir com a área em branco. */
+  const primeiro=(chave,padrao)=>{
+    const achou=fin.find(r=>String(r[chave]||"").trim());
+    return achou?String(achou[chave]).trim():padrao;
+  };
+  const area=primeiro(P.AREA_EXEC,"TI - Growth");
+  const diretor=primeiro(P.DIR_EXEC,"Digital");
 
   const FASE_P_ORDER=["Solicitado","Planejamento","Execução","Piloto","Expansão","Monitoramento e Controle","Encerrado"];
   const FASE_M_ORDER=["01.Não Iniciado","02.Planejamento/Especificação","03.Desenvolvimento","04.Homologação","05.Ag. Publicação","06.Finalizado"];
