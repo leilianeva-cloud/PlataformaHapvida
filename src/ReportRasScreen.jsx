@@ -1,5 +1,10 @@
-import { useState, useEffect } from "react";
-import * as XLSX from "xlsx";
+import { useState, useEffect, useRef } from "react";
+import * as XLSX from "xlsx"
+import {
+  CAMPOS_PORTFOLIO, OBRIGATORIAS_PORTFOLIO, CRITICAS_PORTFOLIO, ORDEM_PORTFOLIO, COL_CANONICO,
+  CAMPOS_MELHORIAS, OBRIGATORIAS_MELHORIAS, CRITICAS_MELHORIAS, ORDEM_MELHORIAS, MEL_CANONICO,
+  IMPACTO, resolverColunas, canonizar,
+} from "./colunas";
 import JSZip from "jszip";
 import {
   ChevronLeft, LogOut,
@@ -165,12 +170,26 @@ function rowBg(i){ return i%2===0?"FFFFFF":"F4F7FD"; }
 function pctFmt(n,t){ return t>0?(n/t*100).toFixed(1).replace(".",","):"0,0"; }
 
 /* ── XLSX PARSING ──────────────────────────────────────────────────────────── */
-function readSheet(buf,sheetName,headerRowIdx){
+/* Lê uma aba e devolve as linhas JÁ no layout canônico de colunas.js.
+   A posição das colunas na planilha é resolvida pelo NOME do cabeçalho —
+   inserir, remover ou reordenar coluna na origem não afeta mais nada aqui.
+   Devolve também o mapa, para a tela poder avisar o que faltou. */
+export class ErroDeColunas extends Error {
+  constructor(fonte, mapa){
+    super(`Colunas não encontradas em ${fonte}: ${mapa.faltando.join(", ")}`);
+    this.fonte=fonte; this.mapa=mapa;
+  }
+}
+
+function lerFonte(buf,sheetName,campos,obrigatorias,criticas,ordem,fonte,ignorarFaltantes){
   const wb=XLSX.read(new Uint8Array(buf),{type:"array",cellDates:true});
   const ws=wb.Sheets[sheetName];
   if(!ws) throw new Error(`Aba "${sheetName}" não encontrada`);
-  const all=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
-  return all.slice(headerRowIdx+1);
+  const matriz=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
+  const mapa=resolverColunas(matriz,campos,{obrigatorias,criticas});
+  if(mapa.headerRow<0) throw new Error(`Não encontrei a linha de cabeçalho em "${sheetName}"`);
+  if(mapa.faltando.length && !ignorarFaltantes) throw new ErroDeColunas(fonte,mapa);
+  return { linhas: canonizar(mapa.linhas,mapa.idx,ordem), mapa };
 }
 
 /* ── DATA PROCESSING ───────────────────────────────────────────────────────── */
@@ -179,30 +198,35 @@ function readSheet(buf,sheetName,headerRowIdx){
    da janela para fora. d0() zera a hora antes de qualquer comparação. */
 function d0(v){ if(!(v instanceof Date)) return null; const d=new Date(v); d.setHours(0,0,0,0); return d; }
 
-function processData(portBuf,melBuf,melSheetName,lider,trimestre,compromisso){
+function processData(portBuf,melBuf,melSheetName,lider,trimestre,compromisso,ignorarFaltantes){
+  const P=COL_CANONICO, M=MEL_CANONICO;
   const today=new Date(); today.setHours(0,0,0,0);
   const today5=new Date(today); today5.setDate(today5.getDate()+5);
 
-  const pfRows=readSheet(portBuf,"Portfólio",1);
-  const matchL=r=>r[8]&&norm(String(r[8])).includes(norm(lider));
-  const matchT=r=>r[57]&&norm(String(r[57]))===norm(trimestre);
-  const okSt=r=>!["Cancelado","Suspenso"].includes(String(r[20]||""));
-  const okDp=r=>!r[59];
+  const fontePf=lerFonte(portBuf,"Portfólio",CAMPOS_PORTFOLIO,OBRIGATORIAS_PORTFOLIO,CRITICAS_PORTFOLIO,ORDEM_PORTFOLIO,"Portfólio",ignorarFaltantes);
+  const pfRows=fontePf.linhas;
+  const matchL=r=>r[P.LIDER_EXEC]&&norm(String(r[P.LIDER_EXEC])).includes(norm(lider));
+  const matchT=r=>r[P.TRIMESTRE]&&norm(String(r[P.TRIMESTRE]))===norm(trimestre);
+  /* O status passou a trazer a explicação junto ("Suspenso → pausado por
+     decisão executiva"). Igualdade exata deixaria cancelados e suspensos
+     entrarem no report. Compara pelo começo do texto normalizado. */
+  const okSt=r=>{const n=norm(String(r[P.STATUS]||""));return !n.startsWith("cancelado")&&!n.startsWith("suspenso");};
+  const okDp=r=>!r[P.DESPRI];
 
-  const fin=pfRows.filter(r=>matchL(r)&&matchT(r)&&okSt(r)&&okDp(r)&&norm(String(r[58]||""))===norm(compromisso));
-  const ea=pfRows.filter(r=>matchL(r)&&matchT(r)&&okSt(r)&&okDp(r)&&["especificacao","andamento"].includes(norm(String(r[58]||""))));
+  const fin=pfRows.filter(r=>matchL(r)&&matchT(r)&&okSt(r)&&okDp(r)&&norm(String(r[P.COMPROMISSO]||""))===norm(compromisso));
+  const ea=pfRows.filter(r=>matchL(r)&&matchT(r)&&okSt(r)&&okDp(r)&&["especificacao","andamento"].includes(norm(String(r[P.COMPROMISSO]||""))));
 
-  const enc_p=fin.filter(r=>ENTREGUES.includes(String(r[19]||"")));
-  const act_p=fin.filter(r=>!ENTREGUES.includes(String(r[19]||"")));
+  const enc_p=fin.filter(r=>ENTREGUES.includes(String(r[P.FASE]||"")));
+  const act_p=fin.filter(r=>!ENTREGUES.includes(String(r[P.FASE]||"")));
   const at_p=[],er_p=[],np_p=[];
   for(const r of act_p){
-    const st=String(r[20]||""),d=d0(r[23]);
+    const st=String(r[P.STATUS]||""),d=d0(r[P.TARGET]);
     if(norm(st).startsWith("atrasado")) at_p.push(r);
     else if(d&&d<today) at_p.push(r);
     else if(d&&d>=today&&d<=today5) er_p.push(r);
     else if(d&&d>today5) np_p.push(r);
   }
-  const prx_p=act_p.filter(r=>{const d=d0(r[23]);return !!d&&d>=today&&d<=today5;});
+  const prx_p=act_p.filter(r=>{const d=d0(r[P.TARGET]);return !!d&&d>=today&&d<=today5;});
 
   // Canonical phase matching: normalize Excel value, map back to canonical label
   const FASE_P_CANON=["Solicitado","Planejamento","Execução","Piloto","Expansão","Monitoramento e Controle","Encerrado"];
@@ -213,31 +237,32 @@ function processData(portBuf,melBuf,melSheetName,lider,trimestre,compromisso){
   };
   const sqP={};
   for(const r of fin){
-    const sq=stripPref(String(r[62]||""))||"Sem Squad";
+    const sq=stripPref(String(r[P.SQUAD]||""))||"Sem Squad";
     if(!sqP[sq]) sqP[sq]={total:0,enc:0};
-    sqP[sq].total++; if(ENTREGUES.includes(String(r[19]||""))) sqP[sq].enc++;
+    sqP[sq].total++; if(ENTREGUES.includes(String(r[P.FASE]||""))) sqP[sq].enc++;
   }
   const fasP={};
-  for(const r of fin){const f=canonFaseP(r[19]);fasP[f]=(fasP[f]||0)+1;}
+  for(const r of fin){const f=canonFaseP(r[P.FASE]);fasP[f]=(fasP[f]||0)+1;}
 
   const atraso_proj=at_p.sort((a,b)=>{
-    const da=a[23] instanceof Date?a[23]:new Date("2099");
-    const db=b[23] instanceof Date?b[23]:new Date("2099");
+    const da=a[P.TARGET] instanceof Date?a[P.TARGET]:new Date("2099");
+    const db=b[P.TARGET] instanceof Date?b[P.TARGET]:new Date("2099");
     return da-db;
-  }).map(r=>({lecom:String(r[0]||""),squad:stripPref(String(r[62]||"")),nome:String(r[2]||""),fase:String(r[19]||""),target:fmtDM(r[23]),np:parseNPdm(r[76])}));
+  }).map(r=>({lecom:String(r[P.ID]||""),squad:stripPref(String(r[P.SQUAD]||"")),nome:String(r[P.NOME]||""),fase:String(r[P.FASE]||""),target:fmtDM(r[P.TARGET]),np:parseNPdm(r[P.REPLAN])}));
 
-  const prx_proj=prx_p.map(r=>({lecom:String(r[0]||""),squad:stripPref(String(r[62]||"")),nome:String(r[2]||""),fase:String(r[19]||""),status:shortStatusP(r[20]),target:fmtDM(r[23]),np:parseNPdm(r[76])}));
+  const prx_proj=prx_p.map(r=>({lecom:String(r[P.ID]||""),squad:stripPref(String(r[P.SQUAD]||"")),nome:String(r[P.NOME]||""),fase:String(r[P.FASE]||""),status:shortStatusP(r[P.STATUS]),target:fmtDM(r[P.TARGET]),np:parseNPdm(r[P.REPLAN])}));
 
-  const bl_fin=fin.map(r=>({lecom:String(r[0]||""),squad:stripPref(String(r[62]||"")),nome:String(r[2]||""),fase:String(r[19]||""),status:shortStatusP(r[20]),target:fmtDate(r[23]),np:parseNP(r[76]),enc:ENTREGUES.includes(String(r[19]||""))}));
-  const bl_ea=ea.map(r=>({lecom:String(r[0]||""),squad:stripPref(String(r[62]||"")),nome:String(r[2]||""),fase:String(r[19]||""),status:shortStatusP(r[20]),target:fmtDate(r[23]),np:parseNP(r[76]),enc:ENTREGUES.includes(String(r[19]||""))}));
+  const bl_fin=fin.map(r=>({lecom:String(r[P.ID]||""),squad:stripPref(String(r[P.SQUAD]||"")),nome:String(r[P.NOME]||""),fase:String(r[P.FASE]||""),status:shortStatusP(r[P.STATUS]),target:fmtDate(r[P.TARGET]),np:parseNP(r[P.REPLAN]),enc:ENTREGUES.includes(String(r[P.FASE]||""))}));
+  const bl_ea=ea.map(r=>({lecom:String(r[P.ID]||""),squad:stripPref(String(r[P.SQUAD]||"")),nome:String(r[P.NOME]||""),fase:String(r[P.FASE]||""),status:shortStatusP(r[P.STATUS]),target:fmtDate(r[P.TARGET]),np:parseNP(r[P.REPLAN]),enc:ENTREGUES.includes(String(r[P.FASE]||""))}));
 
-  const melRows=readSheet(melBuf,melSheetName,0);
-  const allM=melRows.filter(r=>r[25]&&norm(String(r[25])).includes(norm(lider))&&!r[9]);
-  const fin_m=allM.filter(r=>String(r[15]||"")==="06.Finalizado");
-  const act_m=allM.filter(r=>String(r[15]||"")!=="06.Finalizado");
+  const fonteMel=lerFonte(melBuf,melSheetName,CAMPOS_MELHORIAS,OBRIGATORIAS_MELHORIAS,CRITICAS_MELHORIAS,ORDEM_MELHORIAS,"Melhorias",ignorarFaltantes);
+  const melRows=fonteMel.linhas;
+  const allM=melRows.filter(r=>r[M.LIDER]&&norm(String(r[M.LIDER])).includes(norm(lider))&&!r[M.DESPRI]);
+  const fin_m=allM.filter(r=>String(r[M.STATUS]||"")==="06.Finalizado");
+  const act_m=allM.filter(r=>String(r[M.STATUS]||"")!=="06.Finalizado");
   const at_m=[],er_m=[],np_m=[];
   for(const r of act_m){
-    const d=d0(r[13]);
+    const d=d0(r[M.TARGET]);
     if(d&&d<today) at_m.push(r);
     else if(d&&d>=today&&d<=today5) er_m.push(r);
     else if(d&&d>today5) np_m.push(r);
@@ -245,9 +270,9 @@ function processData(portBuf,melBuf,melSheetName,lider,trimestre,compromisso){
 
   const sqM={};
   for(const r of allM){
-    const sq=stripPref(String(r[35]||""))||"Sem Squad";
+    const sq=stripPref(String(r[M.SQUAD]||""))||"Sem Squad";
     if(!sqM[sq]) sqM[sq]={total:0,fin:0};
-    sqM[sq].total++; if(String(r[15]||"")==="06.Finalizado") sqM[sq].fin++;
+    sqM[sq].total++; if(String(r[M.STATUS]||"")==="06.Finalizado") sqM[sq].fin++;
   }
   // Canonical status matching for melhorias
   const FASE_M_CANON=["01.Não Iniciado","02.Planejamento/Especificação","03.Desenvolvimento","04.Homologação","05.Ag. Publicação","06.Finalizado"];
@@ -257,11 +282,11 @@ function processData(portBuf,melBuf,melSheetName,lider,trimestre,compromisso){
     return hit||String(raw||"").trim()||"(sem status)";
   };
   const fasM={};
-  for(const r of allM){const s=canonFaseM(r[15]);fasM[s]=(fasM[s]||0)+1;}
+  for(const r of allM){const s=canonFaseM(r[M.STATUS]);fasM[s]=(fasM[s]||0)+1;}
 
-  const atraso_mel=at_m.sort((a,b)=>(a[13]||0)-(b[13]||0)).map(r=>({lecom:String(r[1]||""),squad:stripPref(String(r[35]||"")),nome:String(r[7]||""),status:shortStatusM(r[15]),target:fmtDM(r[13]),np:"—"}));
-  const prx_mel=er_m.map(r=>({lecom:String(r[1]||""),squad:stripPref(String(r[35]||"")),nome:String(r[7]||""),fase:"—",status:shortStatusM(r[15]),target:fmtDM(r[13]),np:"—"}));
-  const bl_mel=allM.map(r=>({lecom:String(r[1]||""),squad:stripPref(String(r[35]||"")),nome:String(r[7]||""),status:shortStatusM(r[15]),target:fmtDate(r[13]),np:"—",fin:String(r[15]||"")==="06.Finalizado"}));
+  const atraso_mel=at_m.sort((a,b)=>(a[M.TARGET]||0)-(b[M.TARGET]||0)).map(r=>({lecom:String(r[M.ID]||""),squad:stripPref(String(r[M.SQUAD]||"")),nome:String(r[M.NOME]||""),status:shortStatusM(r[M.STATUS]),target:fmtDM(r[M.TARGET]),np:parseNPdm(r[M.REPLAN])}));
+  const prx_mel=er_m.map(r=>({lecom:String(r[M.ID]||""),squad:stripPref(String(r[M.SQUAD]||"")),nome:String(r[M.NOME]||""),fase:"—",status:shortStatusM(r[M.STATUS]),target:fmtDM(r[M.TARGET]),np:parseNPdm(r[M.REPLAN])}));
+  const bl_mel=allM.map(r=>({lecom:String(r[M.ID]||""),squad:stripPref(String(r[M.SQUAD]||"")),nome:String(r[M.NOME]||""),status:shortStatusM(r[M.STATUS]),target:fmtDate(r[M.TARGET]),np:parseNP(r[M.REPLAN]),fin:String(r[M.STATUS]||"")==="06.Finalizado"}));
 
   const total_p=fin.length,total_m=allM.length,total_c=total_p+total_m;
   const at_c=at_p.length+at_m.length,er_c=er_p.length+er_m.length,np_c=np_p.length+np_m.length;
@@ -998,7 +1023,9 @@ export default function ReportRasScreen({ onVoltar }){
   const [portStatus,setPortStatus]=useState({state:"idle",msg:""});
   const [melStatus,setMelStatus]=useState({state:"idle",msg:""});
   const [liders,setLiders]=useState([]);
-  const [params,setParams]=useState({lider:"",trimestre:"2T26",compromisso:"Finalização"});
+  const [diagCols,setDiagCols]=useState(null);
+  const ignorarColsRef=useRef(false);
+  const [params,setParams]=useState({lider:"",trimestre:"3T26",compromisso:"Conclusão"});
   const [preview,setPreview]=useState(null);
   const [busy,setBusy]=useState(false);
   const [genStatus,setGenStatus]=useState({state:"idle",msg:"",file:""});
@@ -1123,9 +1150,13 @@ export default function ReportRasScreen({ onVoltar }){
     setMsg({text:"",type:"info"});
     setTimeout(()=>{
       try{
-        const d=processData(portBuf,melBuf,melSheetName,params.lider,params.trimestre,params.compromisso);
+        setDiagCols(null);
+        const d=processData(portBuf,melBuf,melSheetName,params.lider,params.trimestre,params.compromisso,ignorarColsRef.current);
         setPreview(d);
-      }catch(e){setMsg({text:`Erro nos dados: ${e.message}`,type:"err"});}
+      }catch(e){
+        if(e instanceof ErroDeColunas){ setDiagCols({fonte:e.fonte,...e.mapa}); setMsg({text:"",type:"info"}); }
+        else setMsg({text:`Erro nos dados: ${e.message}`,type:"err"});
+      }
       setPreviewing(false);
     },30);
   };
@@ -1141,7 +1172,7 @@ export default function ReportRasScreen({ onVoltar }){
       // Stage 1 — process Excel data
       let d;
       try{
-        d=preview||processData(portBuf,melBuf,melSheetName,params.lider,params.trimestre,params.compromisso);
+        d=preview||processData(portBuf,melBuf,melSheetName,params.lider,params.trimestre,params.compromisso,ignorarColsRef.current);
         setPreview(d);
       }catch(err){
         throw new Error(`ao processar os dados: ${err.message}`);
@@ -1395,10 +1426,59 @@ export default function ReportRasScreen({ onVoltar }){
             <div>
               <label style={S.label}>Compromisso</label>
               <div style={{...S.select,display:"flex",alignItems:"center",background:"#f0f2f5",color:"#526070",cursor:"default",userSelect:"none"}}>
-                Finalização
+                Conclusão
               </div>
             </div>
           </div>
+
+          {/* Aviso de mapeamento de colunas — só aparece quando falta coluna. */}
+          {diagCols && (
+            <div style={{background:"#fff",border:"1px solid #FCA5A5",borderRadius:12,padding:18,marginTop:16}}>
+              <div style={{display:"flex",alignItems:"center",gap:8,fontWeight:700,color:"#0F172A",marginBottom:4,fontSize:14}}>
+                <AlertTriangle size={16} color="#B91C1C"/>
+                {diagCols.faltando.length} coluna{diagCols.faltando.length!==1?"s":""} não encontrada{diagCols.faltando.length!==1?"s":""} em {diagCols.fonte}
+              </div>
+              <div style={{fontSize:12,color:"#64748B",marginBottom:12}}>
+                Cabeçalho detectado na linha {diagCols.headerRow+1} · {diagCols.encontradas} de {diagCols.totalChaves} colunas mapeadas
+              </div>
+              <table style={{width:"100%",fontSize:12.5,borderCollapse:"collapse"}}>
+                <thead><tr style={{color:"#94A3B8",fontSize:11,textAlign:"left"}}>
+                  <th style={{padding:"5px 0",fontWeight:600,width:"26%"}}>Chave</th>
+                  <th style={{padding:"5px 0",fontWeight:600,width:"32%"}}>Cabeçalho esperado</th>
+                  <th style={{padding:"5px 0",fontWeight:600}}>O que fica vazio</th>
+                </tr></thead>
+                <tbody>
+                  {diagCols.faltando.map(k=>{
+                    const campos=diagCols.fonte==="Melhorias"?CAMPOS_MELHORIAS:CAMPOS_PORTFOLIO;
+                    return (
+                      <tr key={k} style={{borderTop:"1px solid #F1F5F9"}}>
+                        <td style={{padding:"7px 0",fontFamily:"monospace",fontSize:11.5}}>{k}</td>
+                        <td style={{padding:"7px 0",color:"#475569"}}>{(campos[k]||[""])[0].toUpperCase()}</td>
+                        <td style={{padding:"7px 0",color:"#B91C1C"}}>{IMPACTO[k]||"—"}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              <details style={{marginTop:10}}>
+                <summary style={{fontSize:12,color:"#003B85",cursor:"pointer",fontWeight:600}}>
+                  Ver os {diagCols.cabecalhos.length} cabeçalhos encontrados na aba
+                </summary>
+                <div style={{fontSize:11,color:"#64748B",marginTop:6,lineHeight:1.7,fontFamily:"monospace"}}>
+                  {diagCols.cabecalhos.join(" · ")}
+                </div>
+              </details>
+              <div style={{borderTop:"1px solid #F1F5F9",marginTop:12,paddingTop:12,display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+                <span style={{fontSize:12,color:"#475569",flex:1,minWidth:200}}>
+                  {diagCols.zeraReport
+                    ? "Atenção: sem estas colunas o report sai INTEIRO zerado — nenhuma linha vai casar com o filtro."
+                    : "Quer seguir assim? Esses campos vão sair vazios no PPTX."}
+                </span>
+                <button onClick={()=>{setDiagCols(null);ignorarColsRef.current=false;}} style={{background:"#fff",border:"1px solid #CBD5E1",color:"#334155",borderRadius:8,padding:"8px 14px",cursor:"pointer",fontWeight:600,fontSize:12.5,fontFamily:"inherit"}}>Cancelar</button>
+                <button onClick={()=>{ignorarColsRef.current=true;setDiagCols(null);doPreview();}} style={{background:"#FF7900",border:"none",color:"#fff",borderRadius:8,padding:"8px 14px",cursor:"pointer",fontWeight:700,fontSize:12.5,fontFamily:"inherit"}}>Seguir mesmo assim</button>
+              </div>
+            </div>
+          )}
 
           {/* ── ACTIONS ── */}
           <div style={S.actions}>
@@ -1553,7 +1633,7 @@ function PreviewPanel({d}){
 
       <div style={S.infoGrid}>
         <div style={S.infoBox}>
-          <div style={{...S.infoBoxTitle,display:"flex",alignItems:"center",gap:6}}>{<FolderOpen size={13} color="#071735" />} Projetos Finalização ({d.total_p})</div>
+          <div style={{...S.infoBoxTitle,display:"flex",alignItems:"center",gap:6}}>{<FolderOpen size={13} color="#071735" />} Projetos Conclusão ({d.total_p})</div>
           <div style={S.infoRow}>Entregues: {d.enc_p} ({d.pct_p_str}%)</div>
           <div style={S.infoRow}>Atrasados: {d.at_p} · Alerta: {d.er_p} · OK: {d.np_p}</div>
           <div style={S.infoRow}>Backlog Fin: {d.bl_fin.length} linhas{d.bl_fin.length>20?` · ${Math.ceil(d.bl_fin.length/20)} slides`:""}</div>

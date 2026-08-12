@@ -4,6 +4,10 @@ import { ArrowLeft, Upload, Search, Send, FolderOpen, AlertTriangle, RefreshCw }
 import { useAuth } from './AuthContext'
 import { loadSharedPortfolio, saveSharedPortfolio } from './supabaseClient'
 import { COL, isValid, rKey, rowKey } from './portfolioUtils'
+import {
+  CAMPOS_PORTFOLIO, OBRIGATORIAS_PORTFOLIO, CRITICAS_PORTFOLIO,
+  ORDEM_PORTFOLIO, IMPACTO, resolverColunas, canonizar, letraCol,
+} from './colunas'
 
 // Dias após os quais a idade da importação vira alerta visível a todos.
 const DIAS_ALERTA = 10
@@ -24,6 +28,9 @@ export default function PortfolioScreen({ onVoltar, onEnviarParaStatus }) {
   const [loading, setLoading] = useState(true)
   const [importando, setImportando] = useState(false)
   const [erro, setErro] = useState('')
+  // Diagnóstico de mapeamento: só aparece quando falta coluna obrigatória.
+  const [diag, setDiag] = useState(null)
+  const pendenteRef = useRef(null)
   const fileRef = useRef(null)
 
   // filtros
@@ -72,33 +79,54 @@ export default function PortfolioScreen({ onVoltar, onEnviarParaStatus }) {
 
   const toggle = (k) => setSel(s => { const n = new Set(s); n.has(k) ? n.delete(k) : n.add(k); return n })
 
+  // Grava no Supabase as linhas já canonizadas. Separado do handler para
+  // poder ser chamado de novo quando o usuário escolhe "Seguir mesmo assim".
+  async function persistir(dataRows) {
+    const res = await saveSharedPortfolio(dataRows)
+    if (!res.ok) {
+      setErro(res.error?.toLowerCase().includes('row-level') || res.error?.toLowerCase().includes('policy')
+        ? 'Só administradores podem importar o portfólio compartilhado.'
+        : `Erro ao importar: ${res.error}`)
+    } else {
+      await carregar()
+      setSel(new Set())
+    }
+  }
+
   const handleImport = (e) => {
     const file = e.target.files?.[0]
     if (!file) return
-    setImportando(true); setErro('')
+    setImportando(true); setErro(''); setDiag(null); pendenteRef.current = null
     const reader = new FileReader()
     reader.onload = async (ev) => {
       try {
         const wb = XLSX.read(new Uint8Array(ev.target.result), { type: 'array', cellDates: true })
         const sheet = wb.Sheets['Portfólio'] || wb.Sheets[wb.SheetNames[0]]
-        const parsed = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' })
-        const dataRows = parsed.slice(2) // header na linha 2
-        // Validação de cabeçalho: se a Col A não for a de identificação, a estrutura mudou.
-        const header = (parsed[1] || []).map(c => String(c || '').toLowerCase())
-        if (header.length && !header[COL.ID]?.includes('identifica') && !header[COL.ID]?.includes('lecom')) {
-          if (!window.confirm('A coluna A não parece ser "IDENTIFICAÇÃO/Lecom". A estrutura da planilha pode ter mudado. Importar mesmo assim?')) {
-            setImportando(false); if (fileRef.current) fileRef.current.value = ''; return
-          }
+        const matriz = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' })
+
+        // Resolve as colunas pelo NOME do cabeçalho (e descobre em que linha
+        // ele está). Posição na planilha deixa de importar.
+        const mapa = resolverColunas(matriz, CAMPOS_PORTFOLIO, {
+          obrigatorias: OBRIGATORIAS_PORTFOLIO,
+          criticas: CRITICAS_PORTFOLIO,
+        })
+
+        if (mapa.headerRow < 0) {
+          setErro('Não encontrei a linha de cabeçalho nesta planilha.')
+          setImportando(false); if (fileRef.current) fileRef.current.value = ''; return
         }
-        const res = await saveSharedPortfolio(dataRows)
-        if (!res.ok) {
-          setErro(res.error?.toLowerCase().includes('row-level') || res.error?.toLowerCase().includes('policy')
-            ? 'Só administradores podem importar o portfólio compartilhado.'
-            : `Erro ao importar: ${res.error}`)
-        } else {
-          await carregar()
-          setSel(new Set())
+
+        // Reescreve tudo no layout canônico — a partir daqui COL é fixo.
+        const dataRows = canonizar(mapa.linhas, mapa.idx, ORDEM_PORTFOLIO)
+
+        if (mapa.faltando.length) {
+          // Falta coluna: mostra o aviso. Crítica bloqueia; o resto deixa seguir.
+          pendenteRef.current = dataRows
+          setDiag(mapa)
+          setImportando(false); if (fileRef.current) fileRef.current.value = ''; return
         }
+
+        await persistir(dataRows)
       } catch (err) {
         setErro(`Erro ao ler o arquivo: ${err.message}`)
       }
@@ -106,6 +134,15 @@ export default function PortfolioScreen({ onVoltar, onEnviarParaStatus }) {
       if (fileRef.current) fileRef.current.value = ''
     }
     reader.readAsArrayBuffer(file)
+  }
+
+  async function seguirMesmoAssim() {
+    if (!pendenteRef.current) return
+    setImportando(true)
+    const linhas = pendenteRef.current
+    pendenteRef.current = null; setDiag(null)
+    await persistir(linhas)
+    setImportando(false)
   }
 
   const enviar = () => {
@@ -174,6 +211,63 @@ export default function PortfolioScreen({ onVoltar, onEnviarParaStatus }) {
             )}
           </div>
         </div>
+
+        {/* Aviso de mapeamento — só aparece quando falta coluna obrigatória. */}
+        {diag && (
+          <div style={{ background: '#fff', border: '1px solid #FCA5A5', borderRadius: 14, padding: 20, marginBottom: 24 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, color: '#0F172A', marginBottom: 4 }}>
+              <AlertTriangle size={17} color="#B91C1C" />
+              {diag.faltando.length} coluna{diag.faltando.length !== 1 ? 's' : ''} não encontrada{diag.faltando.length !== 1 ? 's' : ''}
+            </div>
+            <div style={{ fontSize: 12.5, color: '#64748B', marginBottom: 14 }}>
+              Cabeçalho detectado na linha {diag.headerRow + 1} · {diag.encontradas} de {diag.totalChaves} colunas mapeadas
+            </div>
+
+            <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ color: '#94A3B8', fontSize: 11.5, textAlign: 'left' }}>
+                  <th style={{ padding: '6px 0', fontWeight: 600, width: '26%' }}>Chave</th>
+                  <th style={{ padding: '6px 0', fontWeight: 600, width: '32%' }}>Cabeçalho esperado</th>
+                  <th style={{ padding: '6px 0', fontWeight: 600 }}>O que fica vazio</th>
+                </tr>
+              </thead>
+              <tbody>
+                {diag.faltando.map(k => (
+                  <tr key={k} style={{ borderTop: '1px solid #F1F5F9' }}>
+                    <td style={{ padding: '8px 0', fontFamily: 'monospace', fontSize: 12 }}>{k}</td>
+                    <td style={{ padding: '8px 0', color: '#475569' }}>{CAMPOS_PORTFOLIO[k][0].toUpperCase()}</td>
+                    <td style={{ padding: '8px 0', color: '#B91C1C' }}>{IMPACTO[k] || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            <details style={{ marginTop: 12 }}>
+              <summary style={{ fontSize: 12.5, color: '#003B85', cursor: 'pointer', fontWeight: 600 }}>
+                Ver os {diag.cabecalhos.length} cabeçalhos encontrados na aba
+              </summary>
+              <div style={{ fontSize: 11.5, color: '#64748B', marginTop: 8, lineHeight: 1.7, fontFamily: 'monospace' }}>
+                {diag.cabecalhos.join(' · ')}
+              </div>
+            </details>
+
+            <div style={{ borderTop: '1px solid #F1F5F9', marginTop: 14, paddingTop: 14, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 12.5, color: '#475569', flex: 1, minWidth: 220 }}>
+                {diag.zeraReport
+                  ? 'Atenção: sem estas colunas o report sai INTEIRO zerado — nenhuma linha vai casar com o filtro.'
+                  : 'Quer seguir assim? Esses campos vão sair vazios no report.'}
+              </span>
+              <button onClick={() => { setDiag(null); pendenteRef.current = null }}
+                style={{ background: '#fff', border: '1px solid #CBD5E1', color: '#334155', borderRadius: 9, padding: '9px 16px', cursor: 'pointer', fontWeight: 600, fontSize: 13, fontFamily: 'inherit' }}>
+                Cancelar
+              </button>
+              <button onClick={seguirMesmoAssim}
+                style={{ background: '#FF7900', border: 'none', color: '#fff', borderRadius: 9, padding: '9px 16px', cursor: 'pointer', fontWeight: 700, fontSize: 13, fontFamily: 'inherit' }}>
+                Seguir mesmo assim
+              </button>
+            </div>
+          </div>
+        )}
 
         {loading ? (
           <div style={{ textAlign: 'center', color: '#64748B', padding: 60 }}>Carregando portfólio…</div>

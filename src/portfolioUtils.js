@@ -5,14 +5,20 @@
 //  mesma linha — divergência aqui quebraria a ponte em silêncio.
 // =====================================================================
 
-// Mapeamento de colunas do Excel (Portfólio). Header na linha 2.
-export const COL = {
-  ID: 0, NOME: 2, DESC: 3, AREA_EXEC: 7, LIDER_EXEC: 8, DIR_EXEC: 9, SM: 12,
-  AREA_CLI: 14, LIDER_CLI: 15, DIR_CLI: 16, STATUS: 20, DT_INICIO: 21,
-  TRIMESTRE: 57, COMPROMISSO: 58, DESPRI: 59,
-};
+import { COL_CANONICO } from './colunas';
+
+// COL não é mais uma lista de posições da planilha de origem.
+// Na importação, cada linha é reescrita no layout CANÔNICO definido em
+// colunas.js (ORDEM_PORTFOLIO) — a posição na planilha é resolvida lá,
+// pelo NOME do cabeçalho. Daqui para baixo o índice é fixo para sempre.
+//
+// Consequência: mudança de layout na planilha de origem não chega até aqui.
+// Só é preciso mexer em colunas.js, adicionando o nome novo aos apelidos.
+export const COL = COL_CANONICO;
 
 // Linha válida para o report: tem nome, não está cancelada/suspensa/despriorizada.
+// Comparação por "contém" no status porque a planilha passou a trazer a
+// explicação junto: "Suspenso → pausado por decisão executiva".
 export const isValid = (r) => {
   if (!r[COL.NOME]) return false;
   const st = String(r[COL.STATUS] || '').toLowerCase();
