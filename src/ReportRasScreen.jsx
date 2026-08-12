@@ -1104,13 +1104,25 @@ export default function ReportRasScreen({ onVoltar }){
       if(sheetNameSetter) sheetNameSetter(foundSheet);
 
       if(extractLiders){
+        /* A lista de líderes vem do mesmo resolver do report — nunca de índice
+           fixo. O índice 8 já foi LÍDER EXECUTOR e hoje é SM/PMO: ler por
+           posição aqui enchia o dropdown com nome de SM. O slice fixo também
+           era frágil, porque o cabeçalho mudou de linha. */
         const ws=wb.Sheets[foundSheet];
-        const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:null}).slice(2);
-        const seen=new Set();
-        rows.forEach(r=>{
-          if(!r[8]) return;
-          String(r[8]).split("/").forEach(n=>{const t=n.trim();if(t) seen.add(t);});
+        const matriz=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
+        const mapa=resolverColunas(matriz,CAMPOS_PORTFOLIO,{
+          obrigatorias:OBRIGATORIAS_PORTFOLIO,criticas:CRITICAS_PORTFOLIO,
         });
+        const rows=mapa.linhas;
+        const seen=new Set();
+        const posLider=mapa.idx.LIDER_EXEC;
+        if(posLider!==undefined){
+          rows.forEach(r=>{
+            const v=r[posLider];
+            if(!v) return;
+            String(v).split("/").forEach(n=>{const t=n.trim();if(t) seen.add(t);});
+          });
+        }
         setLiders([...seen].sort());
 
         // Auditoria — import do Portfólio
