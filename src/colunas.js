@@ -56,7 +56,7 @@ export const CAMPOS_PORTFOLIO = {
   DESPRI:      ['despriorizacao'],
   FASE:        ['fase do projeto'],
   TARGET:      ['data de termino plan', 'data de termino planejada'],
-  SQUAD:       ['squad azure'],
+  SQUAD:       ['squad atualizada', 'squad azure'],
   REPLAN:      ['replanejamento', 'status lecom'],
 };
 
@@ -82,7 +82,7 @@ export const CAMPOS_MELHORIAS = {
   TARGET: ['p prevista', 'p. prevista', 'data prevista'],
   STATUS: ['status'],
   LIDER:  ['gerente ti'],
-  SQUAD:  ['nome squad azure'],
+  SQUAD:  ['squad atualizada', 'nome squad azure'],
   REPLAN: ['replanejamento'],
 };
 
