@@ -24,8 +24,20 @@
  *
  * REGRA PARA O TIME: para conteúdo externo, PDF é sempre melhor que print.
  *
- * DEPENDÊNCIA: `npm install pdfjs-dist`
- * Importado sob demanda — quem nunca sobe PDF não paga o bundle.
+ * ═══ LEITURA DE PDF: CARREGADA DA CDN, NÃO DO npm ═══
+ * O pdf.js entra por <script> em tempo de execução, e só na primeira vez que
+ * alguém importa um PDF. Não é dependência do projeto: nada a instalar, nada
+ * no package.json, nada no bundle de quem nunca usa PDF.
+ *
+ * A escolha é consciente. O caminho npm seria mais robusto, mas exigiria um
+ * clone local do repositório para rodar `npm install` — e a plataforma é
+ * mantida direto pelo GitHub. Uma dependência que ninguém consegue instalar é
+ * pior que uma dependência de CDN.
+ *
+ * O QUE ACONTECE SE A REDE BLOQUEAR A CDN
+ * Só a importação de PDF para. Imagem e recorte de tela continuam normais, e o
+ * usuário recebe uma mensagem dizendo o que houve e o que fazer — em vez de um
+ * botão que não responde.
  */
 
 /** Largura ideal: 2× os 960px do slide, que é o que o PDF em 16:9 aproveita. */
@@ -184,11 +196,49 @@ export async function tratarImagem(blob, nome, origem = 'imagem') {
  * A escala sai da largura real da página: A4 paisagem e 16:9 têm larguras bem
  * diferentes, e escala fixa produziria resultados desiguais.
  */
+/* ═══════════════════════ pdf.js sob demanda ═══════════════════════ */
+
+const PDFJS_VERSAO = '3.11.174'
+const PDFJS_BASE   = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSAO}`
+let promessaPdfJs = null
+
+/**
+ * Carrega o pdf.js uma única vez. Chamadas simultâneas compartilham a mesma
+ * promessa — dois PDFs arrastados juntos não baixam a biblioteca duas vezes.
+ */
+function carregarPdfJs() {
+  if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib)
+  if (promessaPdfJs) return promessaPdfJs
+
+  promessaPdfJs = new Promise((ok, erro) => {
+    const tag = document.createElement('script')
+    tag.src = `${PDFJS_BASE}/pdf.min.js`
+    tag.async = true
+
+    // Rede corporativa costuma engolir o pedido em vez de recusar: sem teto de
+    // tempo, o usuário ficaria olhando "Processando…" para sempre.
+    const limite = setTimeout(() => {
+      tag.remove(); promessaPdfJs = null
+      erro(new Error('A leitura de PDF não carregou (a rede pode estar bloqueando). Use PNG ou JPG.'))
+    }, 15000)
+
+    tag.onload = () => {
+      clearTimeout(limite)
+      if (!window.pdfjsLib) { promessaPdfJs = null; return erro(new Error('pdf.js carregou mas não inicializou.')) }
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = `${PDFJS_BASE}/pdf.worker.min.js`
+      ok(window.pdfjsLib)
+    }
+    tag.onerror = () => {
+      clearTimeout(limite); tag.remove(); promessaPdfJs = null
+      erro(new Error('Não consegui carregar a leitura de PDF. Use uma imagem (PNG/JPG) no lugar.'))
+    }
+    document.head.appendChild(tag)
+  })
+  return promessaPdfJs
+}
+
 export async function tratarPdf(file, nome) {
-  const pdfjs = await import('pdfjs-dist')
-  pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-    'pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url
-  ).toString()
+  const pdfjs = await carregarPdfJs()
 
   const doc = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise
   const out = []
