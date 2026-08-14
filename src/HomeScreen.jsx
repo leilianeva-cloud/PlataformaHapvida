@@ -234,7 +234,7 @@ export default function HomeScreen({ onAcessarPortfolio, onAcessarStatus, onAces
               </div>
               <h2>Portfólio</h2>
               <h3>Visão geral</h3>
-              <p>Acompanhe o portfólio de iniciativas, status dos projetos e indicadores estratégicos.</p>
+              <p></p>
               <button className="hm-card-btn" onClick={onAcessarPortfolio}>Acessar →</button>
             </div>
 
@@ -243,9 +243,9 @@ export default function HomeScreen({ onAcessarPortfolio, onAcessarStatus, onAces
               <div className="hm-card-icon">
                 <BarChart2 size={40} />
               </div>
-              <h2>Atualizar Status</h2>
-              <h3>Status Report</h3>
-              <p>Registre progresso das iniciativas, acompanhe marcos, entregas e evolução.</p>
+              <h2>Report Executive</h2>
+              <h3>Atualizar Status Report</h3>
+              <p></p>
               <button className="hm-card-btn" onClick={onAcessarStatus}>Acessar →</button>
             </div>
 
@@ -254,9 +254,9 @@ export default function HomeScreen({ onAcessarPortfolio, onAcessarStatus, onAces
               <div className="hm-card-icon">
                 <CalendarCheck size={40} />
               </div>
-              <h2>Atualizar RAS</h2>
-              <h3>Reunião de Acompanhamento Semanal</h3>
-              <p>Gere o Status Report Executivo da RAS a partir do Portfólio e Melhorias da semana.</p>
+              <h2>RAS</h2>
+              <h3>Atualizar Report de Acompanhamento Semanal</h3>
+              <p></p>
               <button className="hm-card-btn" onClick={onAcessarRas}>Acessar →</button>
             </div>
 
@@ -265,9 +265,9 @@ export default function HomeScreen({ onAcessarPortfolio, onAcessarStatus, onAces
               <div className="hm-card-icon">
                 <AlertTriangle size={40} />
               </div>
-              <h2>Atualizar Incidentes</h2>
-              <h3>Report Semanal de Incidentes</h3>
-              <p>Gere o Dashboard Executivo de Incidentes a partir da base exportada do Azure.</p>
+              <h2>Report Incidentes</h2>
+              <h3>Atualizar Report Semanal</h3>
+              <p></p>
               <button className="hm-card-btn" onClick={onAcessarIncidentes}>Acessar →</button>
             </div>
 
@@ -293,14 +293,14 @@ export default function HomeScreen({ onAcessarPortfolio, onAcessarStatus, onAces
               )}
             </div>
 
-            {/* Card Tarefas & Reuniões */}
+            {/* Card Tarefas & Anotações */}
             <div className="hm-card">
               <div className="hm-card-icon">
                 <ClipboardList size={40} />
               </div>
-              <h2>Tarefas &amp; Reuniões</h2>
+              <h2>Tarefas &amp; Anotações</h2>
               <h3>Quadro de atividades</h3>
-              <p>Organize as tarefas da equipe em quadro Kanban e gere ações automáticas a partir das atas de reunião.</p>
+              <p></p>
               <button className="hm-card-btn" onClick={onAcessarKanban}>Acessar →</button>
             </div>
             
@@ -308,7 +308,7 @@ export default function HomeScreen({ onAcessarPortfolio, onAcessarStatus, onAces
 
           <div className="hm-future">
             <Info size={17} style={{ flexShrink: 0, opacity: .8 }} />
-            Em breve, novas funcionalidades estarão disponíveis para apoiar ainda mais a gestão e governança do portfólio de TI.
+            Em breve, novas funcionalidades estarão disponíveis para apoiar ainda mais a gestão e governança de TI.
           </div>
         </main>
 
