@@ -281,7 +281,7 @@ export default function HomeScreen({ onAcessarPortfolio, onAcessarStatus, onAces
               </div>
               <h2>Reunião</h2>
               <h3>Montagem e apresentação</h3>
-              <p>Monte o roteiro da RAS com os projetos, o RAS e os incidentes, apresente na tela e exporte em PDF.</p>
+              <p></p>
               {podeReuniao ? (
                 <button className="hm-card-btn" onClick={onAcessarReuniao}>Acessar →</button>
               ) : (
