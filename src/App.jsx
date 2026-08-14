@@ -13,19 +13,14 @@ import ReportIncidentesScreen from './ReportIncidentesScreen';
 import KanbanScreen from './KanbanScreen';
 import AdminScreen from './AdminScreen';
 import AuditScreen from './AuditScreen';
-import { buildUnidades, paginarProjeto } from './statusPaginacao';
+import {
+  FASES, ORDEM_FASES, FASE_CUSTOM, FASE_CUSTOM_COR, A_DEFINIR_COR, CINZA_DESPRI,
+  STATUS_GERAL, MESES, faseCor, faseLabel, statusCor, ddmm,
+  calcPctRaia, calcPacoteInfo, assignLanes, legendaDoProjeto,
+  buildTimeline, dateToFrac,
+} from './ganttCore';
 
-const FASES = {
-  Planejamento:   "#7030A0",
-  Desenvolvimento:"#0070C0",
-  "Homologação":  "#ED7D31",
-  Entrega:        "#00B050",
-  "Op. Assistida":"#006100",
-};
-const ORDEM_FASES = Object.keys(FASES);
-const FASE_CUSTOM = '__manual__';
-const FASE_CUSTOM_COR = '#64748B';
-const A_DEFINIR_COR = '#D9D9D9';
+// [FASES + constantes] agora em ./ganttCore.js
 
 // Paleta fechada das fases manuais. Todas escuras o bastante para texto branco
 // e distintas das cores de FASES — legenda com duas cores iguais mente.
@@ -44,17 +39,7 @@ const PALETA_MANUAL = [
 
 // helper: resolve cor de uma fase (incluindo custom)
 // Fallback com 6 dígitos — o OOXML rejeita srgbClr de 3.
-function faseCor(f) {
-  if (!f) return '#999999';
-  if (f.fase === FASE_CUSTOM) return f.cor || FASE_CUSTOM_COR;
-  return FASES[f.fase] || '#999999';
-}
-// helper: rótulo legível da fase
-function faseLabel(f) {
-  if (!f) return '';
-  if (f.fase === FASE_CUSTOM) return f.faseCustom || 'Manual';
-  return f.fase || '';
-}
+// [faseCor + faseLabel] agora em ./ganttCore.js
 
 // mapa nome da fase manual -> cor, no escopo do projeto
 function mapaCoresCustom(raias) {
@@ -69,77 +54,41 @@ function mapaCoresCustom(raias) {
 // FONTE ÚNICA da legenda — preview e PPTX chamam esta função.
 // Regra: união das fases em uso no projeto, ordem canônica, manuais depois.
 // Demanda despriorizada não contribui fases (a barra é cinza, não usa a cor da fase).
-function legendaDoProjeto(raias) {
-  const usadas = new Map();
-  let temADefinir = false, temDespri = false;
-  (raias || []).forEach(r => {
-    if (r.despriorizado) { temDespri = true; return; }
-    (r.fases || []).forEach(f => {
-      if (f.aDefinir) { temADefinir = true; return; }
-      const label = faseLabel(f);
-      if (!label || (f.fase === FASE_CUSTOM && !(f.faseCustom || '').trim())) return;
-      if (!usadas.has(label)) usadas.set(label, faseCor(f));
-    });
-  });
-  const itens = [];
-  ORDEM_FASES.forEach(nome => {
-    if (usadas.has(nome)) { itens.push({ label: nome, cor: usadas.get(nome), estrela: nome === 'Entrega' }); usadas.delete(nome); }
-  });
-  [...usadas.entries()]
-    .sort((a, b) => a[0].localeCompare(b[0], 'pt-BR'))
-    .forEach(([label, cor]) => itens.push({ label, cor }));
-  if (temADefinir) itens.push({ label: 'A definir', cor: A_DEFINIR_COR });
-  if (temDespri)   itens.push({ label: 'Despriorizado', cor: CINZA_DESPRI });
-  return itens;
-}
+// [legendaDoProjeto] agora em ./ganttCore.js
 
 // ── Helpers de pacote ──
-function calcPctRaia(r) {
-  const fases = (r.fases || []).filter(f => !f.aDefinir);
-  if (!fases.length) return 0;
-  return fases.reduce((s, f) => s + (Number(f.pct) || 0), 0) / fases.length;
-}
+// [calcPctRaia] agora em ./ganttCore.js
 
-function calcPacoteInfo(pac, pacRaias) {
-  const allInicio = pacRaias.flatMap(r => r.fases.filter(f => f.inicio && !f.aDefinir).map(f => f.inicio)).filter(Boolean).sort();
-  const allFim    = pacRaias.flatMap(r => r.fases.filter(f => !f.aDefinir).map(f => f.fimRepactuado || f.fim)).filter(Boolean).sort();
-  const minInicio = allInicio[0] || '';
-  const maxFim    = allFim[allFim.length - 1] || '';
-  const pcts      = pacRaias.map(calcPctRaia);
-  const pctMedia  = pcts.length ? Math.round(pcts.reduce((s, p) => s + p, 0) / pcts.length) : 0;
-  
-  const statuses  = pacRaias.map(r => r.statusDemanda || 'A iniciar');
-  const status    = statuses.includes('Atrasado') ? 'Atrasado'
-                  : statuses.includes('Em Andamento') ? 'Em Andamento'
-                  : statuses.includes('Aguardando Publicação') ? 'Aguardando Publicação'
-                  : statuses.includes('Op. Assistida') ? 'Op. Assistida'
-                  : statuses.includes('Monitoramento e Controle') ? 'Monitoramento e Controle'
-                  : statuses.includes('Plan./Esp.') ? 'Plan./Esp.'
-                  : statuses.length && statuses.every(s => s === 'Concluído') ? 'Concluído'
-                  : 'A iniciar';
-  
-  return { minInicio, maxFim, pctMedia, status };
-}
+// [calcPacoteInfo] agora em ./ganttCore.js
 
 // ── Ordem mista: pacotes e demandas sem pacote convivem no mesmo nível ──
 // `ordem` é a fonte da verdade da ordenação de topo (persistida em ordem_json).
 // É auto-corretiva: entradas que não existem mais são ignoradas, e unidades
 // novas (pacote ou demanda solta) entram no fim. Assim nenhuma outra função
 // precisa manter a lista sincronizada.
-// buildUnidades e a paginação do Gantt agora vivem em ./statusPaginacao.js —
-// a Reunião usa exatamente as mesmas funções. Ver import no topo.
+function buildUnidades(raias, pacotes, ordem) {
+  const rs = raias || [], ps = pacotes || [];
+  const emPacote = new Set();
+  ps.forEach(p => (p.raiaIds || []).forEach(id => emPacote.add(String(id))));
+  const soltas = rs.filter(r => !emPacote.has(String(r.id)));
+  const mapPac   = new Map(ps.map(p => [String(p.id), p]));
+  const mapSolta = new Map(soltas.map(r => [String(r.id), r]));
+  const out = [], usados = new Set();
+  (ordem || []).forEach(o => {
+    const key = o.t + ':' + String(o.id);
+    if (usados.has(key)) return;
+    if (o.t === 'pac' && mapPac.has(String(o.id)))   { out.push({ t:'pac',  id:String(o.id), pac:  mapPac.get(String(o.id)) });   usados.add(key); }
+    if (o.t === 'raia' && mapSolta.has(String(o.id))) { out.push({ t:'raia', id:String(o.id), raia: mapSolta.get(String(o.id)) }); usados.add(key); }
+  });
+  ps.forEach(p     => { if (!usados.has('pac:'  + String(p.id))) out.push({ t:'pac',  id:String(p.id), pac:p  }); });
+  soltas.forEach(r => { if (!usados.has('raia:' + String(r.id))) out.push({ t:'raia', id:String(r.id), raia:r }); });
+  return out;
+}
 const ordemDeUnidades = (us) => us.map(u => ({ t:u.t, id:u.id }));
 
-function statusCor(s) {
-  return s === 'Concluído' ? '#00B050' : s === 'Monitoramento e Controle' ? '#0891B2' : s === 'Op. Assistida' ? '#006100' : s === 'Aguardando Publicação' ? '#F59E0B' : s === 'Em Andamento' ? '#0070C0' : s === 'Atrasado' ? '#C00000' : s === 'Plan./Esp.' ? '#7030A0' : '#94A3B8';
-}
+// [statusCor] agora em ./ganttCore.js
 
-const STATUS_GERAL = {
-  Bom:            "#69AE9A",
-  "Com Riscos":   "#FDB713",
-  "Com Problemas":"#FF0000",
-};
-const CINZA_DESPRI = "#D9D9D9";
+// [STATUS_GERAL + CINZA_DESPRI] agora em ./ganttCore.js
 
 // lightening helper p/ o "envelope" (parte clara = tempo ainda não decorrido)
 function tint(hex, amount = 0.78) {
@@ -162,81 +111,15 @@ function textoSobre(hex) {
   return L < 0.45 ? '#FFFFFF' : '#1F2937';
 }
 
-const MESES = ["JAN","FEV","MAR","ABRIL","MAIO","JUNHO","JUL","AGO","SET","OUT","NOV","DEZ"];
-const ddmm = (d) => { if (!d) return ""; const x = new Date(d + "T12:00:00"); if (isNaN(x)) return ""; return `${String(x.getDate()).padStart(2, "0")}/${String(x.getMonth() + 1).padStart(2, "0")}`; };
+// [MESES + ddmm] agora em ./ganttCore.js
 
 // ---------- Timeline (grade de datas) ----------
 // Trimestre vigente => 3 meses, cada um em 2 quinzenas (15 / fim).
 // Trimestres futuros => 1 célula larga cada.
-function buildTimeline(ano, mesInicio /*1-based*/, nFuturos, nPassados = 0) {
-  const cells = [];
-  const trimVigente = Math.floor((mesInicio - 1) / 3) + 1;
-  const currentAbs = ano * 4 + (trimVigente - 1); // índice absoluto do trimestre vigente
-  // trimestres passados (1 célula cada, do mais antigo ao mais recente)
-  for (let q = nPassados; q >= 1; q--) {
-    const abs = currentAbs - q;
-    const yQ = Math.floor(abs / 4);
-    const qIdx = ((abs % 4) + 4) % 4;
-    const mStart = qIdx * 3;
-    cells.push({
-      label: `${qIdx + 1}T`, mesLabel: "", peso: 0.55, futuro: true,
-      start: new Date(yQ, mStart, 1), end: new Date(yQ, mStart + 3, 0, 23, 59),
-    });
-  }
-  // 3 meses do trimestre vigente, 2 quinzenas cada
-  for (let i = 0; i < 3; i++) {
-    const m = mesInicio - 1 + i; // 0-based
-    const y = ano + Math.floor(m / 12);
-    const mm = ((m % 12) + 12) % 12;
-    const ultimoDia = new Date(y, mm + 1, 0).getDate();
-    cells.push({
-      label: "15", mesLabel: MESES[mm], peso: 1,
-      start: new Date(y, mm, 1), end: new Date(y, mm, 15, 23, 59),
-    });
-    cells.push({
-      label: String(ultimoDia), mesLabel: MESES[mm], peso: 1,
-      start: new Date(y, mm, 16), end: new Date(y, mm, ultimoDia, 23, 59),
-    });
-  }
-  // trimestres futuros (1 célula cada)
-  for (let q = 1; q <= nFuturos; q++) {
-    const abs = currentAbs + q;
-    const yQ = Math.floor(abs / 4);
-    const qIdx = ((abs % 4) + 4) % 4;
-    const mStart = qIdx * 3;
-    cells.push({
-      label: `${qIdx + 1}T`, mesLabel: "", peso: 0.55, futuro: true,
-      start: new Date(yQ, mStart, 1), end: new Date(yQ, mStart + 3, 0, 23, 59),
-    });
-  }
-  // frações cumulativas 0..1
-  const total = cells.reduce((s, c) => s + c.peso, 0);
-  let acc = 0;
-  cells.forEach((c) => {
-    c.f0 = acc / total;
-    acc += c.peso;
-    c.f1 = acc / total;
-  });
-  return { cells, trimVigente, ano };
-}
+// [buildTimeline] agora em ./ganttCore.js
 
 // mapeia uma data -> fração 0..1 ao longo da timeline
-function dateToFrac(date, cells) {
-  if (!date) return null;
-  const d = new Date(date + "T12:00:00");
-  if (isNaN(d)) return null;
-  if (d <= cells[0].start) return 0;
-  const last = cells[cells.length - 1];
-  if (d >= last.end) return 1;
-  for (const c of cells) {
-    if (d >= c.start && d <= c.end) {
-      const span = c.end - c.start || 1;
-      const fr = (d - c.start) / span;
-      return c.f0 + fr * (c.f1 - c.f0);
-    }
-  }
-  return null;
-}
+// [dateToFrac] agora em ./ganttCore.js
 
 // ---------- Componente principal ----------
 // COL, isValid, rKey vêm de ./portfolioUtils (fonte única, compartilhada com o Portfólio).
@@ -1918,15 +1801,7 @@ const GANTT_MAX_H = 440; // altura máxima antes de rolar
 }
 
 // ---- helper: atribuição de lanes para fases sobrepostas ----
-function assignLanes(fases) {
-  if (!fases.length) return { assignments: [], numLanes: 1 };
-  // Regra: uma fase por lane, sempre, na ordem em que aparecem no array.
-  // A ordem é controlada pelo usuário via botões ⬆⬇ no card de edição.
-  return {
-    assignments: fases.map((_, i) => i),
-    numLanes: Math.max(fases.length, 1),
-  };
-}
+// [assignLanes] agora em ./ganttCore.js
 
 // desenha as barras de uma raia
 function BarRow({ r, cells, atualizadoEm, rowH = 32 }) {
@@ -2405,7 +2280,27 @@ function buildMultiSlidePptxParts(slideXmlsArr) {
 // Cada página é um slide completo: cabeçalho do report, topo da tabela e rodapé.
 // A ordem das linhas é exatamente a ordem cadastrada pelo usuário.
 function gerarSlidesXmls({ projeto, raias, timeline, usaPacotes, pacotes, ordem }) {
-  // A quebra de páginas vem de ./statusPaginacao.js (MAX_LINHAS = 12 + altura útil).
+  const MAX_LINHAS  = 12;
+  const bodyTop     = 2.91;
+  const bodyBottom  = 5.92;
+  const ALTURA_UTIL = bodyBottom - bodyTop;   // 3.01"
+
+  // Altura mínima de uma raia: cada fase ocupa uma lane exclusiva, altura fixa por fase.
+  const LANE_H = 0.2; // altura fixa por fase (casa com o render) — antes MIN_LANE=0.13
+  const alturaMinRaia = (r) => {
+    if (r.despriorizado) return 0;
+    const n = Math.max((r.fases || []).length, 1);
+    if (n <= 1) return 0;
+    return n * LANE_H + (n - 1) * 0.02 + 0.06;
+  };
+
+  // Replica exatamente o cálculo interno de rowH de gerarSlideXml.
+  const alturaPagina = (us) => {
+    const rh = Math.min(0.42, ALTURA_UTIL / Math.max(us.length, 7));
+    return us.reduce((s, u) => s + (u.kind === 'pac' ? rh : Math.max(rh, u.min)), 0);
+  };
+  const cabe = (us) => us.length <= MAX_LINHAS && alturaPagina(us) <= ALTURA_UTIL + 0.02;
+
   // Legenda é do PROJETO inteiro, não da página — senão cada slide mostra uma legenda.
   const legenda = legendaDoProjeto(raias);
 
@@ -2426,14 +2321,52 @@ function gerarSlidesXmls({ projeto, raias, timeline, usaPacotes, pacotes, ordem 
     return gerarSlideXml({ projeto, raias: pageRaias, timeline, usaPacotes: true, pacotes: pagePacotes, ordem: pageOrdem, legenda });
   };
 
-  const paginas = paginarProjeto({ raias, usaPacotes, pacotes, ordem });
-
-  // Projeto sem demandas: um slide só, com os argumentos originais.
-  // Preserva o fallback que existia nos dois ramos antes da extração.
-  if (!paginas.length || (paginas.length === 1 && !paginas[0].length)) {
-    return [gerarSlideXml({ projeto, raias, timeline, usaPacotes, pacotes, legenda })];
+  // ── SEM PACOTES: quebra linha a linha (ordem cadastrada) ──
+  if (!usaPacotes || !pacotes?.length) {
+    const units = raias.map(r => ({ kind: 'raia', r, min: alturaMinRaia(r) }));
+    if (!units.length) return [gerarSlideXml({ projeto, raias, timeline, usaPacotes, pacotes, legenda })];
+    const pages = []; let cur = [];
+    for (const u of units) {
+      if (cur.length > 0 && !cabe([...cur, u])) { pages.push(cur); cur = []; }
+      cur.push(u);
+    }
+    if (cur.length) pages.push(cur);
+    return pages.map(montaSlide);
   }
-  return paginas.map(montaSlide);
+
+  // ── COM PACOTES: cada pacote começa no topo de uma página, salvo se couber inteiro no resto ──
+  const pages = []; let cur = [];
+  const flush = () => { if (cur.length) { pages.push(cur); cur = []; } };
+  buildUnidades(raias, pacotes, ordem).forEach(un => {
+    if (un.t === 'raia') {
+      const u = { kind: 'raia', r: un.raia, min: alturaMinRaia(un.raia) };
+      if (cur.length > 0 && !cabe([...cur, u])) flush();
+      cur.push(u);
+      return;
+    }
+    const pac = un.pac;
+    const pacRaias = pac.raiaIds.map(id => raias.find(x => x.id === id)).filter(Boolean);
+    const header = { kind: 'pac', pac };
+    const raiaUnits = pacRaias.map(r => ({ kind: 'raia', r, min: alturaMinRaia(r), pacId: pac.id }));
+    const bloco = [header, ...raiaUnits];
+    if (cabe(bloco)) {
+      // pacote inteiro cabe numa página; junta ao resto se couber, senão nova página
+      if (cur.length > 0 && !cabe([...cur, ...bloco])) flush();
+      cur.push(...bloco);
+    } else {
+      // pacote maior que uma página: SEMPRE começa numa página nova, depois quebra repetindo o cabeçalho
+      flush();
+      let sub = [header];
+      for (const u of raiaUnits) {
+        if (sub.length > 1 && !cabe([...sub, u])) { pages.push(sub); sub = [header, u]; }
+        else sub.push(u);
+      }
+      cur = sub; // resto vira página corrente (um próximo pacote pequeno pode compartilhar)
+    }
+  });
+  flush();
+  if (!pages.length) return [gerarSlideXml({ projeto, raias, timeline, usaPacotes, pacotes, legenda })];
+  return pages.map(montaSlide);
 }
 
 function baixarPptx(projects) {
