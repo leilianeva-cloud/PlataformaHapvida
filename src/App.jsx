@@ -13,6 +13,7 @@ import ReportIncidentesScreen from './ReportIncidentesScreen';
 import KanbanScreen from './KanbanScreen';
 import AdminScreen from './AdminScreen';
 import AuditScreen from './AuditScreen';
+import { buildUnidades, paginarProjeto } from './statusPaginacao';
 
 const FASES = {
   Planejamento:   "#7030A0",
@@ -125,24 +126,8 @@ function calcPacoteInfo(pac, pacRaias) {
 // É auto-corretiva: entradas que não existem mais são ignoradas, e unidades
 // novas (pacote ou demanda solta) entram no fim. Assim nenhuma outra função
 // precisa manter a lista sincronizada.
-function buildUnidades(raias, pacotes, ordem) {
-  const rs = raias || [], ps = pacotes || [];
-  const emPacote = new Set();
-  ps.forEach(p => (p.raiaIds || []).forEach(id => emPacote.add(String(id))));
-  const soltas = rs.filter(r => !emPacote.has(String(r.id)));
-  const mapPac   = new Map(ps.map(p => [String(p.id), p]));
-  const mapSolta = new Map(soltas.map(r => [String(r.id), r]));
-  const out = [], usados = new Set();
-  (ordem || []).forEach(o => {
-    const key = o.t + ':' + String(o.id);
-    if (usados.has(key)) return;
-    if (o.t === 'pac' && mapPac.has(String(o.id)))   { out.push({ t:'pac',  id:String(o.id), pac:  mapPac.get(String(o.id)) });   usados.add(key); }
-    if (o.t === 'raia' && mapSolta.has(String(o.id))) { out.push({ t:'raia', id:String(o.id), raia: mapSolta.get(String(o.id)) }); usados.add(key); }
-  });
-  ps.forEach(p     => { if (!usados.has('pac:'  + String(p.id))) out.push({ t:'pac',  id:String(p.id), pac:p  }); });
-  soltas.forEach(r => { if (!usados.has('raia:' + String(r.id))) out.push({ t:'raia', id:String(r.id), raia:r }); });
-  return out;
-}
+// buildUnidades e a paginação do Gantt agora vivem em ./statusPaginacao.js —
+// a Reunião usa exatamente as mesmas funções. Ver import no topo.
 const ordemDeUnidades = (us) => us.map(u => ({ t:u.t, id:u.id }));
 
 function statusCor(s) {
@@ -2420,27 +2405,7 @@ function buildMultiSlidePptxParts(slideXmlsArr) {
 // Cada página é um slide completo: cabeçalho do report, topo da tabela e rodapé.
 // A ordem das linhas é exatamente a ordem cadastrada pelo usuário.
 function gerarSlidesXmls({ projeto, raias, timeline, usaPacotes, pacotes, ordem }) {
-  const MAX_LINHAS  = 12;
-  const bodyTop     = 2.91;
-  const bodyBottom  = 5.92;
-  const ALTURA_UTIL = bodyBottom - bodyTop;   // 3.01"
-
-  // Altura mínima de uma raia: cada fase ocupa uma lane exclusiva, altura fixa por fase.
-  const LANE_H = 0.2; // altura fixa por fase (casa com o render) — antes MIN_LANE=0.13
-  const alturaMinRaia = (r) => {
-    if (r.despriorizado) return 0;
-    const n = Math.max((r.fases || []).length, 1);
-    if (n <= 1) return 0;
-    return n * LANE_H + (n - 1) * 0.02 + 0.06;
-  };
-
-  // Replica exatamente o cálculo interno de rowH de gerarSlideXml.
-  const alturaPagina = (us) => {
-    const rh = Math.min(0.42, ALTURA_UTIL / Math.max(us.length, 7));
-    return us.reduce((s, u) => s + (u.kind === 'pac' ? rh : Math.max(rh, u.min)), 0);
-  };
-  const cabe = (us) => us.length <= MAX_LINHAS && alturaPagina(us) <= ALTURA_UTIL + 0.02;
-
+  // A quebra de páginas vem de ./statusPaginacao.js (MAX_LINHAS = 12 + altura útil).
   // Legenda é do PROJETO inteiro, não da página — senão cada slide mostra uma legenda.
   const legenda = legendaDoProjeto(raias);
 
@@ -2461,52 +2426,14 @@ function gerarSlidesXmls({ projeto, raias, timeline, usaPacotes, pacotes, ordem 
     return gerarSlideXml({ projeto, raias: pageRaias, timeline, usaPacotes: true, pacotes: pagePacotes, ordem: pageOrdem, legenda });
   };
 
-  // ── SEM PACOTES: quebra linha a linha (ordem cadastrada) ──
-  if (!usaPacotes || !pacotes?.length) {
-    const units = raias.map(r => ({ kind: 'raia', r, min: alturaMinRaia(r) }));
-    if (!units.length) return [gerarSlideXml({ projeto, raias, timeline, usaPacotes, pacotes, legenda })];
-    const pages = []; let cur = [];
-    for (const u of units) {
-      if (cur.length > 0 && !cabe([...cur, u])) { pages.push(cur); cur = []; }
-      cur.push(u);
-    }
-    if (cur.length) pages.push(cur);
-    return pages.map(montaSlide);
-  }
+  const paginas = paginarProjeto({ raias, usaPacotes, pacotes, ordem });
 
-  // ── COM PACOTES: cada pacote começa no topo de uma página, salvo se couber inteiro no resto ──
-  const pages = []; let cur = [];
-  const flush = () => { if (cur.length) { pages.push(cur); cur = []; } };
-  buildUnidades(raias, pacotes, ordem).forEach(un => {
-    if (un.t === 'raia') {
-      const u = { kind: 'raia', r: un.raia, min: alturaMinRaia(un.raia) };
-      if (cur.length > 0 && !cabe([...cur, u])) flush();
-      cur.push(u);
-      return;
-    }
-    const pac = un.pac;
-    const pacRaias = pac.raiaIds.map(id => raias.find(x => x.id === id)).filter(Boolean);
-    const header = { kind: 'pac', pac };
-    const raiaUnits = pacRaias.map(r => ({ kind: 'raia', r, min: alturaMinRaia(r), pacId: pac.id }));
-    const bloco = [header, ...raiaUnits];
-    if (cabe(bloco)) {
-      // pacote inteiro cabe numa página; junta ao resto se couber, senão nova página
-      if (cur.length > 0 && !cabe([...cur, ...bloco])) flush();
-      cur.push(...bloco);
-    } else {
-      // pacote maior que uma página: SEMPRE começa numa página nova, depois quebra repetindo o cabeçalho
-      flush();
-      let sub = [header];
-      for (const u of raiaUnits) {
-        if (sub.length > 1 && !cabe([...sub, u])) { pages.push(sub); sub = [header, u]; }
-        else sub.push(u);
-      }
-      cur = sub; // resto vira página corrente (um próximo pacote pequeno pode compartilhar)
-    }
-  });
-  flush();
-  if (!pages.length) return [gerarSlideXml({ projeto, raias, timeline, usaPacotes, pacotes, legenda })];
-  return pages.map(montaSlide);
+  // Projeto sem demandas: um slide só, com os argumentos originais.
+  // Preserva o fallback que existia nos dois ramos antes da extração.
+  if (!paginas.length || (paginas.length === 1 && !paginas[0].length)) {
+    return [gerarSlideXml({ projeto, raias, timeline, usaPacotes, pacotes, legenda })];
+  }
+  return paginas.map(montaSlide);
 }
 
 function baixarPptx(projects) {
