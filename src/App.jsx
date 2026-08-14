@@ -13,6 +13,7 @@ import ReportIncidentesScreen from './ReportIncidentesScreen';
 import KanbanScreen from './KanbanScreen';
 import AdminScreen from './AdminScreen';
 import AuditScreen from './AuditScreen';
+import ReuniaoScreen from './reuniao/ReuniaoScreen';
 import {
   FASES, ORDEM_FASES, FASE_CUSTOM, FASE_CUSTOM_COR, A_DEFINIR_COR, CINZA_DESPRI,
   STATUS_GERAL, MESES, faseCor, faseLabel, statusCor, ddmm,
@@ -1248,6 +1249,7 @@ function AppGateway() {
       onAcessarRas={() => navegarPara('ras')}
       onAcessarIncidentes={() => navegarPara('incidentes')}
       onAcessarKanban={() => navegarPara('kanban')}
+      onAcessarReuniao={() => navegarPara('reuniao')}
       onAcessarGestao={() => navegarPara('admin')}
       onAcessarAuditoria={() => navegarPara('audit')}
     />
@@ -1259,6 +1261,13 @@ function AppGateway() {
   if (destino === 'ras') return <ReportRasScreen onVoltar={voltarHome} />
   if (destino === 'incidentes') return <ReportIncidentesScreen onVoltar={voltarHome} />
   if (destino === 'kanban') return <KanbanScreen onBack={voltarHome} />
+  // A rota valida a permissão de novo, de propósito: esconder o card no Home
+  // não impede alguém de chegar aqui pelo sessionStorage. Sem isto, a tela
+  // abriria vazia e o usuário culparia o sistema, não a falta de acesso.
+  if (destino === 'reuniao') {
+    if (!profile?.pode_reuniao) { voltarHome(); return null }
+    return <ReuniaoScreen onVoltar={voltarHome} />
+  }
   if (destino === 'portfolio') return (
     <PortfolioScreen
       onVoltar={voltarHome}
