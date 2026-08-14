@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
-import { FolderOpen, BarChart2, CalendarCheck, Info, LogOut, ClipboardList, Shield, Filter, ChevronDown, AlertTriangle } from 'lucide-react'
+import { FolderOpen, BarChart2, CalendarCheck, Info, LogOut, ClipboardList, Shield, Filter, ChevronDown, AlertTriangle, Presentation } from 'lucide-react'
 import { useAuth } from './AuthContext'
 
-export default function HomeScreen({ onAcessarPortfolio, onAcessarStatus, onAcessarRas, onAcessarIncidentes, onAcessarKanban, onAcessarGestao, onAcessarAuditoria }) {
+export default function HomeScreen({ onAcessarPortfolio, onAcessarStatus, onAcessarRas, onAcessarIncidentes, onAcessarKanban, onAcessarReuniao, onAcessarGestao, onAcessarAuditoria }) {
   const { profile, signOut, isAdmin } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
+  const podeReuniao = !!profile?.pode_reuniao
 
   // Fecha o menu ao clicar fora dele
   useEffect(() => {
@@ -268,6 +269,28 @@ export default function HomeScreen({ onAcessarPortfolio, onAcessarStatus, onAces
               <h3>Report Semanal de Incidentes</h3>
               <p>Gere o Dashboard Executivo de Incidentes a partir da base exportada do Azure.</p>
               <button className="hm-card-btn" onClick={onAcessarIncidentes}>Acessar →</button>
+            </div>
+
+            {/* Card Reunião — só para quem tem a permissão.
+                Quem não tem vê o card apagado, com o motivo. Esconder por
+                completo faria a pessoa achar que o sistema tem menos do que
+                tem, e ela nunca saberia que existe algo a pedir. */}
+            <div className="hm-card" style={podeReuniao ? undefined : { opacity: .55 }}>
+              <div className="hm-card-icon">
+                <Presentation size={40} />
+              </div>
+              <h2>Reunião</h2>
+              <h3>Montagem e apresentação</h3>
+              <p>Monte o roteiro da RAS com os projetos, o RAS e os incidentes, apresente na tela e exporte em PDF.</p>
+              {podeReuniao ? (
+                <button className="hm-card-btn" onClick={onAcessarReuniao}>Acessar →</button>
+              ) : (
+                <button className="hm-card-btn" disabled
+                        style={{ background: '#94A3B8', cursor: 'not-allowed' }}
+                        title="Peça a um administrador para liberar em Gestão de Usuários">
+                  Sem acesso
+                </button>
+              )}
             </div>
 
             {/* Card Tarefas & Reuniões */}
