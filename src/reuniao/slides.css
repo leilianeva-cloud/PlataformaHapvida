@@ -1,0 +1,192 @@
+/* =============================================================================
+ * reuniao/slides.css
+ * -----------------------------------------------------------------------------
+ * O "template" da Reunião, em CSS.
+ *
+ * As medidas e cores vieram dos arquivos oficiais — capa_template,
+ * report_ras_template, report_incidentes_template e encerramento_template —
+ * lidos e amostrados pixel a pixel, não estimados no olho:
+ *
+ *   #274395  faixa do rodapé, capa, encerramento e divisória
+ *   #0A53AA  título dos slides de conteúdo
+ *   #F47B20  barra laranja à esquerda do título
+ *   #F2F6FC  cabeçalho claro de card / faixa de backlog
+ *   #DDE4EF  borda de card e de tabela
+ *   #9D2013  cabeçalho "ENTREGAS EM ATRASO"   (RAS)
+ *   #BB4845  cabeçalho "TARGET ATRASADO"      (Incidentes)
+ *   #FFDE75  cabeçalho "PRÓXIMAS/AGUARDANDO"
+ *   #203864  barra de squad
+ *   #9751CB  barra de status Closed
+ *
+ * ⚠️ CONSEQUÊNCIA QUE PRECISA FICAR REGISTRADA
+ * O layout aqui é CÓDIGO, não configuração. Trocar o .pptx no Storage muda o
+ * PPTX do RAS/Incidentes e NÃO muda estes slides. É a mesma família de risco
+ * dos shape IDs — "não altere o template sem avisar" passa a valer para cá.
+ *
+ * SISTEMA DE MEDIDAS
+ * Todo slide é 960×540 px (16:9). Tudo é posicionado nesse espaço fixo e a
+ * escala é feita por transform: scale() — em tela e na apresentação. Na
+ * impressão, @page tem exatamente 960×540px (10" × 5,625"), então uma página
+ * do PDF é um slide, sem faixa branca e sem corte.
+ * ========================================================================== */
+
+.slide{width:960px;height:540px;background:#fff;box-shadow:0 2px 14px #0f172a1f;position:relative;overflow:hidden;flex:0 0 auto;
+  font-family:"Segoe UI",Calibri,sans-serif;color:#1a1a1a}
+.slide .clsf{position:absolute;top:4px;left:0;right:0;text-align:center;font-size:8px;color:#FF3B30;letter-spacing:.3px}
+.slide .slogo{position:absolute;top:10px;right:18px;width:76px}
+.slide .slogo svg{width:100%;height:auto;display:block}
+.slide .stitle{position:absolute;top:16px;left:34px;right:110px;font-size:25px;font-weight:700;color:#0A53AA;line-height:1.1;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.slide .stitle::before{content:"";position:absolute;left:-14px;top:0;bottom:-2px;width:5px;background:#F47B20}
+.slide .sband{position:absolute;left:0;right:0;bottom:0;height:19px;background:#274395;display:flex;align-items:center;
+  justify-content:space-between;padding:0 14px}
+.sband .bstamp{color:#a9bde8;font-size:7.5px}
+.sband .bmark{color:#fff;font-size:9.5px;font-style:italic;font-weight:700}
+.slide .sbody{position:absolute;top:56px;left:20px;right:20px;bottom:27px;display:flex;flex-direction:column}
+
+/* --- capa --- */
+.capa{background:#274395}
+.capa .cphoto{position:absolute;inset:0;width:100%;height:81%;object-fit:cover}
+.capa .cband{position:absolute;left:0;right:0;bottom:19px;top:81%;background:#274395;display:flex;align-items:center;
+  justify-content:space-between;padding:0 30px}
+.capa .ct{color:#fff;font-size:27px;font-weight:700}
+.capa .clogo{width:150px}
+.capa .clogo svg{width:100%;height:auto;display:block}
+/* --- encerramento --- */
+.fim{background:#274395}
+.fim .flogo{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:290px}
+.fim .flogo svg{width:100%;height:auto;display:block}
+/* --- divisória --- */
+.divi{background:#274395}
+.divi .dvc{position:absolute;top:50%;left:64px;transform:translateY(-50%);display:flex;align-items:center;gap:20px}
+.divi .dvc svg{width:44px;height:44px}
+.divi .dvc h2{color:#fff;font-size:31px;margin:0;font-weight:700}
+.divi .dvlogo{position:absolute;top:16px;right:20px;width:104px}
+.divi .dvlogo svg{width:100%;height:auto;display:block}
+
+/* --- topo dos dashboards --- */
+.toprow{display:flex;gap:12px;align-items:flex-start;height:74px;flex:0 0 auto}
+.kpis{display:flex;gap:16px;flex:1}
+.kp{padding-left:9px;border-left:4px solid var(--kc);min-width:64px}
+.kp .kn{font-size:35px;font-weight:700;line-height:.95;color:var(--kc)}
+.kp .kl{font-size:10.5px;font-weight:700;color:#2b2b2b;margin-top:2px}
+.kp .ks{font-size:8.5px;color:#7a7a7a;margin-top:1px}
+.metas{display:flex;gap:18px;padding-top:2px}
+.metas .mtt{font-size:9.5px;font-weight:700;color:#2b2b2b;text-align:center;letter-spacing:.2px}
+.metas .mtv{font-size:34px;font-weight:700;color:#0A53AA;line-height:1}
+.metas .mtl{font-size:9px;color:#5a5a5a;text-align:center;margin-top:-2px}
+.ident{border:1px solid #DDE4EF;border-radius:2px;padding:8px 11px;width:215px;background:#fff}
+.ident.wide{width:265px}
+.ident div{font-size:8.5px;color:#2b2b2b;line-height:1.75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ident b{font-weight:700}
+
+/* --- cards --- */
+.grid2{display:grid;grid-template-columns:1fr 1fr 1.95fr;grid-template-rows:1fr 1fr;gap:8px;flex:1;min-height:0;margin-top:6px}
+.grid-inc{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1.15fr 1fr;gap:9px;flex:1;min-height:0;margin-top:6px}
+.cd{border:1px solid #DDE4EF;background:#fff;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.cdh{font-size:8px;font-weight:700;letter-spacing:.7px;padding:5px 9px;flex:0 0 auto}
+.cdh.lt{background:#F2F6FC;color:#5F697B}
+.cdh.red{background:#9D2013;color:#fff}
+.cdh.red2{background:#BB4845;color:#fff}
+.cdh.yel{background:#FFDE75;color:#5a4a12}
+
+/* --- barras horizontais --- */
+.hb{flex:1;display:flex;flex-direction:column;justify-content:center;gap:4px;padding:6px 9px;min-height:0}
+.hbr{display:flex;align-items:center;gap:5px;font-size:8px}
+.hbl{width:118px;text-align:right;font-weight:700;color:#2b2b2b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:0 0 118px}
+.hbt{flex:1;display:block;height:9px}
+.hbf{display:block;height:100%}
+.hbv{width:26px;font-size:8px;color:#2b2b2b}
+/* --- barras verticais --- */
+.vb{flex:1;display:flex;align-items:flex-end;justify-content:space-around;padding:12px 9px 26px;min-height:0;position:relative}
+.vb::after{content:"";position:absolute;left:9px;right:9px;bottom:26px;border-bottom:1px solid #d9d9d9}
+.vbc{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;width:20%;position:relative}
+.vbv{font-size:8.5px;font-weight:700;color:#2b2b2b;margin-bottom:2px}
+.vbb{width:26px;display:block}
+.vbl{position:absolute;bottom:-22px;font-size:7px;color:#4a4a4a;white-space:nowrap;transform:rotate(-38deg);transform-origin:top right;right:50%}
+
+/* --- tabelas --- */
+table.tb{width:100%;border-collapse:collapse;font-size:7.5px;table-layout:fixed}
+table.tb th{font-size:7.5px;font-weight:700;color:#1a1a1a;padding:3px 4px;text-align:center;border-bottom:1px solid #d9d9d9;background:#fff}
+table.tb td{padding:3px 4px;text-align:center;color:#2b2b2b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+table.tb tr:nth-child(even) td{background:#F2F6FC}
+table.tb .vazio{color:#9aa3b2;padding:10px}
+table.tb.big{font-size:8px;margin-top:3px}
+table.tb.big td{padding:4px;border-bottom:1px solid #eef2f8;white-space:normal}
+.strip{background:#F2F6FC;color:#5F697B;font-size:8.5px;font-weight:700;letter-spacing:.7px;padding:6px 10px;border:1px solid #DDE4EF}
+.strip u{margin-left:5px}
+
+/* --- gantt --- */
+.gt-head{display:flex;gap:10px;height:92px;flex:0 0 auto}
+.gt-head .b{flex:1;border:1px solid #DDE4EF;padding:6px 8px;overflow:hidden}
+.gt-head h5{margin:0 0 4px;font-size:8px;text-transform:uppercase;letter-spacing:.5px;color:#0A53AA;font-weight:700}
+.gt-head p{margin:0;font-size:8.5px;color:#3a3a3a;line-height:1.35}
+.kv{font-size:8.5px;color:#3a3a3a;display:flex;gap:4px}
+.kv b{color:#1a1a1a;font-weight:700}
+.dot{width:9px;height:9px;border-radius:99px;display:inline-block;margin-right:4px}
+.secl{font-size:8.5px;font-weight:700;color:#0A53AA;margin-top:9px;text-transform:uppercase;letter-spacing:.5px;flex:0 0 auto}
+.gantt{margin-top:5px;border:1px solid #DDE4EF;flex:0 0 auto}
+.grow{display:flex;border-bottom:1px solid #eef2f8;min-height:25px}
+.grow.h{background:#274395;color:#fff;font-size:8px;font-weight:600;min-height:19px}
+.gc{padding:4px 6px;font-size:8.5px;display:flex;align-items:center}
+.gc.n{width:150px;flex:0 0 150px;border-right:1px solid #eef2f8}
+.gc.s{width:78px;flex:0 0 78px;border-right:1px solid #eef2f8}
+.gc.p{width:34px;flex:0 0 34px;border-right:1px solid #eef2f8;justify-content:center}
+.tl{flex:1;position:relative;padding:0}
+.tl .q{position:absolute;top:0;bottom:0;border-left:1px solid #f1f5f9;font-size:7px;color:#94a3b8;padding-left:3px}
+.grow.h .tl .q{color:#c7d9f2;border-color:#ffffff2e;display:flex;align-items:center}
+.pb{position:absolute;height:11px;top:50%;transform:translateY(-50%);border-radius:2px;color:#fff;font-size:7px;display:flex;align-items:center;justify-content:center;font-weight:700}
+.today{position:absolute;top:0;bottom:0;width:0;border-left:1.5px dashed #F47B20;z-index:3}
+.chip{font-size:7.5px;font-weight:700;padding:1px 5px;border-radius:3px;white-space:nowrap}
+.pa{margin-top:7px;font-size:8.5px;color:#3a3a3a}
+.pa b{color:#0A53AA;font-size:8.5px;text-transform:uppercase;letter-spacing:.4px}
+
+/* --- anexo --- */
+.anx{position:absolute;inset:0;bottom:19px;display:flex;align-items:center;justify-content:center;background:#fff}
+.anx img{max-width:100%;max-height:100%;object-fit:contain}
+.anx .ph{text-align:center;color:#94a3b8;border:2px dashed #cbd5e1;padding:36px 54px;border-radius:8px}
+.anx .ph b{display:block;color:#475569;font-size:15px;margin-bottom:4px}
+
+/* ═══════ MODO APRESENTAÇÃO ═══════ */
+#present{position:fixed;inset:0;background:#0b1220;display:none;z-index:50;overflow:auto}
+#present.on{display:block}
+#pwrap{min-height:100%;display:flex;align-items:center;justify-content:center;justify-content:safe center;padding:26px 26px 76px}
+#pslot{margin:auto}
+#pslot .slide{box-shadow:0 10px 60px #000;transform-origin:center center}
+.pnav{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:8px;
+  background:#1b2740f2;padding:7px 12px;border-radius:99px;color:#cbd5e1;font-size:13px;z-index:61}
+.pnav button{color:#fff;font-size:15px;padding:2px 8px;border-radius:6px}
+.pnav button:hover{background:#ffffff1f}
+.pnav .sep{width:1px;height:18px;background:#ffffff2e;margin:0 3px}
+.pnav .zl{font-size:12px;color:#93a3bd;min-width:42px;text-align:center}
+.pjump{position:fixed;top:0;left:0;bottom:0;width:240px;z-index:62;background:#111a2c;color:#cbd5e1;overflow:auto;padding:10px;transform:translateX(-100%);transition:transform .18s}
+.pjump.on{transform:none}
+.pjump button{display:block;width:100%;text-align:left;padding:7px 9px;border-radius:5px;font-size:12px;color:#cbd5e1}
+.pjump button:hover{background:#ffffff14}
+.pjump button.cur{background:#274395;color:#fff}
+@media (prefers-reduced-motion:reduce){.pjump{transition:none}}
+
+/* ═══════ IMPRESSÃO / PDF ═══════ */
+#reuniao-print{display:none}
+@media print{
+  @page{size:960px 540px;margin:0}
+  html,body{background:#fff!important;margin:0!important;padding:0!important}
+  body > *:not(#reuniao-print){display:none!important}
+  #reuniao-print{display:block}
+  #reuniao-print .slide{width:960px;height:540px;box-shadow:none;break-after:page;page-break-after:always;overflow:hidden}
+  #reuniao-print .slide:last-child{break-after:auto;page-break-after:auto}
+}
+
+
+
+/* ═══════ ESTADOS DE FALTA ═══════ */
+/* Bloco que aponta para algo que sumiu. Nunca some do roteiro em silêncio:
+   uma página visível e feia é melhor que um slide que desaparece na reunião. */
+.slide .faltando{position:absolute;inset:0;bottom:19px;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:8px;background:#fffbf5;text-align:center;padding:40px}
+.slide .faltando b{font-size:19px;color:#9a3412}
+.slide .faltando span{font-size:13px;color:#a16207;max-width:520px;line-height:1.55}
+
+/* ═══════ ESCALA ═══════ */
+/* O slide tem 960×540 fixos; quem posiciona é o container. */
+.slide-escala{transform-origin:top left;flex:0 0 auto}
