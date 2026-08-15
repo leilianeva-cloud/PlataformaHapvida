@@ -148,8 +148,8 @@ table.tb.big td{padding:4px;border-bottom:1px solid #eef2f8;white-space:normal}
 .anx .ph b{display:block;color:#475569;font-size:15px;margin-bottom:4px}
 
 /* ═══════ MODO APRESENTAÇÃO ═══════ */
-#present{position:fixed;inset:0;background:#0b1220;display:none;z-index:50;overflow:auto}
-#present.on{display:block}
+/* Mesma correção da .mask: no React o overlay só é montado quando está ativo. */
+#present,.reu-apresentar{position:fixed;inset:0;background:#0b1220;display:block;z-index:50;overflow:auto}
 #pwrap{min-height:100%;display:flex;align-items:center;justify-content:center;justify-content:safe center;padding:26px 26px 76px}
 #pslot{margin:auto}
 #pslot .slide{box-shadow:0 10px 60px #000;transform-origin:center center}
@@ -299,8 +299,11 @@ table.u{width:100%;background:#fff;border:1px solid var(--line);border-radius:10
 .stage{overflow:auto;padding:22px;display:flex;flex-direction:column;align-items:center;gap:18px}
 .empty{margin-top:70px;text-align:center;color:var(--mut)}
 /* ---------- modal ---------- */
-.mask{position:fixed;inset:0;background:#0f172abf;display:none;align-items:center;justify-content:center;z-index:40;padding:20px}
-.mask.on{display:flex}
+/* No React a máscara só existe no DOM quando o modal está aberto — não há
+   estado "fechado" para esconder. Herdado do protótipo, o `display:none` com
+   `.mask.on` deixava TODO modal invisível: o botão funcionava, gravava, e não
+   aparecia nada na tela. */
+.mask{position:fixed;inset:0;background:#0f172abf;display:flex;align-items:center;justify-content:center;z-index:40;padding:20px}
 .modal{background:#fff;border-radius:12px;width:100%;max-width:800px;max-height:86vh;display:flex;flex-direction:column;overflow:hidden}
 .modal.sm{max-width:480px}
 .mh{padding:16px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center}
@@ -397,3 +400,10 @@ table.tb.tabl [contenteditable]:focus{outline:2px solid #F47B20;outline-offset:-
 .item .nm{font-size:12.5px}
 .item .x{font-size:13px;padding:0 2px;color:#cbd5e1}
 .item .x:hover{color:#dc2626}
+
+/* Botão de ação destrutiva nos modais (Excluir permanentemente). */
+.btn2.dang{background:#dc2626;border-color:#dc2626;color:#fff}
+.btn2.dang:hover{background:#b91c1c;border-color:#b91c1c}
+/* `cen` centraliza a tabela do backlog; `tb` já centraliza, então é redundante
+   hoje — fica declarado para não depender desse acaso. */
+table.tb.cen td,table.tb.cen th{text-align:center}
