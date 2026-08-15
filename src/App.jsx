@@ -1236,6 +1236,13 @@ function AppGateway() {
     sessionStorage.setItem('hap_destino', dest)
     setDestino(dest)
   }
+  // A Reunião NÃO persiste o destino, de propósito: recarregar a página cai no
+  // Home, não dentro dela. Diferente do Status, aqui nada se perde — o roteiro
+  // fica no Supabase e o card "Retomar reunião" traz de volta.
+  function abrirReuniao() {
+    sessionStorage.removeItem('hap_destino')
+    setDestino('reuniao')
+  }
   function voltarHome() {
     sessionStorage.removeItem('hap_destino')
     sessionStorage.removeItem('hap_screen')
