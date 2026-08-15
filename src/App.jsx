@@ -1229,6 +1229,7 @@ export default function App() {
 
 // ── Tela Home (entre login e app) ────────────────────────────────────
 function AppGateway() {
+  const { profile } = useAuth()
   const [destino, setDestino] = useState(() => sessionStorage.getItem('hap_destino') || null)
 
   function navegarPara(dest) {
