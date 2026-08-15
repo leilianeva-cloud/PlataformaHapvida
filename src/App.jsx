@@ -1232,10 +1232,18 @@ function AppGateway() {
   const { profile } = useAuth()
   const [destino, setDestino] = useState(() => sessionStorage.getItem('hap_destino') || null)
 
+  // Sistemas que guardam o trabalho na tela precisam sobreviver a um F5 — foi
+  // por isso que o hap_destino existe. A Reunião é a exceção: o roteiro fica no
+  // Supabase, então recarregar cai no Home e o card "Retomar reunião" traz de
+  // volta. Guardar o destino dela só faria a plataforma abrir dentro dela.
+  const SEM_PERSISTIR = ['reuniao']
+
   function navegarPara(dest) {
-    sessionStorage.setItem('hap_destino', dest)
+    if (SEM_PERSISTIR.includes(dest)) sessionStorage.removeItem('hap_destino')
+    else sessionStorage.setItem('hap_destino', dest)
     setDestino(dest)
   }
+  
   // A Reunião NÃO persiste o destino, de propósito: recarregar a página cai no
   // Home, não dentro dela. Diferente do Status, aqui nada se perde — o roteiro
   // fica no Supabase e o card "Retomar reunião" traz de volta.
