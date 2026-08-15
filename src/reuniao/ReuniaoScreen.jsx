@@ -161,11 +161,17 @@ export default function ReuniaoScreen({ onVoltar }) {
   }
   const fazerNova = async () => {
     const nova = novaReuniaoVazia()
+    // A tela abre ANTES da gravação. Se o Supabase demorar ou falhar, o pior
+    // caso é um roteiro que não persistiu — e o usuário fica sabendo pelo aviso.
+    // Deixar o botão "sem reação" enquanto a rede responde é pior.
+    setPendente(nova); setReuniao(nova); setSel(0); setTela('montar')
+    historico.current = []
     try {
       await trocarReuniao(pendente, nova, usuario)
-      setPendente(nova); setReuniao(nova); setSel(0); setTela('montar')
-      mostrar('Reunião nova criada. A anterior foi descartada.')
-    } catch (e) { mostrar(`Não consegui criar: ${e.message}`) }
+      mostrar(pendente ? 'Reunião nova criada. A anterior foi descartada.' : 'Reunião criada.')
+    } catch (e) {
+      mostrar(`Criei a reunião, mas não consegui salvar: ${e.message}`)
+    }
   }
 
   /* ── adicionar blocos ── */
@@ -399,6 +405,7 @@ export default function ReuniaoScreen({ onVoltar }) {
         <button className="btn2" onClick={desfazer} title="Ctrl+Z">↶ Desfazer</button>
         <button className="btn2" onClick={() => setModal({ tipo: 'reuniao', titulo: reuniao.titulo, data: reuniao.dataReuniao })}>Editar reunião</button>
         <button className="btn2" onClick={() => setTela('abrir')}>Reuniões</button>
+        <button className="btn2" onClick={onVoltar}>Voltar ao início</button>
         <button className="btn2" onClick={baixarRoteiro}>Baixar roteiro</button>
         <button className="btn2" onClick={publicar}>
           {reuniao.publicada ? (reuniao.alterada ? `Publicar v${reuniao.versao + 1}` : 'Reabrir') : 'Publicar'}
