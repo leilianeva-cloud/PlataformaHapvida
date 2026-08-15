@@ -128,7 +128,7 @@ export default function HomeScreen({ onAcessarPortfolio, onAcessarStatus, onAces
         }
         .hm-card {
           background: white; color: #071B42;
-          border-radius: 24px; padding: 48px 36px;
+          border-radius: 24px; padding: 22px 22px;
           text-align: center;
           box-shadow: 0 30px 70px rgba(0,0,0,.20);
           transition: transform .25s, box-shadow .25s;
@@ -142,11 +142,11 @@ export default function HomeScreen({ onAcessarPortfolio, onAcessarStatus, onAces
           display: flex; align-items: center; justify-content: center;
           color: #0057B8;
         }
-        .hm-card h2 { font-size: 28px; font-weight: 800; margin-bottom: 8px; }
+        .hm-card h2 { font-size: 25px; font-weight: 800; margin-bottom: 8px; }
         .hm-card h3 { color: #0057B8; font-size: 15px; font-weight: 600; margin-bottom: 24px; }
         .hm-card p { line-height: 1.8; color: #667085; font-size: 16px; margin-bottom: 40px; }
         .hm-card-btn {
-          width: 100%; height: 54px; border: none; border-radius: 10px;
+          width: 70%; height: 54px; border: none; border-radius: 10px;
           background: #003B85; color: white;
           font-size: 16px; font-weight: 700;
           font-family: 'Inter', sans-serif;
@@ -235,7 +235,7 @@ export default function HomeScreen({ onAcessarPortfolio, onAcessarStatus, onAces
               <h2>Portfólio</h2>
               <h3>Visão geral</h3>
               <p></p>
-              <button className="hm-card-btn" onClick={onAcessarPortfolio}>Acessar →</button>
+              <button className="hm-card-btn" onClick={onAcessarPortfolio}>Acessar</button>
             </div>
 
             {/* Card Atualizar Status */}
@@ -246,7 +246,7 @@ export default function HomeScreen({ onAcessarPortfolio, onAcessarStatus, onAces
               <h2>Report Executive</h2>
               <h3>Atualizar Status Report</h3>
               <p></p>
-              <button className="hm-card-btn" onClick={onAcessarStatus}>Acessar →</button>
+              <button className="hm-card-btn" onClick={onAcessarStatus}>Acessar</button>
             </div>
 
             {/* Card Atualizar RAS */}
@@ -255,9 +255,9 @@ export default function HomeScreen({ onAcessarPortfolio, onAcessarStatus, onAces
                 <CalendarCheck size={40} />
               </div>
               <h2>RAS</h2>
-              <h3>Atualizar Report de Acompanhamento Semanal</h3>
+              <h3>Atualizar Acompanhamento Semanal</h3>
               <p></p>
-              <button className="hm-card-btn" onClick={onAcessarRas}>Acessar →</button>
+              <button className="hm-card-btn" onClick={onAcessarRas}>Acessar</button>
             </div>
 
             {/* Card Atualizar Incidentes */}
@@ -268,7 +268,7 @@ export default function HomeScreen({ onAcessarPortfolio, onAcessarStatus, onAces
               <h2>Report Incidentes</h2>
               <h3>Atualizar Report Semanal</h3>
               <p></p>
-              <button className="hm-card-btn" onClick={onAcessarIncidentes}>Acessar →</button>
+              <button className="hm-card-btn" onClick={onAcessarIncidentes}>Acessar</button>
             </div>
 
             {/* Card Reunião — só para quem tem a permissão.
@@ -283,7 +283,7 @@ export default function HomeScreen({ onAcessarPortfolio, onAcessarStatus, onAces
               <h3>Montagem e apresentação</h3>
               <p></p>
               {podeReuniao ? (
-                <button className="hm-card-btn" onClick={onAcessarReuniao}>Acessar →</button>
+                <button className="hm-card-btn" onClick={onAcessarReuniao}>Acessar</button>
               ) : (
                 <button className="hm-card-btn" disabled
                         style={{ background: '#94A3B8', cursor: 'not-allowed' }}
@@ -301,7 +301,7 @@ export default function HomeScreen({ onAcessarPortfolio, onAcessarStatus, onAces
               <h2>Tarefas &amp; Anotações</h2>
               <h3>Quadro de atividades</h3>
               <p></p>
-              <button className="hm-card-btn" onClick={onAcessarKanban}>Acessar →</button>
+              <button className="hm-card-btn" onClick={onAcessarKanban}>Acessar</button>
             </div>
             
           </section>
