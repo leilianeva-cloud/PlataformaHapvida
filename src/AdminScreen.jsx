@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase, logAudit } from './supabaseClient'
 import { useAuth } from './AuthContext'
-import { Plus, Trash2, Edit2, RefreshCw, X, Check, Shield, User, ChevronLeft, Clock, Copy } from 'lucide-react'
+import { Plus, Trash2, Edit2, RefreshCw, X, Check, Shield, User, ChevronLeft, Clock, Copy, Presentation } from 'lucide-react'
 
 const DOMINIO = '@hapvida.com.br'
 
@@ -65,6 +65,7 @@ function UserModal({ user: editUser, onClose, onSave }) {
   const [name, setName]       = useState(editUser?.name || '')
   const [email, setEmail]     = useState(editUser?.email || '')
   const [isAdmin, setIsAdmin] = useState(editUser?.is_admin || false)
+  const [podeReuniao, setPodeReuniao] = useState(editUser?.pode_reuniao || false)
   const [password, setPassword] = useState('')
   const [criado, setCriado]   = useState(null)   // { email, senha } após criar
   const [loading, setLoading] = useState(false)
@@ -80,10 +81,10 @@ function UserModal({ user: editUser, onClose, onSave }) {
       setLoading(true)
       try {
         const { error: e } = await supabase.from('profiles')
-          .update({ name, is_admin: isAdmin, updated_at: new Date().toISOString() })
+          .update({ name, is_admin: isAdmin, pode_reuniao: podeReuniao, updated_at: new Date().toISOString() })
           .eq('id', editUser.id)
         if (e) throw e
-        await logAudit({ action: 'UPDATE_USER', entity: 'user', entityId: editUser.id, detail: { name, is_admin: isAdmin } })
+        await logAudit({ action: 'UPDATE_USER', entity: 'user', entityId: editUser.id, detail: { name, is_admin: isAdmin, pode_reuniao: podeReuniao } })
         onSave()
         onClose()
       } catch (err) {
@@ -145,6 +146,13 @@ function UserModal({ user: editUser, onClose, onSave }) {
             <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:14, color:'#334155' }}>
               <input type="checkbox" checked={isAdmin} onChange={e=>setIsAdmin(e.target.checked)} />
               <Shield size={14} color="#7030A0" /> Administrador
+            </label>
+            {/* Permissão independente de Administrador: libera o sistema
+                Reunião e a leitura dos projetos de todos os SMs — e nada além
+                disso. Não dá acesso à Gestão de Usuários. */}
+            <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:14, color:'#334155' }}>
+              <input type="checkbox" checked={podeReuniao} onChange={e=>setPodeReuniao(e.target.checked)} />
+              <Presentation size={14} color="#0057B8" /> Acesso à Reunião
             </label>
             {error && <div style={{ color:'#DC2626', fontSize:13 }}>{error}</div>}
             <div style={{ display:'flex', gap:8, marginTop:4 }}>
