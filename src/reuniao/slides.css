@@ -193,217 +193,301 @@ table.tb.big td{padding:4px;border-bottom:1px solid #eef2f8;white-space:normal}
 
 
 /* =============================================================================
- * CASCA DO MÓDULO — tela de montagem, roteiro, modais e avisos
- * O slide acima é o documento; isto é a ferramenta em volta dele. Fica no mesmo
- * arquivo porque as duas coisas só existem juntas, dentro da Reunião.
- * ========================================================================== */
-.reu-wrap,.reu-page{--navy:#003B82;--orange:#FF7900;--ink:#0f172a;--mut:#64748b;--line:#e2e8f0;
-  font-family:"Inter","Segoe UI",system-ui,sans-serif;color:var(--ink);background:#f1f5f9}
-.reu-page{min-height:100vh;padding-bottom:40px}
-.reu-page h2{margin:26px 22px 4px;font-size:20px}
-.reu-page .sub,.mb .sub{color:var(--mut);font-size:13px}
-.reu-page .sub{margin:0 22px 20px}
-.reu-carregando,.reu-erro{padding:60px 22px;text-align:center;color:var(--mut);font-family:"Inter",sans-serif}
-.reu-erro b{display:block;color:#991b1b;font-size:17px;margin-bottom:8px}
-.reu-erro p{max-width:560px;margin:0 auto 18px;font-size:13px}
-
-.reu-top{display:flex;align-items:center;gap:10px;padding:10px 18px;background:#001b4d;color:#fff}
-.reu-top b{font-size:15px;max-width:38vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.reu-top .spacer{flex:1}
-.reu-top .btn2{background:#ffffff1a;color:#fff;border-color:transparent}
-.reu-top .btn2:hover{background:#ffffff2e}
-.reu-top .btn2.pri{background:var(--orange);border-color:var(--orange)}
-.pill{font-size:11px;font-weight:700;letter-spacing:.4px;padding:3px 9px;border-radius:99px;text-transform:uppercase}
-.pill.rasc{background:#334155;color:#cbd5e1}
-.pill.pub{background:#00B050;color:#fff}
-.pill.alt{background:var(--orange);color:#fff}
-
-.reu-corpo{display:grid;grid-template-columns:348px 1fr;height:calc(100vh - 49px)}
-.open-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:760px;margin:0 22px}
-.op{background:#fff;border:1px solid var(--line);border-radius:10px;padding:20px;text-align:left;cursor:pointer}
-.op:hover{border-color:var(--navy)}
-.op.dis{opacity:.5;cursor:not-allowed}
-.op b{display:block;font-size:15px;margin-bottom:5px}
-.op span{font-size:12.5px;color:var(--mut);line-height:1.5;display:block}
-.op .tagl{display:inline-block;font-size:11px;background:#eef4fd;color:var(--navy);padding:3px 8px;border-radius:5px;margin-top:10px}
-
-.reu-toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:#0f172a;color:#fff;
-  font-size:13px;padding:11px 18px;border-radius:9px;z-index:80;box-shadow:0 8px 28px #0f172a45;max-width:520px;text-align:center}
-
-/* =============================================================================
- * INTERFACE DO MÓDULO — roteiro, botões, modais
- * Estava faltando: o lote 1 extraiu só o CSS dos slides. Estas classes são as
- * que a ReuniaoScreen usa em volta do slide.
- * Segue o padrão da plataforma: Inter, azul #003B82, laranja #FF7900, cantos
- * arredondados — o mesmo vocabulário do HomeScreen e do AdminScreen.
+ * INTERFACE DO MÓDULO
+ * -----------------------------------------------------------------------------
+ * Layout aprovado nos mockups `portfolio_governanca_ti_reuniao` (abertura) e
+ * `portfolio_governanca_ti_roteiro` (montagem).
+ *
+ * TODA CLASSE É PREFIXADA COM `reu-`. Os mockups usavam `.slide` para o item da
+ * barra lateral, e `.slide` já é o slide de 960×540 renderizado ao lado — duas
+ * coisas diferentes com o mesmo nome quebrariam o render. O prefixo também
+ * garante que nada aqui vaze para o resto da plataforma.
+ *
+ * O que foi mantido além do mockup, e por quê:
+ *   • selo de status (Rascunho / Publicada v2) — é o carimbo de versão, a razão
+ *     de o módulo existir; sem ele não dá para saber o que está sendo olhado
+ *   • setas ▲▼ separadas em vez do ↕ — com 30 blocos, arrastar do fim para o
+ *     começo é sofrido, e você pediu as duas formas
+ *   • botão ✎ de renomear nos blocos que aceitam
  * ========================================================================== */
 
-/* Reset ESCOPADO no módulo. Global afetaria a plataforma inteira; sem ele, o
-   navegador desenha borda e fundo em ▲ ▼ ✎ × e a lista vira uma grade de caixas. */
-.reu-wrap button,.reu-page button,.mask button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
-.reu-wrap,.reu-page,.mask{font-family:'Inter','Segoe UI',system-ui,sans-serif}
-.reu-wrap *,.reu-page *,.mask *{box-sizing:border-box}
-.reu-wrap :focus-visible,.reu-page :focus-visible,.mask :focus-visible{outline:2px solid var(--orange);outline-offset:2px}
+.reu-app{
+  --navy:#062653; --navy2:#0b3977; --orange:#ff7800; --blue:#244d9f;
+  --bg:#f4f7fb; --text:#10294b; --muted:#61758f; --line:#dce4ee; --soft:#edf4ff;
+  --shadow:0 2px 8px rgba(18,43,77,.06);
+  margin:0; min-height:100vh; background:var(--bg); color:var(--text);
+  font-family:Inter,"Segoe UI",Arial,sans-serif;
+}
+.reu-app *{box-sizing:border-box}
+.reu-app button{font-family:inherit}
+.reu-app :focus-visible{outline:2px solid var(--orange);outline-offset:2px}
 
-/* roteiro */
-.rail{background:#fff;border-right:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden}
-.rail-h{padding:12px 14px;border-bottom:1px solid var(--line);display:flex;align-items:baseline;gap:8px}
-.rail-h b{font-size:13px}
-.rail-h span{font-size:11px;color:var(--mut)}
-.stage{overflow:auto;padding:22px;display:flex;flex-direction:column;align-items:center;gap:18px;background:#f1f5f9}
-.pagelab{font-size:11px;color:var(--mut);align-self:flex-start;font-weight:600;letter-spacing:.3px}
-.empty{margin-top:70px;text-align:center;color:var(--mut)}
+/* ═══════ barra superior ═══════ */
+.reu-topbar{
+  min-height:76px; background:linear-gradient(90deg,var(--navy),var(--navy2));
+  color:#fff; display:flex; align-items:center; padding:0 28px; gap:18px;
+}
+.reu-brandarea{display:flex;align-items:center;gap:18px;min-width:420px}
+.reu-home,.reu-act{
+  height:42px; border:1px solid rgba(255,255,255,.22); border-radius:8px;
+  background:rgba(255,255,255,.06); color:#fff; padding:0 15px;
+  font-weight:650; cursor:pointer; transition:.18s; white-space:nowrap;
+}
+.reu-home:hover,.reu-act:hover{background:rgba(255,255,255,.14)}
+.reu-act:disabled{opacity:.4;cursor:not-allowed}
+.reu-act.primary{background:var(--orange);border-color:var(--orange);font-weight:750}
+.reu-act.primary:hover{background:#e66d00}
+.reu-brand{display:flex;align-items:center;gap:11px;font-size:21px;font-weight:750;letter-spacing:-.3px}
+.reu-brand .orange{color:var(--orange)}
+.reu-folder{width:26px;height:20px;border:2px solid #fff;border-radius:4px;position:relative;flex:0 0 auto}
+.reu-folder:before{
+  content:""; position:absolute; width:10px; height:5px; left:2px; top:-7px;
+  border:2px solid #fff; border-bottom:0; border-radius:3px 3px 0 0;
+}
+.reu-actions{margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
 
-:root{--navy:#003B82; --navy-d:#001b4d; --navy-m:#003d8f;
-  --orange:#FF7900; --orange-d:#F47B20;
-  --f-plan:#7030A0; --f-dev:#0070C0; --f-hml:#ED7D31; --f-ent:#00B050; --f-cus:#64748B;
-  --s-bom:#69AE9A; --s-risco:#FDB713; --s-prob:#FF0000;
-  --ink:#0f172a; --mut:#64748b; --line:#e2e8f0; --bg:#f1f5f9;}
-:focus-visible{outline:2px solid var(--orange);outline-offset:2px}
-/* ---------- chrome ---------- */
-.top{display:flex;align-items:center;gap:14px;padding:10px 18px;background:var(--navy-d);color:#fff}
-/* ---------- home ---------- */
-.page{max-width:1080px;margin:0 auto;padding:28px 22px}
-/* ---------- usuários ---------- */
-table.u{width:100%;background:#fff;border:1px solid var(--line);border-radius:10px;border-collapse:separate;border-spacing:0;overflow:hidden}
-/* ---------- abertura da reunião ---------- */
-.open-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:760px}
-/* ---------- roteiro ---------- */
-.wrap{display:grid;grid-template-columns:348px 1fr;height:calc(100vh - 79px)}
-.rail{background:#fff;border-right:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden}
-.rail-h{padding:12px 14px;border-bottom:1px solid var(--line);display:flex;align-items:baseline;gap:8px}
-.rail-h b{font-size:13px}
-.rail-h span{font-size:11px;color:var(--mut)}
-.list{flex:1;overflow:auto;padding:8px}
-.item{display:flex;gap:7px;align-items:center;padding:8px 9px;border-radius:7px;border:1px solid transparent;margin-bottom:3px;cursor:grab}
-.item:hover{background:#f8fafc}
-.item.sel{background:#eef4fd;border-color:#bfd4f2}
-.item.drag{opacity:.35}
-.item.over{border-top:2px solid var(--orange)}
-.grip{color:#cbd5e1;font-size:13px;line-height:1.3;letter-spacing:-2px;flex:0 0 auto}
-.item .txt{flex:1 1 auto;min-width:0;overflow:hidden}
-.item .nm{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.item .sb{font-size:11px;color:var(--mut);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.item .sb .tag{margin-right:5px;vertical-align:1px}
-.tag{font-size:9px;font-weight:700;letter-spacing:.3px;padding:1px 5px;border-radius:3px;text-transform:uppercase;display:inline-block}
-.t-status{background:#dbeafe;color:#1e40af}
-.t-ras{background:#e0e7ff;color:#3730a3}
-.t-inc{background:#fee2e2;color:#991b1b}
-.t-anexo{background:#fef3c7;color:#92400e}
-.t-est{background:#f1f5f9;color:#475569}
-.x{color:#cbd5e1;font-size:15px;padding:0 2px;flex:0 0 auto;line-height:1.2}
-.x:hover{color:#dc2626}
-.add{padding:10px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:6px}
-.add button{font-size:12px;padding:6px 10px;border:1px solid var(--line);border-radius:6px;background:#fff}
-.add button:hover{border-color:var(--navy);color:var(--navy)}
-.stage{overflow:auto;padding:22px;display:flex;flex-direction:column;align-items:center;gap:18px}
-.empty{margin-top:70px;text-align:center;color:var(--mut)}
-/* ---------- modal ---------- */
+/* selo de versão — não estava no mockup, mas é o coração do módulo */
+.reu-pill{
+  font-size:11px; font-weight:700; letter-spacing:.4px; padding:4px 10px;
+  border-radius:99px; text-transform:uppercase; white-space:nowrap;
+}
+.reu-pill.rasc{background:rgba(255,255,255,.14);color:#cfe0f6}
+.reu-pill.pub{background:#12a150;color:#fff}
+.reu-pill.alt{background:var(--orange);color:#fff}
+
+/* ═══════ abertura ═══════ */
+.reu-main{padding:34px 38px 70px}
+.reu-heading h1{margin:0;font-size:29px;letter-spacing:-.7px}
+.reu-heading p{margin:8px 0 28px;color:var(--muted);font-size:15px}
+.reu-grid{display:grid;grid-template-columns:1fr 1fr;gap:26px;max-width:1280px}
+.reu-card{
+  background:#fff; border:1px solid var(--line); border-radius:12px; min-height:240px;
+  padding:38px; display:flex; align-items:flex-start; gap:28px; text-align:left;
+  box-shadow:var(--shadow); cursor:pointer; transition:.18s ease;
+}
+.reu-card:hover{border-color:#bfd0e7;box-shadow:0 8px 24px rgba(18,43,77,.08);transform:translateY(-2px)}
+.reu-card:disabled{opacity:.55;cursor:not-allowed;transform:none;box-shadow:var(--shadow);border-color:var(--line)}
+.reu-circle{
+  flex:0 0 72px; width:72px; height:72px; border-radius:50%; background:var(--soft);
+  display:flex; align-items:center; justify-content:center; color:var(--blue);
+  font-size:38px; font-weight:300;
+}
+.reu-cardbody h2{margin:7px 0 13px;font-size:24px;letter-spacing:-.4px}
+.reu-cardbody p{margin:0 0 9px;color:#49627f;line-height:1.65;font-size:15px;max-width:520px}
+.reu-badge{
+  display:inline-flex; margin-top:10px; padding:8px 13px; background:#eaf2ff;
+  color:#1455ae; border-radius:7px; font-size:13px; font-weight:600;
+}
+.reu-openroute{
+  margin-top:34px; background:#fff; border:1px solid var(--line); color:var(--text);
+  height:50px; padding:0 20px; border-radius:8px; font-size:14px; font-weight:650;
+  cursor:pointer; box-shadow:var(--shadow); display:inline-flex; align-items:center; gap:9px;
+}
+.reu-openroute:hover{border-color:#a9c0de;background:#fbfdff}
+.reu-openroute .ic{color:var(--blue);font-size:17px}
+
+/* ═══════ montagem ═══════ */
+.reu-work{display:flex;height:calc(100vh - 76px);min-height:620px}
+.reu-side{width:365px;flex:0 0 365px;background:#fff;border-right:1px solid var(--line);display:flex;flex-direction:column}
+.reu-sidehead{
+  min-height:66px; display:flex; align-items:center; gap:10px; padding:0 20px;
+  border-bottom:1px solid var(--line); font-size:14px;
+}
+.reu-sidehead strong{font-size:15px}
+.reu-sidehead span{color:var(--muted)}
+.reu-items{flex:1;padding:12px;overflow:auto}
+
+.reu-item{
+  border-radius:9px; padding:13px; display:grid; grid-template-columns:20px 1fr auto;
+  gap:8px; align-items:start; cursor:pointer; margin-bottom:4px; width:100%;
+  background:none; border:1px solid transparent; text-align:left;
+}
+.reu-item:hover{background:#f7faff}
+.reu-item.active{background:var(--soft);border-color:#cfe0f6}
+.reu-item.drop{border-top:2px solid var(--orange)}
+.reu-drag{color:#c3d0df;font-size:15px;letter-spacing:-2px;line-height:18px;cursor:grab}
+.reu-itemtitle{
+  font-size:14px; font-weight:750; margin-bottom:8px;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.reu-meta{display:flex;gap:7px;align-items:center;color:#536983;font-size:11px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.reu-tag{background:#edf1f6;padding:3px 6px;border-radius:3px;font-weight:700;font-size:10px;flex:0 0 auto}
+.reu-tag.projeto{background:#dbeafe;color:#1e40af}
+.reu-tag.ras{background:#e0e7ff;color:#3730a3}
+.reu-tag.incidentes{background:#fee2e2;color:#991b1b}
+.reu-tag.importado{background:#fef3c7;color:#92400e}
+.reu-tag.tabela{background:#dcfce7;color:#166534}
+.reu-ctrl{display:flex;align-items:center;gap:2px;padding-top:1px;flex:0 0 auto}
+.reu-ctrl button{color:#9badc2;background:none;border:0;cursor:pointer;padding:2px 4px;border-radius:5px;line-height:1}
+.reu-ctrl button:hover{color:var(--blue);background:#e9f1fd}
+.reu-ctrl button.del:hover{color:#dc2626;background:#fef2f2}
+.reu-ctrl button:disabled{opacity:.25;cursor:default;background:none}
+.reu-arrows{display:flex;flex-direction:column;gap:1px}
+.reu-arrows button{font-size:8px;height:11px;padding:0 3px}
+
+.reu-tools{border-top:1px solid var(--line);padding:13px 12px 15px;display:flex;flex-wrap:wrap;gap:8px}
+.reu-tool{
+  height:38px; padding:0 13px; border:1px solid #ccd9e8; border-radius:7px;
+  background:#fff; color:#17385f; font-weight:650; cursor:pointer;
+}
+.reu-tool:hover{background:#f5f9ff;border-color:#a9bed8}
+
+.reu-content{flex:1;min-width:0;padding:24px 32px 40px;overflow:auto}
+.reu-contenthead{display:flex;align-items:baseline;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.reu-contenthead h2{margin:0;font-size:19px;letter-spacing:-.4px}
+.reu-seclabel{font-size:13px;color:#60748d;margin:0 0 10px}
+.reu-previewwrap{display:flex;flex-direction:column;gap:16px;align-items:flex-start}
+.reu-empty{margin-top:70px;text-align:center;color:var(--muted)}
+
+/* barra de edição da tabela */
+.reu-tblbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.reu-tblbar button{
+  height:34px;padding:0 12px;border:1px solid #ccd9e8;border-radius:7px;
+  background:#fff;color:#17385f;font-weight:650;cursor:pointer;font-size:13px;
+}
+.reu-tblbar button:hover{background:#f5f9ff;border-color:#a9bed8}
+.reu-tblbar em{font-style:normal;font-size:12px;color:var(--muted)}
+
+/* ═══════ aviso ═══════ */
+.reu-toast{
+  position:fixed; right:24px; bottom:24px; background:var(--navy); color:#fff;
+  padding:13px 18px; border-radius:8px; box-shadow:0 10px 30px rgba(0,0,0,.18);
+  font-size:14px; z-index:90; max-width:460px;
+}
+
+/* ═══════ carregando / erro ═══════ */
+.reu-load,.reu-fail{padding:70px 22px;text-align:center;color:var(--muted);
+  font-family:Inter,"Segoe UI",Arial,sans-serif;background:#f4f7fb;min-height:100vh}
+.reu-fail b{display:block;color:#991b1b;font-size:18px;margin-bottom:8px}
+.reu-fail p{max-width:560px;margin:0 auto 18px;font-size:13.5px;line-height:1.6}
+
+/* ═══════ modais ═══════ */
 /* No React a máscara só existe no DOM quando o modal está aberto — não há
-   estado "fechado" para esconder. Herdado do protótipo, o `display:none` com
-   `.mask.on` deixava TODO modal invisível: o botão funcionava, gravava, e não
-   aparecia nada na tela. */
-.mask{position:fixed;inset:0;background:#0f172abf;display:flex;align-items:center;justify-content:center;z-index:40;padding:20px}
-.modal{background:#fff;border-radius:12px;width:100%;max-width:800px;max-height:86vh;display:flex;flex-direction:column;overflow:hidden}
-.modal.sm{max-width:480px}
-.mh{padding:16px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center}
-.mh b{font-size:15px}
-.mb{padding:18px 20px;overflow:auto;flex:1}
-.mf{padding:13px 20px;border-top:1px solid var(--line);display:flex;gap:9px;justify-content:flex-end;align-items:center}
-.pick{display:grid;grid-template-columns:190px 1fr;gap:16px;min-height:330px}
-.sms button{display:block;width:100%;text-align:left;padding:9px 11px;border-radius:7px;font-size:13px;margin-bottom:3px}
-.sms button:hover{background:#f8fafc}
-.sms button.cur{background:#eef4fd;color:var(--navy);font-weight:600}
-.sms button small{display:block;color:var(--mut);font-size:11px;font-weight:400}
-.pr{display:flex;gap:10px;align-items:flex-start;padding:9px 11px;border:1px solid var(--line);border-radius:8px;margin-bottom:6px;cursor:pointer}
-.pr:hover{border-color:var(--navy)}
-.pr.ck{background:#eef4fd;border-color:#bfd4f2}
-.pr input{margin-top:3px}
-.pr b{display:block;font-size:13px}
-.pr span{font-size:11.5px;color:var(--mut)}
-.drop{border:2px dashed #cbd5e1;border-radius:10px;padding:30px;text-align:center;color:var(--mut);cursor:pointer}
-.drop:hover,.drop.hot{border-color:var(--navy);background:#f8fbff;color:var(--navy)}
-.res{background:#f8fafc;border:1px solid var(--line);border-radius:8px;padding:13px;margin-top:14px;font-size:13px}
-.res b{color:var(--navy)}
-.res .kk{display:flex;gap:16px;margin-top:8px;flex-wrap:wrap}
-.res .kk div{font-size:12px;color:var(--mut)}
-.bandeja .kk{display:flex;gap:20px;flex-wrap:wrap;margin-top:9px}
-.bandeja .kk div{font-size:11.5px;color:var(--mut);line-height:1.25}
-.bandeja .kk div b{display:block;font-size:19px;color:var(--ink);font-weight:700}
-.res .kk div b{display:block;font-size:17px;color:var(--ink)}
-.warnbox{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:8px;padding:12px;font-size:12.5px;margin-bottom:14px}
-table.tb.tabl{margin-top:4px;font-size:9px;table-layout:auto}
-table.tb.tabl th{background:#274395;color:#fff;padding:6px 8px;text-align:left;border:1px solid #1d3272;font-size:9px}
-table.tb.tabl td{padding:6px 8px;text-align:left;border:1px solid #DDE4EF;vertical-align:top;white-space:normal;background:#fff}
-table.tb.tabl tr:nth-child(even) td{background:#F8FAFD}
-table.tb.tabl .ph{color:#b6c2d4;font-style:italic}
-table.tb.tabl [contenteditable]:focus{outline:2px solid #F47B20;outline-offset:-2px;background:#fffdf7}
-.t-tab{background:#dcfce7;color:#166534}
-.tblbar{display:flex;gap:6px;flex-wrap:wrap;align-self:flex-start;margin-top:-6px}
-.tblbar button{font-size:12px;padding:5px 10px;border:1px solid var(--line);border-radius:6px;background:#fff}
-.tblbar button:hover{border-color:var(--navy);color:var(--navy)}
-.tblbar .sepb{width:1px;background:var(--line);margin:2px 3px}
-.mv{color:#94a3b8;font-size:9px;line-height:1;padding:2px 3px;border-radius:4px;flex:0 0 auto}
-.mv[disabled]{opacity:.25;cursor:default}
-.mv:hover{color:var(--navy);background:#eef4fd}
-.mvs{display:flex;flex-direction:column;gap:1px;flex:0 0 auto}
-.mark{width:14px;height:14px;flex:0 0 auto}
-.passos{margin-top:14px;display:flex;flex-direction:column;gap:9px}
-.passos div{display:flex;gap:10px;align-items:center;font-size:13px;color:#334155}
-.passos span{flex:0 0 auto;width:21px;height:21px;border-radius:99px;background:var(--navy);color:#fff;
-  font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center}
-.bandeja{border:1px solid #bfd4f2;background:#f4f8ff;border-radius:9px;padding:13px 15px}
-.bandeja.old{border-color:#fed7aa;background:#fff7ed}
-.bh{display:flex;align-items:center;gap:9px;margin-bottom:5px}
-.bt{font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--navy);background:#dbeafe;padding:2px 8px;border-radius:99px}
-.bandeja.old .bt{color:#9a3412;background:#fed7aa}
-.bvelho{font-size:11.5px;font-weight:700;color:#9a3412}
-.bn{font-size:13.5px;font-weight:600}
-.bm{font-size:12px;color:var(--mut);margin-top:2px}
-.bdica{font-size:12px;color:#9a3412;margin-top:9px;line-height:1.5}
-.ousep{text-align:center;margin:15px 0 11px;border-top:1px solid var(--line);position:relative}
-.ousep span{position:relative;top:-9px;background:#fff;padding:0 11px;font-size:12px;color:var(--mut)}
-.vaziob{background:#f8fafc;border:1px solid var(--line);border-radius:9px;padding:13px 15px;font-size:13px;color:#475569;line-height:1.55;margin-bottom:14px}
-.ipc{display:flex;gap:12px;align-items:flex-start;border:1px solid var(--line);border-radius:9px;padding:10px;margin-top:11px}
-.ipc img{width:150px;height:84px;object-fit:contain;background:#f1f5f9;border-radius:5px;flex:0 0 auto}
-.ipi{flex:1;min-width:0}
-.ipi b{font-size:13px}
-.ipm{font-size:11.5px;color:var(--mut);margin-top:2px}
-.qb{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:99px;margin-top:6px}
-.q-ok{background:#dcfce7;color:#166534}
-.q-md{background:#fef3c7;color:#92400e}
-.q-bx{background:#fee2e2;color:#991b1b}
-.qdica{font-size:11.5px;color:#9a3412;background:#fff7ed;border-radius:6px;padding:7px 9px;margin-top:7px;line-height:1.5}
-.perigo{background:#fef2f2;border-left:3px solid #dc2626;color:#991b1b;padding:10px 12px;border-radius:0 6px 6px 0;margin-bottom:11px;font-size:13px}
-.lst{margin:8px 0 11px;padding-left:19px;color:#475569;font-size:13px;line-height:1.7}
-.fl{font-size:12px;font-weight:600;color:#475569;margin-bottom:5px}
-.inp{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:7px;font:inherit}
-.inp:focus{outline:2px solid var(--orange);outline-offset:1px}
-.sug{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
-.sug button{font-size:12px;padding:5px 9px;border:1px solid var(--line);border-radius:6px;background:#fff}
-.sug button:hover{border-color:var(--navy);color:var(--navy)}
+   estado "fechado" para esconder. Nada de display:none aqui. */
+.reu-mask{
+  position:fixed; inset:0; background:rgba(6,38,83,.55); display:flex;
+  align-items:center; justify-content:center; z-index:60; padding:20px;
+  font-family:Inter,"Segoe UI",Arial,sans-serif; color:#10294b;
+}
+.reu-mask *{box-sizing:border-box}
+.reu-mask button{font-family:inherit;cursor:pointer}
+.reu-modal{
+  background:#fff; border-radius:12px; width:100%; max-width:820px; max-height:86vh;
+  display:flex; flex-direction:column; overflow:hidden; box-shadow:0 24px 60px rgba(6,38,83,.3);
+}
+.reu-modal.sm{max-width:520px}
+.reu-mh{padding:18px 22px;border-bottom:1px solid #dce4ee;font-size:16px;font-weight:750}
+.reu-mb{padding:20px 22px;overflow:auto;flex:1;font-size:14px;line-height:1.6}
+.reu-mf{padding:14px 22px;border-top:1px solid #dce4ee;display:flex;gap:9px;justify-content:flex-end;align-items:center}
+.reu-btn{
+  height:40px;padding:0 16px;border-radius:8px;font-size:14px;font-weight:650;
+  border:1px solid #ccd9e8;background:#fff;color:#17385f;
+}
+.reu-btn:hover{background:#f5f9ff;border-color:#a9bed8}
+.reu-btn.pri{background:var(--blue,#244d9f);border-color:#244d9f;color:#fff}
+.reu-btn.pri:hover{background:#1c3f86}
+.reu-btn.dang{background:#dc2626;border-color:#dc2626;color:#fff}
+.reu-btn.dang:hover{background:#b91c1c}
+.reu-btn:disabled{opacity:.4;cursor:not-allowed}
 
-/* Nome longo tem que ser cortado, não empurrar os botões para fora do card. */
-.item{align-items:center}
-.item .txt{flex:1 1 auto;min-width:0;overflow:hidden}
-.item .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.item .sb{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.item .mvs,.item .x,.item .grip{flex:0 0 auto}
+.reu-inp{width:100%;height:44px;padding:0 13px;border:1px solid #ccd9e8;border-radius:8px;font:inherit}
+.reu-inp:focus{outline:2px solid var(--orange,#ff7800);outline-offset:1px}
+.reu-fl{font-size:12.5px;font-weight:650;color:#49627f;margin-bottom:6px}
+.reu-sub{color:#5f7390;font-size:13px}
+.reu-sug{display:flex;flex-wrap:wrap;gap:7px;margin-top:8px}
+.reu-sug button{font-size:13px;padding:7px 11px;border:1px solid #ccd9e8;border-radius:7px;background:#fff;color:#17385f}
+.reu-sug button:hover{border-color:#244d9f;color:#244d9f}
 
-/* As setas ▲▼ empilhadas esticavam o card e brigavam com o nome do bloco.
-   Compactadas e com o texto reservando espaço para elas. */
-.mvs{display:flex;flex-direction:column;gap:2px}
-.mv{display:block;font-size:8px;line-height:1;height:11px;padding:1px 3px;color:#94a3b8;border-radius:3px}
-.mv:hover{color:var(--navy);background:#eef4fd}
-.mv[disabled]{opacity:.25;cursor:default}
-.item{padding:7px 9px;gap:6px}
-.item .nm{font-size:12.5px}
-.item .x{font-size:13px;padding:0 2px;color:#cbd5e1}
-.item .x:hover{color:#dc2626}
+.reu-perigo{background:#fef2f2;border-left:3px solid #dc2626;color:#991b1b;
+  padding:11px 13px;border-radius:0 7px 7px 0;margin-bottom:13px}
+.reu-lst{margin:9px 0 12px;padding-left:20px;color:#49627f;line-height:1.8}
+.reu-warn{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:8px;
+  padding:12px;font-size:13px;margin-bottom:14px}
 
-/* Botão de ação destrutiva nos modais (Excluir permanentemente). */
-.btn2.dang{background:#dc2626;border-color:#dc2626;color:#fff}
-.btn2.dang:hover{background:#b91c1c;border-color:#b91c1c}
-/* `cen` centraliza a tabela do backlog; `tb` já centraliza, então é redundante
-   hoje — fica declarado para não depender desse acaso. */
-table.tb.cen td,table.tb.cen th{text-align:center}
+/* seleção de projetos */
+.reu-pick{display:grid;grid-template-columns:210px 1fr;gap:18px;min-height:340px}
+.reu-sms button{display:block;width:100%;text-align:left;padding:10px 12px;border:0;
+  background:none;border-radius:8px;font-size:14px;margin-bottom:3px;color:#10294b}
+.reu-sms button:hover{background:#f5f9ff}
+.reu-sms button.cur{background:var(--soft,#edf4ff);color:#1455ae;font-weight:700}
+.reu-sms small{display:block;color:#5f7390;font-size:11.5px;font-weight:400;margin-top:2px}
+.reu-pr{display:flex;gap:11px;align-items:flex-start;padding:11px 13px;border:1px solid #dce4ee;
+  border-radius:9px;margin-bottom:7px;cursor:pointer}
+.reu-pr:hover{border-color:#a9c0de}
+.reu-pr.ck{background:#edf4ff;border-color:#bfd0e7}
+.reu-pr input{margin-top:3px}
+.reu-pr b{display:block;font-size:14px}
+.reu-pr span span{font-size:12px;color:#5f7390}
+
+/* bandeja */
+.reu-bandeja{border:1px solid #bfd0e7;background:#f4f8ff;border-radius:10px;padding:15px 17px}
+.reu-bandeja.old{border-color:#fed7aa;background:#fff7ed}
+.reu-bh{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.reu-bt{font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;
+  color:#1455ae;background:#dbeafe;padding:3px 9px;border-radius:99px}
+.reu-bandeja.old .reu-bt{color:#9a3412;background:#fed7aa}
+.reu-bvelho{font-size:12px;font-weight:700;color:#9a3412}
+.reu-bn{font-size:14.5px;font-weight:700}
+.reu-bm{font-size:12.5px;color:#5f7390;margin-top:3px}
+.reu-bdica{font-size:12.5px;color:#9a3412;margin-top:10px;line-height:1.55}
+.reu-kk{display:flex;gap:22px;flex-wrap:wrap;margin-top:11px}
+.reu-kk div{font-size:11.5px;color:#5f7390;line-height:1.25}
+.reu-kk div b{display:block;font-size:20px;color:#10294b;font-weight:750}
+.reu-vazio{background:#f5f7fa;border:1px solid #dce4ee;border-radius:9px;padding:14px 16px;
+  font-size:13.5px;color:#49627f;line-height:1.6;margin-bottom:15px}
+.reu-passos{display:flex;flex-direction:column;gap:10px}
+.reu-passos div{display:flex;gap:11px;align-items:center;font-size:13.5px;color:#10294b}
+.reu-passos span{flex:0 0 auto;width:22px;height:22px;border-radius:99px;background:#244d9f;
+  color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center}
+
+/* importação */
+.reu-drop{
+  display:block; border:2px dashed #ccd9e8; border-radius:10px; padding:30px;
+  text-align:center; color:#5f7390; cursor:pointer;
+}
+.reu-drop:hover{border-color:#244d9f;background:#f8fbff;color:#244d9f}
+.reu-drop b{display:block;color:#10294b;font-size:15px;margin-bottom:4px}
+.reu-drop span{font-size:12.5px}
+.reu-ipc{display:flex;gap:13px;align-items:flex-start;border:1px solid #dce4ee;
+  border-radius:10px;padding:11px;margin-top:12px}
+.reu-ipc img{width:154px;height:86px;object-fit:contain;background:#f0f4f9;border-radius:6px;flex:0 0 auto}
+.reu-ipi{flex:1;min-width:0}
+.reu-ipi b{font-size:13.5px}
+.reu-ipm{font-size:11.5px;color:#5f7390;margin-top:3px}
+.reu-qb{display:inline-block;font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:99px;margin-top:7px}
+.reu-qb.q-ok{background:#dcfce7;color:#166534}
+.reu-qb.q-md{background:#fef3c7;color:#92400e}
+.reu-qb.q-bx{background:#fee2e2;color:#991b1b}
+.reu-qdica{font-size:11.5px;color:#9a3412;background:#fff7ed;border-radius:7px;
+  padding:8px 10px;margin-top:8px;line-height:1.5}
+
+@media(max-width:1050px){
+  .reu-brandarea{min-width:auto}
+  .reu-brand{font-size:17px}
+  .reu-actions{overflow-x:auto}
+  .reu-work{height:auto;min-height:calc(100vh - 76px)}
+  .reu-side{width:300px;flex-basis:300px}
+  .reu-content{padding:22px}
+  .reu-grid{grid-template-columns:1fr}
+  .reu-pick{grid-template-columns:1fr}
+}
+@media(max-width:760px){
+  .reu-topbar{height:auto;flex-wrap:wrap;padding:14px 16px}
+  .reu-brandarea{width:100%}
+  .reu-actions{width:100%;margin-left:0;justify-content:flex-start}
+  .reu-work{display:block}
+  .reu-side{width:100%;flex-basis:auto}
+  .reu-items{max-height:340px}
+}
+
+/* O slide tem 960×540 fixos, mas a área de conteúdo é elástica. Sem escala o
+   slide estoura ou sobra; a variável é definida pela tela conforme a largura. */
+.reu-previewwrap{--k:1}
+.reu-previewwrap .slide{transform:scale(var(--k));transform-origin:top left;flex:0 0 auto}
+.reu-slidebox{width:calc(960px * var(--k));height:calc(540px * var(--k));overflow:hidden}
+
+/* Setas legíveis: 8px era pequeno demais para clicar com precisão. */
+.reu-arrows button{font-size:9px;height:13px;padding:0 4px;color:#9badc2}
+.reu-ctrl button{font-size:15px;padding:3px 5px}
+.reu-arrows{gap:2px}

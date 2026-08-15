@@ -99,6 +99,21 @@ export default function ReuniaoScreen({ onVoltar }) {
 
   const mostrar = (msg) => { setAviso(msg); setTimeout(() => setAviso(''), 4200) }
 
+  /* ── escala do preview ──
+     O slide tem 960px fixos; a área de conteúdo varia com a janela. Sem isto o
+     slide estoura a coluna em tela pequena e fica pequeno demais em tela grande. */
+  const areaPreview = useRef(null)
+  const [escalaPreview, setEscalaPreview] = useState(1)
+  useEffect(() => {
+    const el = areaPreview.current
+    if (!el) return
+    const medir = () => setEscalaPreview(Math.min(1, (el.clientWidth || 960) / 960))
+    medir()
+    const ro = new ResizeObserver(medir)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [tela])
+
   /* ── mutação do roteiro (ponto único: histórico + alterada + autosave) ── */
   const mudar = useCallback((novosBlocos, novoSel) => {
     setReuniao(r => {
@@ -147,9 +162,9 @@ export default function ReuniaoScreen({ onVoltar }) {
       ok: 'Excluir permanentemente', onOk: fazerNova,
       corpo: (
         <>
-          <div className="perigo"><b>Esta ação é permanente e não pode ser desfeita.</b> Nem pelo Ctrl+Z.</div>
+          <div className="reu-perigo"><b>Esta ação é permanente e não pode ser desfeita.</b> Nem pelo Ctrl+Z.</div>
           Será excluída a reunião <b>{pendente.titulo}</b>:
-          <ul className="lst">
+          <ul className="reu-lst">
             <li>{pendente.blocos.length} blocos</li>
             <li>{pendente.blocos.filter(b => b.tipo === 'importado').length} conteúdo(s) importado(s) — os arquivos são apagados</li>
             <li>{pendente.publicada ? `publicada v${pendente.versao}` : 'rascunho'} · última edição por {pendente.editadoPorNome}</li>
@@ -332,6 +347,34 @@ export default function ReuniaoScreen({ onVoltar }) {
     }))
   }
 
+  /**
+   * Abre um .reuniao baixado antes. Serve de backup e para levar a pauta de uma
+   * máquina para outra. Só substitui a reunião em memória — a gravação segue o
+   * autosave normal.
+   */
+  const abrirRoteiroArquivo = () => {
+    const inp = document.createElement('input')
+    inp.type = 'file'
+    inp.accept = '.reuniao,application/json'
+    inp.onchange = async (e) => {
+      const f = e.target.files?.[0]
+      if (!f) return
+      try {
+        const j = JSON.parse(await f.text())
+        if (!j || !Array.isArray(j.blocos)) throw new Error('estrutura')
+        // reuniaoId novo: os importados do arquivo de origem não estão no nosso
+        // Storage, e reaproveitar o id apontaria para uma pasta de outra reunião.
+        const nova = { ...j, reuniaoId: `r${Date.now().toString(36)}` }
+        setReuniao(nova); setPendente(nova); setSel(0); historico.current = []
+        setTela('montar'); agendarSalvar(nova)
+        mostrar(`Roteiro aberto: ${nova.titulo || 'sem título'}`)
+      } catch {
+        mostrar('Arquivo inválido — esperado um .reuniao gerado por Baixar roteiro.')
+      }
+    }
+    inp.click()
+  }
+
   const baixarRoteiro = () => {
     const copia = { ...reuniao, blocos: reuniao.blocos }
     const a = document.createElement('a')
@@ -343,12 +386,12 @@ export default function ReuniaoScreen({ onVoltar }) {
 
   /* ═══════════════════════ RENDER ═══════════════════════ */
 
-  if (carregando) return <div className="reu-carregando">Carregando reunião…</div>
+  if (carregando) return <div className="reu-load">Carregando reunião…</div>
   if (erro) return (
-    <div className="reu-erro">
+    <div className="reu-fail">
       <b>Não consegui abrir a Reunião</b>
       <p>{erro}</p>
-      <button className="btn2" onClick={onVoltar}>Voltar ao início</button>
+      <button className="reu-btn" onClick={onVoltar}>Voltar ao início</button>
     </div>
   )
 
@@ -360,31 +403,48 @@ export default function ReuniaoScreen({ onVoltar }) {
 
   /* ── tela de abertura ── */
   if (tela === 'abrir' || !reuniao) return (
-    <div className="reu-page">
-      <div className="reu-top">
-        <b>Reunião</b>
-        <span className="spacer" />
-        <button className="btn2" onClick={onVoltar}>Voltar ao início</button>
-      </div>
-      <h2>Reunião</h2>
-      <div className="sub">Uma reunião viva por vez. A nova substitui a anterior.</div>
-      <div className="open-grid">
-        <button className={`op${pendente ? '' : ' dis'}`} disabled={!pendente} onClick={retomar}>
-          <b>{pendente ? 'Retomar reunião' : 'Nenhuma reunião em andamento'}</b>
-          {pendente && (
-            <span>{pendente.titulo}<br />{pendente.blocos.length} blocos ·{' '}
-              {pendente.publicada ? (pendente.alterada ? `alterada após v${pendente.versao}` : `publicada v${pendente.versao}`) : 'rascunho'}
-            </span>
-          )}
-          {pendente && <span className="tagl">editado por {pendente.editadoPorNome || '—'}</span>}
+    <div className="reu-app">
+      <Topo onVoltar={onVoltar} />
+      <main className="reu-main">
+        <section className="reu-heading">
+          <h1>Reunião</h1>
+          <p>Uma reunião viva por vez. A nova substitui a anterior.</p>
+        </section>
+
+        <section className="reu-grid">
+          <button className="reu-card" disabled={!pendente} onClick={retomar}>
+            <div className="reu-circle">↶</div>
+            <div className="reu-cardbody">
+              <h2>{pendente ? 'Retomar reunião' : 'Nenhuma reunião em andamento'}</h2>
+              {pendente ? (
+                <>
+                  <p>{pendente.titulo}</p>
+                  <p>{pendente.blocos.length} blocos ·{' '}
+                    {pendente.publicada
+                      ? (pendente.alterada ? `alterada após v${pendente.versao}` : `publicada v${pendente.versao}`)
+                      : 'rascunho'}</p>
+                  <span className="reu-badge">editado por {pendente.editadoPorNome || '—'}</span>
+                </>
+              ) : <p>Comece uma nova para montar o roteiro da semana.</p>}
+            </div>
+          </button>
+
+          <button className="reu-card" onClick={criarNova}>
+            <div className="reu-circle">＋</div>
+            <div className="reu-cardbody">
+              <h2>Nova reunião</h2>
+              <p>Começa do zero com a estrutura padrão: capa, divisórias e encerramento.</p>
+              {pendente && <p>Descarta a reunião atual e apaga os conteúdos importados dela.</p>}
+              <span className="reu-badge">estrutura padrão</span>
+            </div>
+          </button>
+        </section>
+
+        <button className="reu-openroute" onClick={abrirRoteiroArquivo}>
+          <span className="ic">▤</span> Abrir roteiro (.reuniao)
         </button>
-        <button className="op" onClick={criarNova}>
-          <b>Nova reunião</b>
-          <span>Começa do zero com a estrutura padrão: capa, divisórias e encerramento.
-            {pendente && ' Descarta a reunião atual e apaga os conteúdos importados dela.'}</span>
-          <span className="tagl">estrutura padrão</span>
-        </button>
-      </div>
+      </main>
+
       {aviso && <div className="reu-toast">{aviso}</div>}
       {modal && <Modal modal={modal} setModal={setModal} />}
     </div>
@@ -395,92 +455,117 @@ export default function ReuniaoScreen({ onVoltar }) {
   const paginasDoSel = blocoSel ? paginas.filter(p => p.blocoIndex === sel) : []
 
   return (
-    <div className="reu-wrap">
-      <div className="reu-top">
-        <b title={reuniao.titulo}>{reuniao.titulo}</b>
-        <span className={`pill ${reuniao.publicada ? (reuniao.alterada ? 'alt' : 'pub') : 'rasc'}`}>
-          {reuniao.publicada ? (reuniao.alterada ? `Alterada após v${reuniao.versao}` : `Publicada · v${reuniao.versao}`) : 'Rascunho'}
+    <div className="reu-app">
+      <Topo onVoltar={onVoltar}>
+        <span className={`reu-pill ${reuniao.publicada ? (reuniao.alterada ? 'alt' : 'pub') : 'rasc'}`}>
+          {reuniao.publicada
+            ? (reuniao.alterada ? `Alterada após v${reuniao.versao}` : `Publicada · v${reuniao.versao}`)
+            : 'Rascunho'}
         </span>
-        <span className="spacer" />
-        <button className="btn2" onClick={desfazer} title="Ctrl+Z">↶ Desfazer</button>
-        <button className="btn2" onClick={() => setModal({ tipo: 'reuniao', titulo: reuniao.titulo, data: reuniao.dataReuniao })}>Editar reunião</button>
-        <button className="btn2" onClick={() => setTela('abrir')}>Reuniões</button>
-        <button className="btn2" onClick={onVoltar}>Voltar ao início</button>
-        <button className="btn2" onClick={baixarRoteiro}>Baixar roteiro</button>
-        <button className="btn2" onClick={publicar}>
-          {reuniao.publicada ? (reuniao.alterada ? `Publicar v${reuniao.versao + 1}` : 'Reabrir') : 'Publicar'}
+        <button className="reu-act" onClick={desfazer} title="Ctrl+Z">↶ Desfazer</button>
+        <button className="reu-act" onClick={() => setModal({ tipo: 'reuniao', titulo: reuniao.titulo, data: reuniao.dataReuniao })}>✎ Editar reunião</button>
+        <button className="reu-act" onClick={() => setTela('abrir')}>▣ Reuniões</button>
+        <button className="reu-act" onClick={baixarRoteiro}>↓ Baixar roteiro</button>
+        <button className="reu-act" onClick={publicar}>
+          ➤ {reuniao.publicada ? (reuniao.alterada ? `Publicar v${reuniao.versao + 1}` : 'Reabrir') : 'Publicar'}
         </button>
-        <button className="btn2" onClick={() => setApresentando(true)}>Apresentar</button>
-        <button className="btn2 pri" onClick={exportarPdf}>Exportar PDF</button>
-      </div>
+        <button className="reu-act" onClick={() => setApresentando(true)}>▣ Apresentar</button>
+        <button className="reu-act primary" onClick={exportarPdf}>⇩ Exportar PDF</button>
+      </Topo>
 
-      <div className="reu-corpo">
-        <aside className="rail">
-          <div className="rail-h"><b>Roteiro</b><span>{reuniao.blocos.length} blocos · {paginas.length} slides</span></div>
-          <div className="list">
+      <div className="reu-work">
+        <aside className="reu-side">
+          <div className="reu-sidehead">
+            <strong>Roteiro</strong>
+            <span>{reuniao.blocos.length} blocos · {paginas.length} slides</span>
+          </div>
+
+          <div className="reu-items">
             {reuniao.blocos.map((b, i) => {
               const n = contarPaginas(b, ctx)
               const tag = TIPOS[b.tipo]?.tag
+              const detalhe = [
+                `${n} slide${n > 1 ? 's' : ''}`,
+                b.smNome || b.enviadoPor || '',
+              ].filter(Boolean).join(' · ')
               return (
-                <div key={b.id} className={`item${i === sel ? ' sel' : ''}`} draggable
+                <div key={b.id} className={`reu-item${i === sel ? ' active' : ''}`} draggable
                      onDragStart={() => setArrastando(i)}
                      onDragOver={(e) => e.preventDefault()}
                      onDrop={() => soltar(i)}
                      onClick={() => setSel(i)}>
-                  <span className="grip">⣿</span>
-                  <span className="txt">
-                    <span className="nm">{b.nome}</span>
-                    <span className="sb">
-                      <span className={`tag ${tag ? 't-' + b.tipo : 't-est'}`}>{tag || 'Estrutura'}</span>
-                      {n} slide{n > 1 ? 's' : ''}
-                      {b.smNome ? ` · ${b.smNome}` : ''}
-                      {b.enviadoPor ? ` · ${b.enviadoPor}` : ''}
+                  <div className="reu-drag" title="Arraste para reordenar">⋮⋮</div>
+                  <div style={{ minWidth: 0 }}>
+                    <div className="reu-itemtitle" title={b.nome}>{b.nome}</div>
+                    <div className="reu-meta">
+                      <span className={`reu-tag ${b.tipo}`}>{tag || 'ESTRUTURA'}</span>
+                      <span>{detalhe}</span>
+                    </div>
+                  </div>
+                  <div className="reu-ctrl">
+                    <span className="reu-arrows">
+                      <button disabled={i === 0} title="Subir"
+                              onClick={(e) => { e.stopPropagation(); mover(i, -1) }}>▲</button>
+                      <button disabled={i === reuniao.blocos.length - 1} title="Descer"
+                              onClick={(e) => { e.stopPropagation(); mover(i, 1) }}>▼</button>
                     </span>
-                  </span>
-                  <span className="mvs">
-                    <button className="mv" disabled={i === 0} onClick={(e) => { e.stopPropagation(); mover(i, -1) }} title="Subir">▲</button>
-                    <button className="mv" disabled={i === reuniao.blocos.length - 1} onClick={(e) => { e.stopPropagation(); mover(i, 1) }} title="Descer">▼</button>
-                  </span>
-                  {ehEditavel(b.tipo) && (
-                    <button className="x" title="Renomear"
-                            onClick={(e) => { e.stopPropagation(); setModal({ tipo: 'renomear', indice: i, valor: b.tipo === 'capa' ? b.titulo : b.nome }) }}>✎</button>
-                  )}
-                  <button className="x" title="Remover" onClick={(e) => { e.stopPropagation(); remover(i) }}>×</button>
+                    {ehEditavel(b.tipo) && (
+                      <button title="Renomear" onClick={(e) => {
+                        e.stopPropagation()
+                        setModal({ tipo: 'renomear', indice: i, valor: b.tipo === 'capa' ? b.titulo : b.nome })
+                      }}>✎</button>
+                    )}
+                    <button className="del" title="Remover"
+                            onClick={(e) => { e.stopPropagation(); remover(i) }}>×</button>
+                  </div>
                 </div>
               )
             })}
           </div>
-          <div className="add">
-            <button onClick={abrirProjetos}>+ Projetos</button>
-            <button onClick={() => abrirInsumo('ras')}>+ RAS</button>
-            <button onClick={() => abrirInsumo('incidentes')}>+ Incidentes</button>
-            <button onClick={() => setModal({ tipo: 'divisoria', valor: '' })}>+ Divisória</button>
-            <button onClick={() => setModal({ tipo: 'tabela', valor: '' })}>+ Tabela</button>
-            <button onClick={abrirImportar}>+ Importar conteúdo</button>
+
+          <div className="reu-tools">
+            <button className="reu-tool" onClick={abrirProjetos}>+ Projetos</button>
+            <button className="reu-tool" onClick={() => abrirInsumo('ras')}>+ RAS</button>
+            <button className="reu-tool" onClick={() => abrirInsumo('incidentes')}>+ Incidentes</button>
+            <button className="reu-tool" onClick={() => setModal({ tipo: 'divisoria', valor: '' })}>+ Divisória</button>
+            <button className="reu-tool" onClick={() => setModal({ tipo: 'tabela', valor: '' })}>+ Tabela</button>
+            <button className="reu-tool" onClick={abrirImportar}>+ Importar conteúdo</button>
           </div>
         </aside>
 
-        <main className="stage">
-          {paginasDoSel.length === 0 && <div className="empty">Roteiro vazio. Use os botões à esquerda.</div>}
-          {paginasDoSel.map((p, i) => (
-            <React.Fragment key={p.chave}>
-              <div className="pagelab">
-                {blocoSel.nome}{paginasDoSel.length > 1 ? ` — página ${i + 1} de ${paginasDoSel.length}` : ''}
-              </div>
-              <Slide pagina={p} carimbo={carimbo} urlImportado={urlDe}
-                     editavel={blocoSel.tipo === 'tabela'} onMudarTabela={mudarTabela} />
-            </React.Fragment>
-          ))}
-          {blocoSel?.tipo === 'tabela' && (
-            <div className="tblbar">
-              <button onClick={() => opTabela('+linha')}>+ Linha</button>
-              <button onClick={() => opTabela('-linha')}>− Linha</button>
-              <span className="sepb" />
-              <button onClick={() => opTabela('+coluna')}>+ Coluna</button>
-              <button onClick={() => opTabela('-coluna')}>− Coluna</button>
-              <span style={{ fontSize: 12, color: '#64748b', alignSelf: 'center' }}>Clique em qualquer célula para escrever</span>
-            </div>
+        <main className="reu-content">
+          <div className="reu-contenthead">
+            <h2>{reuniao.titulo}</h2>
+            <span className="reu-sub">{reuniao.dataReuniao}</span>
+          </div>
+
+          {paginasDoSel.length === 0 && (
+            <div className="reu-empty">Roteiro vazio. Use os botões à esquerda para adicionar blocos.</div>
           )}
+
+          <div className="reu-previewwrap" ref={areaPreview} style={{ '--k': escalaPreview }}>
+            {paginasDoSel.map((p, i) => (
+              <React.Fragment key={p.chave}>
+                <div className="reu-seclabel">
+                  {blocoSel.nome}{paginasDoSel.length > 1 ? ` — página ${i + 1} de ${paginasDoSel.length}` : ''}
+                </div>
+                <div className="reu-slidebox">
+                  <Slide pagina={p} carimbo={carimbo} urlImportado={urlDe}
+                         editavel={blocoSel.tipo === 'tabela'} onMudarTabela={mudarTabela} />
+                </div>
+              </React.Fragment>
+            ))}
+
+            {blocoSel?.tipo === 'tabela' && (
+              <div className="reu-tblbar">
+                <button onClick={() => opTabela('+linha')}>+ Linha</button>
+                <button onClick={() => opTabela('-linha')}>− Linha</button>
+                <button onClick={() => opTabela('+coluna')}>+ Coluna</button>
+                <button onClick={() => opTabela('-coluna')}>− Coluna</button>
+                <em>Clique em qualquer célula para escrever</em>
+              </div>
+            )}
+          </div>
         </main>
       </div>
 
@@ -504,6 +589,24 @@ export default function ReuniaoScreen({ onVoltar }) {
   )
 }
 
+/* ═══════════════════════ BARRA SUPERIOR ═══════════════════════ */
+/* A marca e o botão Início são iguais nas duas telas — abertura e montagem.
+   Um componente só evita que elas se desencontrem com o tempo. */
+function Topo({ onVoltar, children }) {
+  return (
+    <header className="reu-topbar">
+      <div className="reu-brandarea">
+        <button className="reu-home" onClick={onVoltar}>←&nbsp; Início</button>
+        <div className="reu-brand">
+          <span className="reu-folder" />
+          <span>Portfólio <span className="orange">Governança TI</span></span>
+        </div>
+      </div>
+      <nav className="reu-actions">{children}</nav>
+    </header>
+  )
+}
+
 /* ═══════════════════════ MODAIS ═══════════════════════ */
 
 function Modal({ modal: m, setModal, insumos, onRenomear, onDivisoria, onTabela, onReuniao,
@@ -514,9 +617,9 @@ function Modal({ modal: m, setModal, insumos, onRenomear, onDivisoria, onTabela,
   const fechar = () => setModal(null)
 
   const rodape = (acao, rotulo, ativo = true, perigo = false) => (
-    <div className="mf">
-      <button className="btn2" onClick={fechar}>Cancelar</button>
-      <button className={`btn2 ${perigo ? 'dang' : 'pri'}`} disabled={!ativo} onClick={acao}>{rotulo}</button>
+    <div className="reu-mf">
+      <button className="reu-btn" onClick={fechar}>Cancelar</button>
+      <button className={`reu-btn ${perigo ? 'dang' : 'pri'}`} disabled={!ativo} onClick={acao}>{rotulo}</button>
     </div>
   )
 
@@ -524,16 +627,16 @@ function Modal({ modal: m, setModal, insumos, onRenomear, onDivisoria, onTabela,
 
   if (m.tipo === 'confirmar') conteudo = (
     <>
-      <div className="mh"><b>{m.titulo}</b></div>
-      <div className="mb">{m.corpo}</div>
+      <div className="reu-mh"><b>{m.titulo}</b></div>
+      <div className="reu-mb">{m.corpo}</div>
       {rodape(() => { fechar(); m.onOk?.() }, m.ok || 'Confirmar', true, m.perigo)}
     </>
   )
 
   if (m.tipo === 'renomear') conteudo = (
     <>
-      <div className="mh"><b>Renomear</b></div>
-      <div className="mb"><input className="inp" autoFocus value={v} onChange={e => setV(e.target.value)}
+      <div className="reu-mh"><b>Renomear</b></div>
+      <div className="reu-mb"><input className="reu-inp" autoFocus value={v} onChange={e => setV(e.target.value)}
              onKeyDown={e => { if (e.key === 'Enter' && v.trim()) { onRenomear(m.indice, v.trim()); fechar() } }} /></div>
       {rodape(() => { onRenomear(m.indice, v.trim()); fechar() }, 'Salvar', !!v.trim())}
     </>
@@ -541,12 +644,12 @@ function Modal({ modal: m, setModal, insumos, onRenomear, onDivisoria, onTabela,
 
   if (m.tipo === 'divisoria') conteudo = (
     <>
-      <div className="mh"><b>Nova divisória</b></div>
-      <div className="mb">
-        <div className="sub">Slide azul de abertura de seção.</div>
-        <input className="inp" autoFocus value={v} onChange={e => setV(e.target.value)}
+      <div className="reu-mh"><b>Nova divisória</b></div>
+      <div className="reu-mb">
+        <div className="reu-sub">Slide azul de abertura de seção.</div>
+        <input className="reu-inp" autoFocus value={v} onChange={e => setV(e.target.value)}
                placeholder="Ex.: Report Executivo dos Projetos" />
-        <div className="sug">
+        <div className="reu-sug">
           {['Visão Macro dos Projetos', 'Report Executivo de Incidentes', 'Report Executivo dos Projetos']
             .map(s => <button key={s} onClick={() => setV(s)}>{s}</button>)}
         </div>
@@ -557,12 +660,12 @@ function Modal({ modal: m, setModal, insumos, onRenomear, onDivisoria, onTabela,
 
   if (m.tipo === 'tabela') conteudo = (
     <>
-      <div className="mh"><b>Nova tabela</b></div>
-      <div className="mb">
-        <div className="sub">Serve para Pontos de Atenção, Encaminhamentos, riscos, decisões.</div>
-        <input className="inp" autoFocus value={v} onChange={e => setV(e.target.value)} placeholder="Ex.: Pontos de Atenção" />
-        <div className="sub" style={{ marginTop: 11 }}>Modelos:</div>
-        <div className="sug">
+      <div className="reu-mh"><b>Nova tabela</b></div>
+      <div className="reu-mb">
+        <div className="reu-sub">Serve para Pontos de Atenção, Encaminhamentos, riscos, decisões.</div>
+        <input className="reu-inp" autoFocus value={v} onChange={e => setV(e.target.value)} placeholder="Ex.: Pontos de Atenção" />
+        <div className="reu-sub" style={{ marginTop: 11 }}>Modelos:</div>
+        <div className="reu-sug">
           {MODELOS_TABELA.map(mod => (
             <button key={mod.nome} onClick={() => { onTabela(mod.nome, mod.colunas); fechar() }}>{mod.nome}</button>
           ))}
@@ -574,13 +677,13 @@ function Modal({ modal: m, setModal, insumos, onRenomear, onDivisoria, onTabela,
 
   if (m.tipo === 'reuniao') conteudo = (
     <>
-      <div className="mh"><b>Dados da reunião</b></div>
-      <div className="mb">
-        <div className="fl">Título</div>
-        <input className="inp" autoFocus value={t2} onChange={e => setT2(e.target.value)} />
-        <div className="fl" style={{ marginTop: 12 }}>Data</div>
-        <input className="inp" value={d2} onChange={e => setD2(e.target.value)} placeholder="dd/mm/aaaa" />
-        <div className="sub" style={{ marginTop: 10 }}>A data vai no carimbo do rodapé de todos os slides.</div>
+      <div className="reu-mh"><b>Dados da reunião</b></div>
+      <div className="reu-mb">
+        <div className="reu-fl">Título</div>
+        <input className="reu-inp" autoFocus value={t2} onChange={e => setT2(e.target.value)} />
+        <div className="reu-fl" style={{ marginTop: 12 }}>Data</div>
+        <input className="reu-inp" value={d2} onChange={e => setD2(e.target.value)} placeholder="dd/mm/aaaa" />
+        <div className="reu-sub" style={{ marginTop: 10 }}>A data vai no carimbo do rodapé de todos os slides.</div>
       </div>
       {rodape(() => { onReuniao(t2.trim(), d2.trim()); fechar() }, 'Salvar', !!t2.trim())}
     </>
@@ -590,13 +693,13 @@ function Modal({ modal: m, setModal, insumos, onRenomear, onDivisoria, onTabela,
     const grupo = m.porSM?.find(g => g.userId === m.smAtivo)
     conteudo = (
       <>
-        <div className="mh"><b>Adicionar projetos ao roteiro</b></div>
-        <div className="mb">
-          {m.carregando ? <div className="sub">Carregando projetos…</div> : (
+        <div className="reu-mh"><b>Adicionar projetos ao roteiro</b></div>
+        <div className="reu-mb">
+          {m.carregando ? <div className="reu-sub">Carregando projetos…</div> : (
             <>
-              {m.semNomes && <div className="warnbox">Não consegui ler o nome dos SMs — os projetos aparecem sem dono.</div>}
-              <div className="pick">
-                <div className="sms">
+              {m.semNomes && <div className="reu-warn">Não consegui ler o nome dos SMs — os projetos aparecem sem dono.</div>}
+              <div className="reu-pick">
+                <div className="reu-sms">
                   {m.porSM.map(g => (
                     <button key={g.userId || 'x'} className={g.userId === m.smAtivo ? 'cur' : ''}
                             onClick={() => setModal(x => ({ ...x, smAtivo: g.userId }))}>
@@ -606,7 +709,7 @@ function Modal({ modal: m, setModal, insumos, onRenomear, onDivisoria, onTabela,
                 </div>
                 <div>
                   {(grupo?.projetos || []).map(p => (
-                    <label key={p.projectId} className={`pr${m.marcados.includes(p.projectId) ? ' ck' : ''}`}>
+                    <label key={p.projectId} className={`reu-pr${m.marcados.includes(p.projectId) ? ' ck' : ''}`}>
                       <input type="checkbox" checked={m.marcados.includes(p.projectId)}
                              onChange={e => setModal(x => ({ ...x,
                                marcados: e.target.checked ? [...x.marcados, p.projectId] : x.marcados.filter(k => k !== p.projectId) }))} />
@@ -620,10 +723,10 @@ function Modal({ modal: m, setModal, insumos, onRenomear, onDivisoria, onTabela,
             </>
           )}
         </div>
-        <div className="mf">
+        <div className="reu-mf">
           <span style={{ flex: 1, fontSize: 12, color: '#64748b' }}>{m.marcados.length} selecionado(s)</span>
-          <button className="btn2" onClick={fechar}>Cancelar</button>
-          <button className="btn2 pri" disabled={!m.marcados.length} onClick={onProjetos}>Adicionar</button>
+          <button className="reu-btn" onClick={fechar}>Cancelar</button>
+          <button className="reu-btn pri" disabled={!m.marcados.length} onClick={onProjetos}>Adicionar</button>
         </div>
       </>
     )
@@ -634,88 +737,88 @@ function Modal({ modal: m, setModal, insumos, onRenomear, onDivisoria, onTabela,
     const i = insumos?.[m.qual]
     conteudo = i ? (
       <>
-        <div className="mh"><b>Bloco {nome}</b></div>
-        <div className="mb">
-          <div className={`bandeja${estaVelho(i.enviadoEm) ? ' old' : ''}`}>
-            <div className="bh">
-              <span className="bt">Na bandeja</span>
-              {estaVelho(i.enviadoEm) && <span className="bvelho">enviado {idadeTexto(i.enviadoEm)}</span>}
+        <div className="reu-mh"><b>Bloco {nome}</b></div>
+        <div className="reu-mb">
+          <div className={`reu-bandeja${estaVelho(i.enviadoEm) ? ' old' : ''}`}>
+            <div className="reu-bh">
+              <span className="reu-bt">Na bandeja</span>
+              {estaVelho(i.enviadoEm) && <span className="reu-bvelho">enviado {idadeTexto(i.enviadoEm)}</span>}
             </div>
-            <div className="bn">{i.arquivo}</div>
-            <div className="bm">Enviado por <b>{i.enviadoPorNome}</b> · gera <b>{i.slides} slides</b></div>
-            <div className="kk">
+            <div className="reu-bn">{i.arquivo}</div>
+            <div className="reu-bm">Enviado por <b>{i.enviadoPorNome}</b> · gera <b>{i.slides} slides</b></div>
+            <div className="reu-kk">
               {(i.resumo?.kpis || []).map(([rot, val]) => <div key={rot}><b>{val}</b>{rot}</div>)}
             </div>
             {estaVelho(i.enviadoEm) && (
-              <div className="bdica">A análise não se atualiza sozinha. Se a base mudou, reenvie pelo sistema {nome} antes de inserir.</div>
+              <div className="reu-bdica">A análise não se atualiza sozinha. Se a base mudou, reenvie pelo sistema {nome} antes de inserir.</div>
             )}
           </div>
         </div>
-        <div className="mf">
-          <button className="btn2" onClick={fechar}>Cancelar</button>
-          <button className="btn2 pri" onClick={() => onInsumo(m.qual)}>Inserir {i.slides} slides</button>
+        <div className="reu-mf">
+          <button className="reu-btn" onClick={fechar}>Cancelar</button>
+          <button className="reu-btn pri" onClick={() => onInsumo(m.qual)}>Inserir {i.slides} slides</button>
         </div>
       </>
     ) : (
       <>
-        <div className="mh"><b>Bloco {nome}</b></div>
-        <div className="mb">
-          <div className="vaziob">
+        <div className="reu-mh"><b>Bloco {nome}</b></div>
+        <div className="reu-mb">
+          <div className="reu-vazio">
             <b>Nada na bandeja</b><br />
             Ninguém enviou a análise do {nome} ainda. A Reunião não importa planilha — ela usa a análise
             gerada pelo sistema <b>Atualizar {nome}</b>, para que o PPTX e o PDF nunca mostrem números diferentes.
           </div>
-          <div className="passos">
+          <div className="reu-passos">
             <div><span>1</span>Abra o sistema <b>Atualizar {nome}</b></div>
             <div><span>2</span>Importe {m.qual === 'ras' ? 'as duas planilhas' : 'a base do Azure'}</div>
             <div><span>3</span>Clique em <b>Enviar para a Reunião</b></div>
             <div><span>4</span>Volte aqui e use <b>+ {nome}</b></div>
           </div>
         </div>
-        <div className="mf"><button className="btn2" onClick={fechar}>Fechar</button></div>
+        <div className="reu-mf"><button className="reu-btn" onClick={fechar}>Fechar</button></div>
       </>
     )
   }
 
   if (m.tipo === 'importar') conteudo = (
     <>
-      <div className="mh"><b>Importar conteúdo</b></div>
-      <div className="mb">
-        <label className="drop">
+      <div className="reu-mh"><b>Importar conteúdo</b></div>
+      <div className="reu-mb">
+        <label className="reu-drop">
           <b>Cole, arraste ou escolha</b>
           <span>Recorte da tela com <b>Ctrl+V</b> · ou PNG/JPG/PDF</span>
           <input type="file" accept="image/*,application/pdf" multiple style={{ display: 'none' }}
                  onChange={e => { onArquivos([...e.target.files]); e.target.value = '' }} />
         </label>
-        {m.ocupado && <div className="sub" style={{ marginTop: 10 }}>Processando…</div>}
+        {m.ocupado && <div className="reu-sub" style={{ marginTop: 10 }}>Processando…</div>}
         {(m.itens || []).map((it, i) => {
           const q = QUALIDADE[it.qualidade]
           return (
-            <div className="ipc" key={i}>
+            <div className="reu-ipc" key={i}>
               <img src={it.previa} alt="" />
-              <div className="ipi">
+              <div className="reu-ipi">
                 <b>{it.nome}</b>
-                <div className="ipm">{it.largura}×{it.altura}px · {it.origem}</div>
-                <div className="ipm">{[it.cortou && 'bordas recortadas', it.ampliou && 'ampliada e reforçada'].filter(Boolean).join(' · ') || 'sem ajuste necessário'}</div>
-                <span className={`qb ${q.classe}`}>Qualidade {q.rotulo}</span>
-                {it.qualidade === 'baixa' && <div className="qdica">{DICA_BAIXA}</div>}
+                <div className="reu-ipm">{it.largura}×{it.altura}px · {it.origem}</div>
+                <div className="reu-ipm">{[it.cortou && 'bordas recortadas', it.ampliou && 'ampliada e reforçada'].filter(Boolean).join(' · ') || 'sem ajuste necessário'}</div>
+                <span className={`reu-qb ${q.classe}`}>Qualidade {q.rotulo}</span>
+                {it.qualidade === 'baixa' && <div className="reu-qdica">{DICA_BAIXA}</div>}
               </div>
-              <button className="x" onClick={() => setModal(x => ({ ...x, itens: x.itens.filter((_, k) => k !== i) }))}>×</button>
+              <button className="reu-btn" onClick={() => setModal(x => ({ ...x, itens: x.itens.filter((_, k) => k !== i) }))}>×</button>
             </div>
           )
         })}
       </div>
-      <div className="mf">
+      <div className="reu-mf">
         <span style={{ flex: 1, fontSize: 12, color: '#64748b' }}>{(m.itens || []).length} slide(s)</span>
-        <button className="btn2" onClick={() => { descartar(m.itens); fechar() }}>Cancelar</button>
-        <button className="btn2 pri" disabled={!(m.itens || []).length || m.ocupado} onClick={onImportar}>Adicionar ao roteiro</button>
+        <button className="reu-btn" onClick={() => { descartar(m.itens); fechar() }}>Cancelar</button>
+        <button className="reu-btn pri" disabled={!(m.itens || []).length || m.ocupado} onClick={onImportar}>Adicionar ao roteiro</button>
       </div>
     </>
   )
 
   return (
-    <div className="mask" onClick={e => { if (e.target.classList.contains('mask')) fechar() }}>
-      <div className={`modal${m.tipo === 'projetos' || m.tipo === 'importar' ? '' : ' sm'}`}>{conteudo}</div>
+    <div className="reu-mask" onClick={e => { if (e.target.classList.contains('reu-mask')) fechar() }}>
+      <div className={`reu-modal${m.tipo === 'projetos' || m.tipo === 'importar' ? '' : ' sm'}`}>{conteudo}</div>
     </div>
   )
 }
