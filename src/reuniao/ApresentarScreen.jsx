@@ -14,12 +14,19 @@
  * slides.css define a página com exatamente 960×540px (10″ × 5,625″), então
  * uma página do PDF é um slide — sem faixa branca e sem corte.
  *
- * Os slides da impressão são renderizados num container à parte (#reuniao-print),
- * e o CSS de impressão esconde todo o resto. Reaproveitar os slides da tela não
- * funcionaria: eles estão dentro de um contêiner com transform: scale().
+ * Os slides da impressão vão num container à parte (#reuniao-print), e o CSS de
+ * impressão esconde todo o resto. Reaproveitar os slides da tela não funcionaria:
+ * eles estão dentro de um contêiner com transform: scale().
+ *
+ * ⚠️ O CONTAINER PRECISA SER FILHO DIRETO DO <body> — POR ISSO O PORTAL.
+ * A regra é `body > *:not(#reuniao-print){display:none}`. Renderizado no lugar
+ * normal, o container nasce dentro do #root; o #root é escondido pela regra e
+ * leva o container junto. Resultado: PDF com todas as páginas em branco. Foi
+ * exatamente o que aconteceu. O portal tira ele do #root e resolve.
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import Slide from './blocos/Slide'
 
 const LARGURA = 960
@@ -100,27 +107,29 @@ export default function ApresentarScreen({ paginas, carimbo, urlImportado, onSai
       </div>
 
       <div className="pnav">
-        <button onClick={() => setMenu(m => !m)} title="Ir para (M)">☰</button>
-        <button onClick={() => ir(idx - 1)} title="Anterior (←)">‹</button>
-        <span>{idx + 1} / {total}</span>
-        <button onClick={() => ir(idx + 1)} title="Próximo (→)">›</button>
+        <button onClick={() => setMenu(m => !m)} title="Lista de slides (M)">☰</button>
+        <span className="sep" />
+        <button onClick={() => ir(idx - 1)} disabled={idx === 0} title="Anterior (←)">‹</button>
+        <span className="pos">{idx + 1} / {total}</span>
+        <button onClick={() => ir(idx + 1)} disabled={idx === total - 1} title="Próximo (→)">›</button>
         <span className="sep" />
         <button onClick={() => setZoom(Math.max(0.3, k - 0.15))} title="Diminuir (−)">−</button>
         <span className="zl">{Math.round(k * 100)}%</span>
         <button onClick={() => setZoom(k + 0.15)} title="Aumentar (+)">+</button>
-        <button onClick={() => setZoom(null)} title="Ajustar à tela (0)" style={{ fontSize: 12 }}>Ajustar</button>
+        <button onClick={() => setZoom(null)} title="Ajustar à tela (0)">Ajustar</button>
         <span className="sep" />
-        <button onClick={exportar} title="Exportar PDF" style={{ fontSize: 12 }}>PDF</button>
-        <button onClick={onSair} title="Sair (Esc)">✕</button>
+        <button className="pdf" onClick={exportar} title="Exportar PDF">⇩ PDF</button>
+        <button className="sai" onClick={onSair} title="Sair (Esc)">✕</button>
       </div>
 
-      {/* Só existe no DOM durante a impressão: são N slides em tamanho real. */}
-      {imprimindo && (
+      {/* Só existe no DOM durante a impressão, e por portal — ver nota no topo. */}
+      {imprimindo && createPortal(
         <div id="reuniao-print">
           {paginas.map(p => (
             <Slide key={p.chave} pagina={p} carimbo={carimbo} urlImportado={urlImportado} />
           ))}
-        </div>
+        </div>,
+        document.body
       )}
     </>
   )
@@ -132,11 +141,12 @@ export default function ApresentarScreen({ paginas, carimbo, urlImportado, onSai
  */
 export function PrintOnly({ paginas, carimbo, urlImportado, aberto }) {
   if (!aberto) return null
-  return (
+  return createPortal(
     <div id="reuniao-print">
       {paginas.map(p => (
         <Slide key={p.chave} pagina={p} carimbo={carimbo} urlImportado={urlImportado} />
       ))}
-    </div>
+    </div>,
+    document.body
   )
 }
